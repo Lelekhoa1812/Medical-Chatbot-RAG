@@ -50,23 +50,14 @@ medical_embeddings = embedding_model.encode(
     convert_to_numpy=True
 ) # Embedding with float64
 medical_embeddings = np.array(medical_embeddings, dtype=np.float32) # Re-embedding with float32
-# Create FAISS index
-# index = faiss.IndexFlatL2(medical_embeddings.shape[1])
-index = faiss.IndexHNSWFlat(medical_embeddings.shape[1], 32)  # 32 = HNSW graph connections
-index.add(medical_embeddings)
-# Save FAISS index
-faiss.write_index(index, "data/medical_faiss_index")
-print("✅ FAISS index saved successfully!")
-
-# ==========================
-# Step 4: Retrieval-Augmented Generation (RAG) Implementation
-# ==========================
-print("✅ Initializing RAG-based medical chatbot...")
-# Assert FAISS index path existence, this prevents corrupt FAISS indices from causing a crash.
 faiss_index_path = "data/medical_faiss_index"
-# Save FAISS index only if it doesn’t exist
+# Save FAISS index only if it doesn’t exist, this prevents corrupt FAISS indices from causing a crash.
 if not os.path.exists(faiss_index_path):
     print("✅ Creating FAISS index...")
+    # Create FAISS index
+    # index = faiss.IndexFlatL2(medical_embeddings.shape[1])
+    index = faiss.IndexHNSWFlat(medical_embeddings.shape[1], 32)  # 32 = HNSW graph connections
+    index.add(medical_embeddings)
     faiss.write_index(index, faiss_index_path)
     # Manually free up memory
     del medical_embeddings
@@ -74,6 +65,12 @@ if not os.path.exists(faiss_index_path):
     print("✅ Memory cleared after FAISS indexing.")
 else:
     print("✅ Loading existing FAISS index...")
+print("✅ FAISS index saved successfully!")
+
+# ==========================
+# Step 4: Retrieval-Augmented Generation (RAG) Implementation
+# ==========================
+print("✅ Initializing RAG-based medical chatbot...")
 # Load FAISS index for retrieval
 index = faiss.read_index(faiss_index_path)
 # Retrieve medical KB using FAISS
