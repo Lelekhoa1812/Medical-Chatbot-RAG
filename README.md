@@ -13,3 +13,13 @@ Visit [Setup](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/m
 
 ## Autogen:
 Find more practical usage ideas with [Autogen](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md).  
+
+## Run:
+```bash
+python3 main.py
+```
+
+## Debug:
+```bash
+python3 -X faulthandler main.py
+```

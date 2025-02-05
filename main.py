@@ -10,6 +10,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import autogen_agentchat  # Use autogen_agentchat instead of autogen
 import autogen_ext  # Use autogen_ext for OpenAI API support
+import gc # Garbage collection
 
 # ==========================
 # Step 1: Load OpenAI API Key
@@ -26,7 +27,9 @@ if not openai_api_key:
 print("✅ Loading medical dataset...")
 dataset = load_dataset("ruslanmv/ai-medical-chatbot")
 # Extract patient-doctor conversations
-medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]]
+# medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]]
+medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]].head(10000)  # Use first 10,000 rows to reduce RAM usage
+# Extract patient-doctor conversations
 print(f"✅ Loaded {len(medical_dialogues)} medical Q&A pairs.")
 
 # ==========================
@@ -34,7 +37,8 @@ print(f"✅ Loaded {len(medical_dialogues)} medical Q&A pairs.")
 # ==========================
 print("✅ Generating FAISS vector embeddings...")
 # Load sentence transformer model
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+# embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+embedding_model = SentenceTransformer("sentence-transformers/paraphrase-MiniLM-L3-v2", device="cpu") # Smaller model for less usage of RAM
 # Convert text into embeddings
 medical_qa = [
     {"question": row["Patient"], "answer": row["Doctor"]}
@@ -44,9 +48,11 @@ medical_qa = [
 medical_embeddings = embedding_model.encode(
     [qa["question"] + " " + qa["answer"] for qa in medical_qa], 
     convert_to_numpy=True
-)
+) # Embedding with float64
+medical_embeddings = np.array(medical_embeddings, dtype=np.float32) # Re-embedding with float32
 # Create FAISS index
-index = faiss.IndexFlatL2(medical_embeddings.shape[1])
+# index = faiss.IndexFlatL2(medical_embeddings.shape[1])
+index = faiss.IndexHNSWFlat(medical_embeddings.shape[1], 32)  # 32 = HNSW graph connections
 index.add(medical_embeddings)
 # Save FAISS index
 faiss.write_index(index, "data/medical_faiss_index")
@@ -56,8 +62,20 @@ print("✅ FAISS index saved successfully!")
 # Step 4: Retrieval-Augmented Generation (RAG) Implementation
 # ==========================
 print("✅ Initializing RAG-based medical chatbot...")
+# Assert FAISS index path existence, this prevents corrupt FAISS indices from causing a crash.
+faiss_index_path = "data/medical_faiss_index"
+# Save FAISS index only if it doesn’t exist
+if not os.path.exists(faiss_index_path):
+    print("✅ Creating FAISS index...")
+    faiss.write_index(index, faiss_index_path)
+    # Manually free up memory
+    del medical_embeddings
+    gc.collect()
+    print("✅ Memory cleared after FAISS indexing.")
+else:
+    print("✅ Loading existing FAISS index...")
 # Load FAISS index for retrieval
-index = faiss.read_index("data/medical_faiss_index")
+index = faiss.read_index(faiss_index_path)
 # Retrieve medical KB using FAISS
 def retrieve_medical_info(query):
     """Retrieve relevant medical knowledge using FAISS"""
@@ -68,7 +86,8 @@ def retrieve_medical_info(query):
 # ==========================
 # Step 5: AutoGen AI Chatbot Implementation
 # ==========================
-class MedicalChatbot(autogen_agentchat.AssistantAgent):  # Use autogen_agentchat
+# class MedicalChatbot(autogen_agentchat.AssistantAgent): # assistant-type agents
+class MedicalChatbot(autogen_agentchat.ChatAgent):        # chat-type agents
     def generate_reply(self, messages):
         """Handles medical queries using RAG + OpenAI API"""
         query = messages[-1]["content"]  # Get latest user query
