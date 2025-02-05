@@ -6,16 +6,17 @@ This guide will help you deploy a **Medical Chatbot** using **AutoGen**, **RAG (
 
 ## **Installation**
 ### **Step 1: Set Up Conda Environment**
-Create a new Conda environment with Python 3.11:
-
+Create a new Conda environment with Python 3.11:   
 ```bash
 conda create -n ag python=3.11 -y
 conda activate ag
 ```
+**Notice:** Ensure your machine has required Anaconda or Miniconda version installed.  
+
+---
 
 ### **Step 2: Install Dependencies**
-Ensure your environment has the necessary libraries:
-
+Ensure your environment has the necessary libraries:   
 ```bash
 pip install -U "autogen-agentchat" "autogen-ext[openai]" "autogenstudio" \
                 "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv"
@@ -31,8 +32,7 @@ pip install -U "autogen-agentchat" "autogen-ext[openai]" "autogenstudio" \
 
 ## **Configuration**
 ### **Step 3: Set Up OpenAI API Key**
-To integrate RAG and answer intelligently, you'll need an **OpenAI API key**:
-
+To integrate RAG and answer intelligently, you'll need an **OpenAI API key**:  
 ```bash
 export OPENAI_API_KEY="your_openai_api_key"
 ```
@@ -96,7 +96,8 @@ print("FAISS index saved successfully!")
 ### **Step 6: Create the Chatbot with RAG**
 
 ```python
-import autogen
+import autogen_agentchat
+import autogen_ext 
 import faiss
 
 # Load FAISS index
@@ -108,7 +109,7 @@ def retrieve_medical_info(query):
     _, idxs = index.search(query_embedding, k=3)  # Get top 3 matches
     return [medical_qa[i]["answer"] for i in idxs[0]]
 
-class MedicalChatbot(autogen.AssistantAgent):
+class MedicalChatbot(autogen_agentchat.AssistantAgent):  # Use autogen_agentchat
     def generate_reply(self, messages):
         query = messages[-1]["content"]  # Get latest user query
         retrieved_info = retrieve_medical_info(query)

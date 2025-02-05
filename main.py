@@ -8,30 +8,31 @@ from datasets import load_dataset
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import autogen
+import autogen_agentchat  # Use autogen_agentchat instead of autogen
+import autogen_ext  # Use autogen_ext for OpenAI API support
 
 # ==========================
 # Step 1: Load OpenAI API Key
 # ==========================
 load_dotenv()  # Load environment variables from .env file
 openai_api_key = os.getenv("OPENAI_API_KEY")
+# Check for OpenAI API key exist
 if not openai_api_key:
-    raise ValueError("OpenAI API key is missing! Add it to .env file or environment variables.")
+    raise ValueError("❌ OpenAI API key is missing! Add it to .env file or environment variables.")
 
 # ==========================
 # Step 2: Load the Medical Dataset from Hugging Face
 # ==========================
-print("Loading medical dataset...")
+print("✅ Loading medical dataset...")
 dataset = load_dataset("ruslanmv/ai-medical-chatbot")
 # Extract patient-doctor conversations
 medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]]
-# Show dataset preview
-print(f"Loaded {len(medical_dialogues)} medical Q&A pairs.")
+print(f"✅ Loaded {len(medical_dialogues)} medical Q&A pairs.")
 
 # ==========================
 # Step 3: Convert Dataset into FAISS Embeddings
 # ==========================
-print("Generating FAISS vector embeddings...")
+print("✅ Generating FAISS vector embeddings...")
 # Load sentence transformer model
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 # Convert text into embeddings
@@ -47,18 +48,17 @@ medical_embeddings = embedding_model.encode(
 # Create FAISS index
 index = faiss.IndexFlatL2(medical_embeddings.shape[1])
 index.add(medical_embeddings)
-
 # Save FAISS index
 faiss.write_index(index, "data/medical_faiss_index")
-print("FAISS index saved successfully!")
+print("✅ FAISS index saved successfully!")
 
 # ==========================
 # Step 4: Retrieval-Augmented Generation (RAG) Implementation
 # ==========================
-print("Initializing RAG-based medical chatbot...")
+print("✅ Initializing RAG-based medical chatbot...")
 # Load FAISS index for retrieval
 index = faiss.read_index("data/medical_faiss_index")
-# Run retrieval on medical kb provided using FAISS
+# Retrieve medical KB using FAISS
 def retrieve_medical_info(query):
     """Retrieve relevant medical knowledge using FAISS"""
     query_embedding = embedding_model.encode([query], convert_to_numpy=True)
@@ -68,7 +68,7 @@ def retrieve_medical_info(query):
 # ==========================
 # Step 5: AutoGen AI Chatbot Implementation
 # ==========================
-class MedicalChatbot(autogen.AssistantAgent):
+class MedicalChatbot(autogen_agentchat.AssistantAgent):  # Use autogen_agentchat
     def generate_reply(self, messages):
         """Handles medical queries using RAG + OpenAI API"""
         query = messages[-1]["content"]  # Get latest user query
@@ -88,19 +88,19 @@ chatbot = MedicalChatbot(
         "api_key": openai_api_key
     }
 )
-print("Medical chatbot is ready!")
+print("✅ Medical chatbot is ready!")
 
 # ==========================
 # Step 6: Interactive Chat Testing (For Local Debugging)
 # ==========================
 if __name__ == "__main__":
-    print("\nMedical Chatbot is running...\n")
+    print("\n🩺 Medical Chatbot is running...\n")
     # Start session
     while True:
         user_input = input("You: ")
         if user_input.lower() in ["exit", "quit"]:
-            print("Chatbot session ended.")
+            print("👋 Chatbot session ended.")
             break
-        # Prepare JSON reply body
+        # Prepare JSON reply response body
         response = chatbot.generate_reply([{"role": "user", "content": user_input}])
         print("Chatbot:", response)

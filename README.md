@@ -9,7 +9,7 @@ git clone https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot.git
 ```
 
 ## Installation:
-Visit [Setup]() guidelines for instruction to install the project.  
+Visit [Setup](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md) guidelines for instruction to install the project.  
 
 ## Autogen:
-Find more practical usage ideas with [Autogen]().  
+Find more practical usage ideas with [Autogen](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md).  
