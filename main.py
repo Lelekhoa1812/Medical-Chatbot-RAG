@@ -8,7 +8,7 @@ This script loads:
 from the AutoGenRAGMedicalChatbot folder.
 If the FAISS index is not found in MongoDB, the script will build a placeholder index,
 serialize it, and store it in MongoDB.
-The chatbot prompt instructs Gemini Flash to format its answer using markdown.
+The chatbot instructs Gemini Flash to format its answer using markdown.
 """
 
 import os
@@ -65,14 +65,12 @@ doc = index_collection.find_one({"_id": "faiss_index"})
 if doc is None:
     print("⚠️ FAISS index not found in MongoDB. Building a placeholder index...")
     # For demonstration, we'll build an index from placeholder embeddings.
-    # In a real scenario, you would load your dataset and compute embeddings.
     dim = embedding_model.get_sentence_embedding_dimension()
-    # Create a small random array (e.g., 10 vectors) as a placeholder.
     placeholder_embeddings = np.random.rand(10, dim).astype(np.float32)
     index = faiss.IndexHNSWFlat(dim, 32)
     index.add(placeholder_embeddings)
-    # Serialize the index to bytes and convert to a proper bytes object
     index_bytes = faiss.serialize_index(index)
+    # Convert to a proper bytes object from the numpy array
     index_bytes = np.frombuffer(index_bytes, dtype='uint8')
     index_collection.insert_one({"_id": "faiss_index", "index": index_bytes.tobytes()})
     del placeholder_embeddings
@@ -81,23 +79,18 @@ if doc is None:
 else:
     print("✅ Loading existing FAISS index from MongoDB...")
     index_bytes = doc["index"]
-    # Convert stored bytes back into a NumPy array of type uint8
     index_bytes_np = np.frombuffer(index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
 print("✅ FAISS index loaded successfully!")
 
 # --- Prepare Retrieval and Chat Logic ---
-# In production, you would load your actual QA pairs; here we use a placeholder.
-# (Ensure your real system is trained with 50 data entries.)
-# For this example, we simply set a placeholder list.
+# In production, load your actual QA pairs; here we use a placeholder.
 medical_qa = ["Dummy placeholder answer"]
 
 def retrieve_medical_info(query):
     """Retrieve relevant medical knowledge using the FAISS index."""
     query_embedding = embedding_model.encode([query], convert_to_numpy=True)
     _, idxs = index.search(query_embedding, k=3)
-    # If you had a list of QA pairs, you might return:
-    # return [medical_qa[i]["answer"] for i in idxs[0]]
     return [f"Prebuilt answer {i}" for i in idxs[0]]
 
 # --- Gemini Flash API Call ---
@@ -120,12 +113,12 @@ class RAGMedicalChatbot:
     def chat(self, user_query):
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
-        # Add formatting instructions to the prompt:
+        # Instruct Gemini Flash to output markdown formatted text
         prompt = (
-            "Please format your answer using markdown, where ** indicates bold text, "
-            "and ensure that headings, rows, and sentences are clearly separated.\n\n"
+            "Please format your answer using markdown, with **bold** for titles and *italic* for emphasis, "
+            "and ensure that headings and paragraphs are clearly separated.\n\n"
             f"Using the following medical knowledge:\n{knowledge_base}\n\n"
-            f"Answer the following question in a professional and medically accurate manner (trained with 50 data entries): {user_query}"
+            f"Answer the question in a professional and medically accurate manner (trained with 50 data entries): {user_query}"
         )
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
         return completion.strip()
@@ -138,6 +131,8 @@ print("✅ Medical chatbot is ready!")
 
 # --- FastAPI Server ---
 app = FastAPI(title="Medical Chatbot")
+
+# Updated HTML to include Marked.js for markdown rendering
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html>
@@ -145,16 +140,21 @@ HTML_CONTENT = """
     <title>Medical Chatbot</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f2f9fc; margin: 0; padding: 0; }
-        .chat-container { width: 60%; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .chat-header { background-color: #0077b6; color: #fff; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px; }
-        .chat-messages { padding: 20px; height: 400px; overflow-y: scroll; }
+        .chat-container { width: 60%; margin: 40px auto; background: #fff; border-radius: 8px;
+                          box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 10px; }
+        .chat-header { background-color: #0077b6; color: #fff; padding: 20px; text-align: center;
+                       border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .chat-messages { padding: 20px; height: 400px; overflow-y: auto; }
         .chat-input { display: flex; border-top: 1px solid #ddd; }
         .chat-input input { flex: 1; padding: 15px; border: none; outline: none; }
-        .chat-input button { padding: 15px; background-color: #0077b6; color: #fff; border: none; cursor: pointer; }
+        .chat-input button { padding: 15px; background-color: #0077b6; color: #fff;
+                             border: none; cursor: pointer; }
         .message { margin-bottom: 15px; }
         .user { color: #0077b6; }
         .bot { color: #023e8a; }
     </style>
+    <!-- Include Marked.js from CDN for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="chat-container">
@@ -172,7 +172,7 @@ HTML_CONTENT = """
             const input = document.getElementById('user-input');
             const message = input.value;
             if (!message) return;
-            appendMessage('user', message);
+            appendMessage('user', message, false);
             input.value = '';
             const response = await fetch('/chat', {
                 method: 'POST',
@@ -180,13 +180,19 @@ HTML_CONTENT = """
                 body: JSON.stringify({ query: message })
             });
             const data = await response.json();
-            appendMessage('bot', data.response);
+            // Use Marked.js to render markdown into HTML
+            const htmlResponse = marked.parse(data.response);
+            appendMessage('bot', htmlResponse, true);
         }
-        function appendMessage(role, text) {
+        function appendMessage(role, text, isHTML) {
             const messagesDiv = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
-            messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong> ${text}`;
+            if (isHTML) {
+                messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong><br/>${text}`;
+            } else {
+                messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong> ${text}`;
+            }
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }

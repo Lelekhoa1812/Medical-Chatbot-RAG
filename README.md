@@ -33,4 +33,8 @@ python3 clear_mongo.py
 <img src="imgsrc/chatbot_console1.png" alt="Chatbot medical answer 1" style="width: 80%; max-width: 1000px;"> 
 
 ## UI:
-<img src="imgsrc/chatbot_console1.png" alt="Chatbot medical answer 1" style="width: 80%; max-width: 1000px;"> 
+<img src="imgsrc/ui1.png" alt="Chatbot medical answer UI 1" style="width: 80%; max-width: 1000px;"> 
+<img src="imgsrc/ui2.png" alt="Chatbot medical answer UI 2" style="width: 80%; max-width: 1000px;"> 
+<img src="imgsrc/ui3.png" alt="Chatbot medical answer UI 3" style="width: 80%; max-width: 1000px;"> 
+<img src="imgsrc/ui4.png" alt="Chatbot medical answer UI 4" style="width: 80%; max-width: 1000px;"> 
+<img src="imgsrc/ui5.png" alt="Chatbot medical answer UI 5" style="width: 80%; max-width: 1000px;"> 
