@@ -24,5 +24,13 @@ python3 main.py
 python3 -X faulthandler main.py
 ```
 
+## Clear MongoDB data for re-embedding:
+```bash
+python3 clear_mongo.py
+```
+
 ## Example:
+<img src="imgsrc/chatbot_console1.png" alt="Chatbot medical answer 1" style="width: 80%; max-width: 1000px;"> 
+
+## UI:
 <img src="imgsrc/chatbot_console1.png" alt="Chatbot medical answer 1" style="width: 80%; max-width: 1000px;"> 

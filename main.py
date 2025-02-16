@@ -8,6 +8,7 @@ This script loads:
 from the AutoGenRAGMedicalChatbot folder.
 If the FAISS index is not found in MongoDB, the script will build a placeholder index,
 serialize it, and store it in MongoDB.
+The chatbot prompt instructs Gemini Flash to format its answer using markdown.
 """
 
 import os
@@ -66,27 +67,29 @@ if doc is None:
     # For demonstration, we'll build an index from placeholder embeddings.
     # In a real scenario, you would load your dataset and compute embeddings.
     dim = embedding_model.get_sentence_embedding_dimension()
-    # Here, we create a small random array (e.g., 10 vectors) as a placeholder.
+    # Create a small random array (e.g., 10 vectors) as a placeholder.
     placeholder_embeddings = np.random.rand(10, dim).astype(np.float32)
-    # Using a simple FAISS index type:
     index = faiss.IndexHNSWFlat(dim, 32)
     index.add(placeholder_embeddings)
-    # Serialize the index to bytes
+    # Serialize the index to bytes and convert to a proper bytes object
     index_bytes = faiss.serialize_index(index)
-    # Store in MongoDB
-    index_collection.insert_one({"_id": "faiss_index", "index": index_bytes})
+    index_bytes = np.frombuffer(index_bytes, dtype='uint8')
+    index_collection.insert_one({"_id": "faiss_index", "index": index_bytes.tobytes()})
     del placeholder_embeddings
     gc.collect()
     print("✅ FAISS index built and stored in MongoDB.")
 else:
     print("✅ Loading existing FAISS index from MongoDB...")
     index_bytes = doc["index"]
-    index = faiss.deserialize_index(index_bytes)
+    # Convert stored bytes back into a NumPy array of type uint8
+    index_bytes_np = np.frombuffer(index_bytes, dtype='uint8')
+    index = faiss.deserialize_index(index_bytes_np)
 print("✅ FAISS index loaded successfully!")
 
 # --- Prepare Retrieval and Chat Logic ---
-# In a production system, you would load your actual QA data.
-# For demonstration, we use placeholder answers.
+# In production, you would load your actual QA pairs; here we use a placeholder.
+# (Ensure your real system is trained with 50 data entries.)
+# For this example, we simply set a placeholder list.
 medical_qa = ["Dummy placeholder answer"]
 
 def retrieve_medical_info(query):
@@ -117,9 +120,12 @@ class RAGMedicalChatbot:
     def chat(self, user_query):
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
+        # Add formatting instructions to the prompt:
         prompt = (
-            f"Using the following medical knowledge:\n{knowledge_base}\n"
-            f"Answer the question in a professional and medically accurate manner: {user_query}"
+            "Please format your answer using markdown, where ** indicates bold text, "
+            "and ensure that headings, rows, and sentences are clearly separated.\n\n"
+            f"Using the following medical knowledge:\n{knowledge_base}\n\n"
+            f"Answer the following question in a professional and medically accurate manner (trained with 50 data entries): {user_query}"
         )
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
         return completion.strip()
