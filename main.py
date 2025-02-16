@@ -1,122 +1,210 @@
 # ==========================
-# Medical Chatbot Backend (AutoGen + OpenAI API + RAG)
+# Medical Chatbot Backend (Gemini Flash API + RAG) - Local Prebuilt Model with FAISS Index Stored in MongoDB
 # ==========================
+"""
+This script loads:
+  1) A FAISS index stored in MongoDB (under the "faiss_index" collection)
+  2) A local Hugging Face model cache (huggingface_models)
+from the AutoGenRAGMedicalChatbot folder.
+If the FAISS index is not found in MongoDB, the script will build a placeholder index,
+serialize it, and store it in MongoDB.
+"""
 
 import os
-from dotenv import load_dotenv
-from datasets import load_dataset
 import faiss
 import numpy as np
+import gc
+import time
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, JSONResponse
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+gemini_flash_api_key = os.getenv("FlashAPI")
+mongo_uri = os.getenv("MongoURI")
+if not gemini_flash_api_key:
+    raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
+if not mongo_uri:
+    raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
+
+# --- Environment variables to mitigate segmentation faults ---
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# --- Setup local project directory (for model cache) ---
+project_dir = "./AutoGenRAGMedicalChatbot"
+os.makedirs(project_dir, exist_ok=True)
+huggingface_cache_dir = os.path.join(project_dir, "huggingface_models")
+os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
+
+# --- Download (or load from cache) the SentenceTransformer model ---
+from huggingface_hub import snapshot_download
+print("Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
+model_loc = snapshot_download(
+    repo_id="sentence-transformers/all-MiniLM-L6-v2",
+    cache_dir=os.environ["HF_HOME"],
+    local_files_only=False
+)
+print(f"Model directory: {model_loc}")
+
 from sentence_transformers import SentenceTransformer
-import autogen_agentchat  # Use autogen_agentchat instead of autogen
-import autogen_ext  # Use autogen_ext for OpenAI API support
-import gc # Garbage collection
+embedding_model = SentenceTransformer(model_loc, device="cpu")
 
-# ==========================
-# Step 1: Load OpenAI API Key
-# ==========================
-load_dotenv()  # Load environment variables from .env file
-openai_api_key = os.getenv("OPENAI_API_KEY")
-# Check for OpenAI API key exist
-if not openai_api_key:
-    raise ValueError("❌ OpenAI API key is missing! Add it to .env file or environment variables.")
+# --- MongoDB Setup for FAISS Index ---
+from pymongo import MongoClient
+client = MongoClient(mongo_uri)
+db = client["MedicalChatbotDB"]  # Use your desired database name
+index_collection = db["faiss_index"]
 
-# ==========================
-# Step 2: Load the Medical Dataset from Hugging Face
-# ==========================
-print("✅ Loading medical dataset...")
-dataset = load_dataset("ruslanmv/ai-medical-chatbot")
-# Extract patient-doctor conversations
-# medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]]
-medical_dialogues = dataset["train"].to_pandas()[["Patient", "Doctor"]].head(10000)  # Use first 10,000 rows to reduce RAM usage
-# Extract patient-doctor conversations
-print(f"✅ Loaded {len(medical_dialogues)} medical Q&A pairs.")
-
-# ==========================
-# Step 3: Convert Dataset into FAISS Embeddings
-# ==========================
-print("✅ Generating FAISS vector embeddings...")
-# Load sentence transformer model
-# embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-embedding_model = SentenceTransformer("sentence-transformers/paraphrase-MiniLM-L3-v2", device="cpu") # Smaller model for less usage of RAM
-# Convert text into embeddings
-medical_qa = [
-    {"question": row["Patient"], "answer": row["Doctor"]}
-    for _, row in medical_dialogues.iterrows()
-]
-# Generate vector embeddings
-medical_embeddings = embedding_model.encode(
-    [qa["question"] + " " + qa["answer"] for qa in medical_qa], 
-    convert_to_numpy=True
-) # Embedding with float64
-medical_embeddings = np.array(medical_embeddings, dtype=np.float32) # Re-embedding with float32
-faiss_index_path = "data/medical_faiss_index"
-# Save FAISS index only if it doesn’t exist, this prevents corrupt FAISS indices from causing a crash.
-if not os.path.exists(faiss_index_path):
-    print("✅ Creating FAISS index...")
-    # Create FAISS index
-    # index = faiss.IndexFlatL2(medical_embeddings.shape[1])
-    index = faiss.IndexHNSWFlat(medical_embeddings.shape[1], 32)  # 32 = HNSW graph connections
-    index.add(medical_embeddings)
-    faiss.write_index(index, faiss_index_path)
-    # Manually free up memory
-    del medical_embeddings
+print("✅ Checking MongoDB for existing FAISS index...")
+doc = index_collection.find_one({"_id": "faiss_index"})
+if doc is None:
+    print("⚠️ FAISS index not found in MongoDB. Building a placeholder index...")
+    # For demonstration, we'll build an index from placeholder embeddings.
+    # In a real scenario, you would load your dataset and compute embeddings.
+    dim = embedding_model.get_sentence_embedding_dimension()
+    # Here, we create a small random array (e.g., 10 vectors) as a placeholder.
+    placeholder_embeddings = np.random.rand(10, dim).astype(np.float32)
+    # Using a simple FAISS index type:
+    index = faiss.IndexHNSWFlat(dim, 32)
+    index.add(placeholder_embeddings)
+    # Serialize the index to bytes
+    index_bytes = faiss.serialize_index(index)
+    # Store in MongoDB
+    index_collection.insert_one({"_id": "faiss_index", "index": index_bytes})
+    del placeholder_embeddings
     gc.collect()
-    print("✅ Memory cleared after FAISS indexing.")
+    print("✅ FAISS index built and stored in MongoDB.")
 else:
-    print("✅ Loading existing FAISS index...")
-print("✅ FAISS index saved successfully!")
+    print("✅ Loading existing FAISS index from MongoDB...")
+    index_bytes = doc["index"]
+    index = faiss.deserialize_index(index_bytes)
+print("✅ FAISS index loaded successfully!")
 
-# ==========================
-# Step 4: Retrieval-Augmented Generation (RAG) Implementation
-# ==========================
-print("✅ Initializing RAG-based medical chatbot...")
-# Load FAISS index for retrieval
-index = faiss.read_index(faiss_index_path)
-# Retrieve medical KB using FAISS
+# --- Prepare Retrieval and Chat Logic ---
+# In a production system, you would load your actual QA data.
+# For demonstration, we use placeholder answers.
+medical_qa = ["Dummy placeholder answer"]
+
 def retrieve_medical_info(query):
-    """Retrieve relevant medical knowledge using FAISS"""
+    """Retrieve relevant medical knowledge using the FAISS index."""
     query_embedding = embedding_model.encode([query], convert_to_numpy=True)
-    _, idxs = index.search(query_embedding, k=3)  # Get top 3 matches
-    return [medical_qa[i]["answer"] for i in idxs[0]]
+    _, idxs = index.search(query_embedding, k=3)
+    # If you had a list of QA pairs, you might return:
+    # return [medical_qa[i]["answer"] for i in idxs[0]]
+    return [f"Prebuilt answer {i}" for i in idxs[0]]
 
-# ==========================
-# Step 5: AutoGen AI Chatbot Implementation
-# ==========================
-# class MedicalChatbot(autogen_agentchat.AssistantAgent): # assistant-type agents
-class MedicalChatbot(autogen_agentchat.ChatAgent):        # chat-type agents
-    def generate_reply(self, messages):
-        """Handles medical queries using RAG + OpenAI API"""
-        query = messages[-1]["content"]  # Get latest user query
-        retrieved_info = retrieve_medical_info(query)
+# --- Gemini Flash API Call ---
+from google import genai
+def gemini_flash_completion(prompt, model, temperature=0.7):
+    client_genai = genai.Client(api_key=gemini_flash_api_key)
+    try:
+        response = client_genai.models.generate_content(model=model, contents=prompt)
+        return response.text
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
+        return "Error generating response from Gemini."
+
+# --- Chatbot Class ---
+class RAGMedicalChatbot:
+    def __init__(self, model_name, retrieve_function):
+        self.model_name = model_name
+        self.retrieve = retrieve_function
+
+    def chat(self, user_query):
+        retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
-        # Create enhanced response prompt
         prompt = (
             f"Using the following medical knowledge:\n{knowledge_base}\n"
-            f"Answer the question in a professional and medically accurate manner: {query}"
+            f"Answer the question in a professional and medically accurate manner: {user_query}"
         )
-        return self.llm.complete(prompt)
-# Instantiate the chatbot with OpenAI GPT-4
-chatbot = MedicalChatbot(
-    name="Medical_Chatbot",
-    llm_config={
-        "model": "gpt-4", 
-        "api_key": openai_api_key
-    }
+        completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
+        return completion.strip()
+
+chatbot = RAGMedicalChatbot(
+    model_name="gemini-2.0-flash",
+    retrieve_function=retrieve_medical_info
 )
 print("✅ Medical chatbot is ready!")
 
-# ==========================
-# Step 6: Interactive Chat Testing (For Local Debugging)
-# ==========================
+# --- FastAPI Server ---
+app = FastAPI(title="Medical Chatbot")
+HTML_CONTENT = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Medical Chatbot</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f2f9fc; margin: 0; padding: 0; }
+        .chat-container { width: 60%; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .chat-header { background-color: #0077b6; color: #fff; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .chat-messages { padding: 20px; height: 400px; overflow-y: scroll; }
+        .chat-input { display: flex; border-top: 1px solid #ddd; }
+        .chat-input input { flex: 1; padding: 15px; border: none; outline: none; }
+        .chat-input button { padding: 15px; background-color: #0077b6; color: #fff; border: none; cursor: pointer; }
+        .message { margin-bottom: 15px; }
+        .user { color: #0077b6; }
+        .bot { color: #023e8a; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Medical Chatbot Doctor</h2>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Type your question here..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <script>
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value;
+            if (!message) return;
+            appendMessage('user', message);
+            input.value = '';
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: message })
+            });
+            const data = await response.json();
+            appendMessage('bot', data.response);
+        }
+        function appendMessage(role, text) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong> ${text}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.get("/", response_class=HTMLResponse)
+async def get_home():
+    return HTML_CONTENT
+
+@app.post("/chat")
+async def chat_endpoint(data: dict):
+    user_query = data.get("query", "")
+    if not user_query:
+        return JSONResponse(content={"response": "No query provided."})
+    start_time = time.time()
+    response_text = chatbot.chat(user_query)
+    end_time = time.time()
+    response_text += f"\n\n(Response time: {end_time - start_time:.2f} seconds)"
+    return JSONResponse(content={"response": response_text})
+
 if __name__ == "__main__":
-    print("\n🩺 Medical Chatbot is running...\n")
-    # Start session
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() in ["exit", "quit"]:
-            print("👋 Chatbot session ended.")
-            break
-        # Prepare JSON reply response body
-        response = chatbot.generate_reply([{"role": "user", "content": user_input}])
-        print("Chatbot:", response)
+    import uvicorn
+    print("\n🩺 Starting Medical Chatbot FastAPI server...\n")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

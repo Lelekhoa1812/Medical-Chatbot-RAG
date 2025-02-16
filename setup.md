@@ -8,8 +8,8 @@ This guide will help you deploy a **Medical Chatbot** using **AutoGen**, **RAG (
 ### **Step 1: Set Up Conda Environment**
 Create a new Conda environment with Python 3.11:   
 ```bash
-conda create -n ag python=3.11 -y
-conda activate ag
+conda create -n chatbot_env python=3.11 -y
+conda activate chatbot_env
 ```
 **Notice:** Ensure your machine has required Anaconda or Miniconda version installed.  
 
@@ -18,8 +18,8 @@ conda activate ag
 ### **Step 2: Install Dependencies**
 Ensure your environment has the necessary libraries:   
 ```bash
-pip install -U "autogen-agentchat" "autogen-ext[openai]" "autogenstudio" \
-                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv"
+pip install -U "autogen-agentchat" "autogenstudio" \
+                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub"
 ```
 
 - `faiss-cpu`: Efficient vector search for RAG
@@ -27,6 +27,11 @@ pip install -U "autogen-agentchat" "autogen-ext[openai]" "autogenstudio" \
 - `datasets`: Loading and processing custom data
 - `sentence-transformers`: Converting text into embeddings
 - `python-dotenv`: Managing OpenAI API keys securely
+
+Installation of server and router on FastAPI for a client-server interface:  
+```bash
+pip install fastapi uvicorn requests python-multipart
+```
 
 ---
 
@@ -41,7 +46,11 @@ Alternatively, store it in a `.env` file:
 ```bash
 echo 'OPENAI_API_KEY="your_openai_api_key"' > .env
 ```
-
+### **Optional: Saving embedded vector database to MongoDB**
+Store MongoDB cluster API key into `.env` file:
+```bash
+echo 'MongoURI=your_mongodb_api_key' > .env
+```
 ---
 
 ## **Dataset Preparation**
