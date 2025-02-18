@@ -1,13 +1,16 @@
 # ==========================
-# Medical Chatbot Backend (Gemini Flash API + RAG) - Local Prebuilt Model with FAISS Index Stored in MongoDB
+# Medical Chatbot Backend (Gemini Flash API + RAG) - Local Prebuilt Model with FAISS Index & Data Stored in MongoDB
 # ==========================
 """
 This script loads:
-  1) A FAISS index stored in MongoDB (under the "faiss_index" collection)
-  2) A local Hugging Face model cache (huggingface_models)
-from the AutoGenRAGMedicalChatbot folder.
-If the FAISS index is not found in MongoDB, the script will build a placeholder index,
-serialize it, and store it in MongoDB.
+  1) A FAISS index stored in MongoDB (in the "faiss_index" collection)
+  2) A local SentenceTransformer model (downloaded via snapshot_download)
+  3) QA data (the full dataset of 256916 QA entries) stored in MongoDB (in the "qa_data" collection)
+
+If the QA data or FAISS index are not found in MongoDB, the script loads the full dataset from Hugging Face,
+computes embeddings for all QA pairs (concatenating the "Patient" and "Doctor" fields), and stores both the raw QA data
+and the FAISS index in MongoDB.
+
 The chatbot instructs Gemini Flash to format its answer using markdown.
 """
 
@@ -54,26 +57,56 @@ print(f"Model directory: {model_loc}")
 from sentence_transformers import SentenceTransformer
 embedding_model = SentenceTransformer(model_loc, device="cpu")
 
-# --- MongoDB Setup for FAISS Index ---
+# --- MongoDB Setup ---
 from pymongo import MongoClient
 client = MongoClient(mongo_uri)
-db = client["MedicalChatbotDB"]  # Use your desired database name
+db = client["MedicalChatbotDB"]  # Use your chosen database name
 index_collection = db["faiss_index"]
+qa_collection = db["qa_data"]
 
+# --- Load or Build QA Data in MongoDB ---
+print("✅ Checking MongoDB for existing QA data...")
+if qa_collection.count_documents({}) == 0:
+    print("⚠️ QA data not found in MongoDB. Loading dataset from Hugging Face...")
+    from datasets import load_dataset
+    dataset = load_dataset("ruslanmv/ai-medical-chatbot", cache_dir=huggingface_cache_dir)
+    df = dataset["train"].to_pandas()[["Patient", "Doctor"]]
+    # Add an index column to preserve order.
+    df["i"] = range(len(df))
+    qa_data = df.to_dict("records")
+    # Insert in batches (e.g., batches of 1000) to avoid document size limits.
+    batch_size = 1000
+    for i in range(0, len(qa_data), batch_size):
+        qa_collection.insert_many(qa_data[i:i+batch_size])
+    print(f"✅ QA data stored in MongoDB. Total entries: {len(qa_data)}")
+else:
+    print("✅ Loaded existing QA data from MongoDB.")
+    # Load all QA documents sorted by the 'i' field.
+    qa_data = list(qa_collection.find({}, {"_id": 0}).sort("i", 1))
+
+# --- Build or Load the FAISS Index from MongoDB ---
 print("✅ Checking MongoDB for existing FAISS index...")
 doc = index_collection.find_one({"_id": "faiss_index"})
 if doc is None:
-    print("⚠️ FAISS index not found in MongoDB. Building a placeholder index...")
-    # For demonstration, we'll build an index from placeholder embeddings.
-    dim = embedding_model.get_sentence_embedding_dimension()
-    placeholder_embeddings = np.random.rand(10, dim).astype(np.float32)
+    print("⚠️ FAISS index not found in MongoDB. Building FAISS index from QA data...")
+    # Compute embeddings for each QA pair by concatenating "Patient" and "Doctor" fields.
+    texts = [item.get("Patient", "") + " " + item.get("Doctor", "") for item in qa_data]
+    batch_size = 512  # Adjust based on available memory
+    embeddings_list = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i+batch_size]
+        batch_embeddings = embedding_model.encode(batch, convert_to_numpy=True).astype(np.float32)
+        embeddings_list.append(batch_embeddings)
+        print(f"Encoded batch {i} to {i + len(batch)}")
+    embeddings = np.vstack(embeddings_list)
+    dim = embeddings.shape[1]
     index = faiss.IndexHNSWFlat(dim, 32)
-    index.add(placeholder_embeddings)
+    index.add(embeddings)
+    # Serialize the index to bytes and store it in MongoDB.
     index_bytes = faiss.serialize_index(index)
-    # Convert to a proper bytes object from the numpy array
     index_bytes = np.frombuffer(index_bytes, dtype='uint8')
     index_collection.insert_one({"_id": "faiss_index", "index": index_bytes.tobytes()})
-    del placeholder_embeddings
+    del embeddings
     gc.collect()
     print("✅ FAISS index built and stored in MongoDB.")
 else:
@@ -84,14 +117,17 @@ else:
 print("✅ FAISS index loaded successfully!")
 
 # --- Prepare Retrieval and Chat Logic ---
-# In production, load your actual QA pairs; here we use a placeholder.
-medical_qa = ["Dummy placeholder answer"]
-
 def retrieve_medical_info(query):
     """Retrieve relevant medical knowledge using the FAISS index."""
     query_embedding = embedding_model.encode([query], convert_to_numpy=True)
     _, idxs = index.search(query_embedding, k=3)
-    return [f"Prebuilt answer {i}" for i in idxs[0]]
+    results = []
+    for i in idxs[0]:
+        if i < len(qa_data):
+            results.append(qa_data[i].get("Doctor", "No answer available."))
+        else:
+            results.append("No answer available.")
+    return results
 
 # --- Gemini Flash API Call ---
 from google import genai
@@ -113,12 +149,11 @@ class RAGMedicalChatbot:
     def chat(self, user_query):
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
-        # Instruct Gemini Flash to output markdown formatted text
         prompt = (
-            "Please format your answer using markdown, with **bold** for titles and *italic* for emphasis, "
+            "Please format your answer using markdown. Use **bold** for titles, *italic* for emphasis, "
             "and ensure that headings and paragraphs are clearly separated.\n\n"
             f"Using the following medical knowledge:\n{knowledge_base}\n\n"
-            f"Answer the question in a professional and medically accurate manner (trained with 50 data entries): {user_query}"
+            f"Answer the following question in a professional and medically accurate manner (trained with 256,916 data entries): {user_query}"
         )
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
         return completion.strip()
@@ -132,79 +167,316 @@ print("✅ Medical chatbot is ready!")
 # --- FastAPI Server ---
 app = FastAPI(title="Medical Chatbot")
 
-# Updated HTML to include Marked.js for markdown rendering
+# HTML Template
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Medical Chatbot</title>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #f2f9fc; margin: 0; padding: 0; }
-        .chat-container { width: 60%; margin: 40px auto; background: #fff; border-radius: 8px;
-                          box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 10px; }
-        .chat-header { background-color: #0077b6; color: #fff; padding: 20px; text-align: center;
-                       border-top-left-radius: 8px; border-top-right-radius: 8px; }
-        .chat-messages { padding: 20px; height: 400px; overflow-y: auto; }
-        .chat-input { display: flex; border-top: 1px solid #ddd; }
-        .chat-input input { flex: 1; padding: 15px; border: none; outline: none; }
-        .chat-input button { padding: 15px; background-color: #0077b6; color: #fff;
-                             border: none; cursor: pointer; }
-        .message { margin-bottom: 15px; }
-        .user { color: #0077b6; }
-        .bot { color: #023e8a; }
-    </style>
-    <!-- Include Marked.js from CDN for markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <meta charset="utf-8">
+  <title>Medical Chatbot</title>
+  <link rel="website icon" type="png" href="img/logo.png">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      /* background: linear-gradient(135deg, #f0f4ff, #e0efff); */
+      background: url('img/background.gif') no-repeat center center;
+      background-size: cover; /* or contain, depending on your design */
+      margin: 0;
+      padding: 0;
+    }
+    /* Nav bar */
+    .navbar {
+      display: flex;
+      padding: 22px 0;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      justify-content: space-between;
+    }
+    .navbar .logo {
+      gap: 10px;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      position: relative; /* Needed for positioning the tooltip */
+    }
+    .navbar .logo img {
+      width: 70px;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+    }
+    .navbar .logo img:hover {
+      transform: scale(1.1);
+    }
+    /* Tooltip (Thinking Cloud) Styles */
+    .logo-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% - 12px);
+      left: 50%;
+      transform: translateX(-90%);
+      background-color: #fff;
+      color: rgb(18, 129, 144);
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+    .logo-tooltip::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 40%;
+      transform: translateX(-50%);
+      border-width: 6px;
+      border-style: solid;
+      border-color: #fff transparent transparent transparent;
+    }
+    .navbar .logo:hover .logo-tooltip {
+      display: block;
+    }
+    .navbar .links {
+      display: flex;
+      gap: 35px;
+      list-style: none;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+    .navbar .links a {
+      color: rgb(18, 129, 144);
+      font-size: 1.1rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: 0.1s ease;
+    }
+    .navbar .links a:hover {
+      color: rgb(144, 100, 18);
+    }
+    /* Language Dropdown */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgb(18, 129, 144);
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.1s ease;
+    }
+    .dropdown-btn:hover {
+      color: rgb(144, 100, 18);
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background-color: #fff;
+      min-width: 140px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      z-index: 1;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .dropdown-menu li {
+      padding: 10px;
+      cursor: pointer;
+      color: rgb(18, 129, 144);
+      transition: background-color 0.2s ease;
+    }
+    .dropdown-menu li:hover {
+      background-color: #f1f1f1;
+      color: rgb(144, 100, 18);
+    }
+    /* Text content */
+    h1 {
+      color: rgb(18, 129, 144);
+    }
+    h1:hover {
+      color: rgb(144, 100, 18);
+    }
+    /* Chat container */
+    .chat-container {
+      width: 80%;
+      max-width: 800px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    .chat-header {
+      background-color: rgb(18, 129, 144);
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.5em;
+    }
+    .chat-messages {
+      padding: 20px;
+      height: 400px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      font-size: 1em;
+      outline: none;
+    }
+    .chat-input button {
+      padding: 15px;
+      background-color: rgb(18, 129, 144);
+      color: #fff;
+      border: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+    .chat-input button:hover {
+      background-color: #4e1402;
+      transform: scale(1.1);
+    }
+    .message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    .user {
+      background-color: #fafafa;
+      color: #b68f00;
+    }
+    .bot {
+      background-color: #fafafa;
+      color: #00b68f;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  <!-- Include Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h2>Medical Chatbot Doctor</h2>
-        </div>
-        <div class="chat-messages" id="chat-messages"></div>
-        <div class="chat-input">
-            <input type="text" id="user-input" placeholder="Type your question here..." />
-            <button onclick="sendMessage()">Send</button>
-        </div>
+  <header>
+    <nav class="navbar">
+      <a href="#" class="logo">
+        <img src="img/logo.png" alt="logo">
+        <!-- Tooltip container -->
+        <div class="logo-tooltip">Hello, how can I help you today?</div>
+        <h1>Medical Chatbot Doctor</h1>
+      </a>
+      <ul class="links">
+        <li><a href="account.html">Account</a></li>
+        <li><a href="subscription.html">Subscription</a></li>
+        <li><a href="about.html">About</a></li>
+        <!-- Dropdown Language Selector -->
+        <li class="dropdown">
+          <button class="dropdown-btn">VI &#x25BC;</button>
+          <ul class="dropdown-menu">
+            <li data-lang="VI">Vietnamese</li>
+            <li data-lang="EN">English</li>
+            <li data-lang="ZH">Mandarin</li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
+  <div class="chat-container">
+    <div class="chat-header">
+      Medical Chatbot Doctor
     </div>
-    <script>
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const message = input.value;
-            if (!message) return;
-            appendMessage('user', message, false);
-            input.value = '';
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: message })
-            });
-            const data = await response.json();
-            // Use Marked.js to render markdown into HTML
-            const htmlResponse = marked.parse(data.response);
-            appendMessage('bot', htmlResponse, true);
-        }
-        function appendMessage(role, text, isHTML) {
-            const messagesDiv = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message');
-            if (isHTML) {
-                messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong><br/>${text}`;
-            } else {
-                messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'Doctor'}:</strong> ${text}`;
-            }
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-    </script>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type your question here..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
+      const message = input.value;
+      if (!message) return;
+      appendMessage('user', message, false);
+      input.value = '';
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: message })
+      });
+      const data = await response.json();
+      const htmlResponse = marked.parse(data.response);
+      appendMessage('bot', htmlResponse, true);
+    }
+    function appendMessage(role, text, isHTML) {
+      const messagesDiv = document.getElementById('chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message');
+      if (isHTML) {
+        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong><br/>${text}`;
+      } else {
+        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong> ${text}`;
+      }
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Dropdown language selector functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const dropdownBtn = document.querySelector('.dropdown-btn');
+      const dropdownMenu = document.querySelector('.dropdown-menu');
+      
+      dropdownBtn.addEventListener('click', function(event) {
+        event.stopPropagation();
+        dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+      });
+
+      // When clicking a language option, update the dropdown button text
+      document.querySelectorAll('.dropdown-menu li').forEach(item => {
+        item.addEventListener('click', function(event) {
+          event.stopPropagation();
+          const selectedLang = this.getAttribute('data-lang');
+          dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
+          dropdownMenu.style.display = 'none';
+          // Optional: Trigger any language change functionality here.
+        });
+      });
+
+      // Close the dropdown if clicking outside
+      document.addEventListener('click', function() {
+        dropdownMenu.style.display = 'none';
+      });
+    });
+  </script>
 </body>
 </html>
 """
 
+# Get statics template route
 @app.get("/", response_class=HTMLResponse)
 async def get_home():
     return HTML_CONTENT
 
+# Chat route
 @app.post("/chat")
 async def chat_endpoint(data: dict):
     user_query = data.get("query", "")

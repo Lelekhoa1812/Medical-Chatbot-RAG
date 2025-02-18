@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Medical Chatbot</title>
+  <link rel="website icon" type="png" href="img/logo.png">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: url('img/background.gif') repeat-x center top;
+      background-size: contain;
+      margin: 0;
+      padding: 0;
+    }
+    /* Nav bar */
+    .navbar {
+      display: flex;
+      padding: 22px 0;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      justify-content: space-between;
+    }
+    .navbar .logo {
+      gap: 10px;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      position: relative;
+    }
+    .navbar .logo img {
+      width: 70px;
+      border-radius: 10%;
+      transition: transform 0.2s ease;
+    }
+    .navbar .logo img:hover {
+      transform: scale(1.1);
+    }
+    /* Tooltip (Thinking Cloud) Styles */
+    .logo-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% - 12px);
+      left: 50%;
+      transform: translateX(-90%);
+      background-color: #fff;
+      color: rgb(18, 129, 144);
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+    .logo-tooltip::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 40%;
+      transform: translateX(-50%);
+      border-width: 6px;
+      border-style: solid;
+      border-color: #fff transparent transparent transparent;
+    }
+    .navbar .logo:hover .logo-tooltip {
+      display: block;
+    }
+    .navbar .links {
+      display: flex;
+      gap: 35px;
+      list-style: none;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+    .navbar .links a {
+      color: rgb(18, 129, 144);
+      font-size: 1.1rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: 0.1s ease;
+    }
+    .navbar .links a:hover {
+      color: rgb(144, 100, 18);
+    }
+    /* Language Dropdown */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgb(18, 129, 144);
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.1s ease;
+    }
+    .dropdown-btn:hover {
+      color: rgb(144, 100, 18);
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background-color: #fff;
+      min-width: 140px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      z-index: 1;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .dropdown-menu li {
+      padding: 10px;
+      cursor: pointer;
+      color: rgb(18, 129, 144);
+      transition: background-color 0.2s ease;
+    }
+    .dropdown-menu li:hover {
+      background-color: #f1f1f1;
+      color: rgb(144, 100, 18);
+    }
+    /* Text content */
+    h1 {
+      color: rgb(18, 129, 144);
+    }
+    h1:hover {
+      color: rgb(144, 100, 18);
+    }
+    /* Chat container */
+    .chat-container {
+      width: 90%;
+      max-width: 800px;
+      margin: 15px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    .chat-header {
+      background-color: rgb(18, 129, 144);
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.5em;
+    }
+    .chat-messages {
+      padding: 20px;
+      height: 450px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+      position: relative;
+    }
+    /* Welcome screen (before chat stage) */
+    #welcome-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: top;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      text-align: center;
+      pointer-events: none;
+    }
+    #welcome-container img {
+      width: 80px;
+      margin: 30px 10px;
+      filter: grayscale(90%);
+    }
+    #welcome-container p {
+      font-size: 0.8rem;
+      color: rgb(117, 117, 117);
+      margin: 0 150px;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      font-size: 1em;
+      outline: none;
+    }
+    .chat-input button {
+      padding: 15px;
+      background-color: rgb(18, 129, 144);
+      color: #fff;
+      border: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+    .chat-input button:hover {
+      background-color: #4e1402;
+      transform: scale(1.1);
+    }
+    .message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    .user {
+      background-color: #fafafa;
+      color: #b68f00;
+    }
+    .bot {
+      background-color: #fafafa;
+      color: #00b68f;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  <!-- Include Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="#" class="logo">
+        <img src="img/logo.png" alt="logo">
+        <!-- Tooltip container -->
+        <div class="logo-tooltip">Hello, how can I help you today?</div>
+        <h1>Medical Chatbot Doctor</h1>
+      </a>
+      <ul class="links">
+        <li><a href="account.html">Account</a></li>
+        <li><a href="subscription.html">Subscription</a></li>
+        <li><a href="about.html">About</a></li>
+        <!-- Dropdown Language Selector -->
+        <li class="dropdown">
+          <button class="dropdown-btn">VI &#x25BC;</button>
+          <ul class="dropdown-menu">
+            <li data-lang="VI">Vietnamese</li>
+            <li data-lang="EN">English</li>
+            <li data-lang="ZH">Mandarin</li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
+  <div class="chat-container">
+    <div class="chat-header">
+      Medical Chatbot Doctor
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <!-- Welcome Screen (visible initially) -->
+      <div id="welcome-container">
+        <img src="img/logo.png" alt="Welcome Logo">
+        <p>Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type your question here..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
+      const message = input.value;
+      if (!message) return;
+      // Remove the welcome screen if it exists
+      const welcomeContainer = document.getElementById('welcome-container');
+      if (welcomeContainer) {
+        welcomeContainer.remove();
+      }
+      appendMessage('user', message, false);
+      input.value = '';
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: message })
+      });
+      const data = await response.json();
+      const htmlResponse = marked.parse(data.response);
+      appendMessage('bot', htmlResponse, true);
+    }
+    function appendMessage(role, text, isHTML) {
+      const messagesDiv = document.getElementById('chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message');
+      if (isHTML) {
+        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong><br/>${text}`;
+      } else {
+        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong> ${text}`;
+      }
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Dropdown language selector functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const dropdownBtn = document.querySelector('.dropdown-btn');
+      const dropdownMenu = document.querySelector('.dropdown-menu');
+      
+      dropdownBtn.addEventListener('click', function(event) {
+        event.stopPropagation();
+        dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+      });
+
+      // Update dropdown button text when a language option is selected
+      document.querySelectorAll('.dropdown-menu li').forEach(item => {
+        item.addEventListener('click', function(event) {
+          event.stopPropagation();
+          const selectedLang = this.getAttribute('data-lang');
+          dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
+          dropdownMenu.style.display = 'none';
+          // Optional: Add any language change functionality here.
+        });
+      });
+
+      // Close the dropdown if clicking outside
+      document.addEventListener('click', function() {
+        dropdownMenu.style.display = 'none';
+      });
+    });
+  </script>
+</body>
+</html>
