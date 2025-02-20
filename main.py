@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env
 load_dotenv()
 gemini_flash_api_key = os.getenv("FlashAPI")
-mongo_uri = os.getenv("MongoURI")
+mongo_uri = os.getenv("MONGO_URI")
 if not gemini_flash_api_key:
     raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
 if not mongo_uri:
@@ -81,8 +81,11 @@ if qa_collection.count_documents({}) == 0:
     print(f"✅ QA data stored in MongoDB. Total entries: {len(qa_data)}")
 else:
     print("✅ Loaded existing QA data from MongoDB.")
-    # Load all QA documents sorted by the 'i' field.
-    qa_data = list(qa_collection.find({}, {"_id": 0}).sort("i", 1))
+    # Create an index on "i" (if not exists) to help with sorting.
+    qa_collection.create_index("i")
+    # Load all QA documents sorted by "i" using a cursor with batch size.
+    qa_data = list(qa_collection.find({}, {"_id": 0}).sort("i", 1).batch_size(1000))
+    print("Total QA entries loaded:", len(qa_data))
 
 # --- Build or Load the FAISS Index from MongoDB ---
 print("✅ Checking MongoDB for existing FAISS index...")
@@ -180,9 +183,8 @@ HTML_CONTENT = """
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      /* background: linear-gradient(135deg, #f0f4ff, #e0efff); */
-      background: url('img/background.gif') no-repeat center center;
-      background-size: cover; /* or contain, depending on your design */
+      background: url('img/background.gif') repeat-x center top;
+      background-size: contain;
       margin: 0;
       padding: 0;
     }
@@ -200,11 +202,11 @@ HTML_CONTENT = """
       display: flex;
       align-items: center;
       text-decoration: none;
-      position: relative; /* Needed for positioning the tooltip */
+      position: relative;
     }
     .navbar .logo img {
       width: 70px;
-      border-radius: 50%;
+      border-radius: 10%;
       transition: transform 0.2s ease;
     }
     .navbar .logo img:hover {
@@ -309,9 +311,9 @@ HTML_CONTENT = """
     }
     /* Chat container */
     .chat-container {
-      width: 80%;
+      width: 90%;
       max-width: 800px;
-      margin: 40px auto;
+      margin: 15px auto;
       background: #fff;
       border-radius: 10px;
       box-shadow: 0 8px 16px rgba(0,0,0,0.15);
@@ -326,9 +328,44 @@ HTML_CONTENT = """
     }
     .chat-messages {
       padding: 20px;
-      height: 400px;
+      height: 450px;
       overflow-y: auto;
       background-color: #f9f9f9;
+      position: relative;
+    }
+    /* Welcome screen (before chat stage) */
+    #welcome-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: top;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      text-align: center;
+      pointer-events: none;
+    }
+    #welcome-container img {
+      width: 80px;
+      margin: 30px 10px;
+      filter: grayscale(90%);
+    }
+    #welcome-container p {
+      font-size: 0.8rem;
+      color: rgb(117, 117, 117);
+      margin: 0 150px;
+    }
+    #welcome-container a {
+      font-size: 0.8rem;
+      color: rgb(117, 117, 117);
+      margin: 0 150px;
+    }
+    #welcome-container h1 {
+      font-size: 1rem;
+      color: rgb(117, 117, 117);
+      margin: 5px 5px;
     }
     .chat-input {
       display: flex;
@@ -405,7 +442,16 @@ HTML_CONTENT = """
     <div class="chat-header">
       Medical Chatbot Doctor
     </div>
-    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-messages" id="chat-messages">
+      <!-- Welcome Screen (visible initially) -->
+      <div id="welcome-container">
+        <img src="img/logo.png" alt="Welcome Logo">
+        <p>Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
+        <h1>Acknowledgement</h1>
+        <p>Author: Dang Khoa Le</p>
+        <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
+      </div>
+    </div>
     <div class="chat-input">
       <input type="text" id="user-input" placeholder="Type your question here..." />
       <button onclick="sendMessage()">Send</button>
@@ -416,6 +462,11 @@ HTML_CONTENT = """
       const input = document.getElementById('user-input');
       const message = input.value;
       if (!message) return;
+      // Remove the welcome screen if it exists
+      const welcomeContainer = document.getElementById('welcome-container');
+      if (welcomeContainer) {
+        welcomeContainer.remove();
+      }
       appendMessage('user', message, false);
       input.value = '';
       const response = await fetch('/chat', {
@@ -450,14 +501,14 @@ HTML_CONTENT = """
         dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
       });
 
-      // When clicking a language option, update the dropdown button text
+      // Update dropdown button text when a language option is selected
       document.querySelectorAll('.dropdown-menu li').forEach(item => {
         item.addEventListener('click', function(event) {
           event.stopPropagation();
           const selectedLang = this.getAttribute('data-lang');
           dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
           dropdownMenu.style.display = 'none';
-          // Optional: Trigger any language change functionality here.
+          // Optional: Add any language change functionality here.
         });
       });
 
