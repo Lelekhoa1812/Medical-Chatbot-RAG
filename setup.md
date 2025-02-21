@@ -19,7 +19,7 @@ conda activate chatbot_env
 Ensure your environment has the necessary libraries:   
 ```bash
 pip install -U "autogen-agentchat" "autogenstudio" \
-                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub"
+                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo"
 ```
 
 - `faiss-cpu`: Efficient vector search for RAG
@@ -27,6 +27,7 @@ pip install -U "autogen-agentchat" "autogenstudio" \
 - `datasets`: Loading and processing custom data
 - `sentence-transformers`: Converting text into embeddings
 - `python-dotenv`: Managing OpenAI API keys securely
+- `pymongo`: Utilization of MongoDB and gridfs (for compressed FAISS data saving)
 
 Installation of server and router on FastAPI for a client-server interface:  
 ```bash

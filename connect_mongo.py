@@ -10,15 +10,15 @@ mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
 db = client["MedicalChatbotDB"]
 # List all collection
-print("Collection: ",db.list_collection_names())
+print("QA Collection: ",db.list_collection_names())
 # Count document QA related
 print("QA count: ", db.qa_data.count_documents({}))
 
 # Index Cluster
 index_uri = os.getenv("INDEX_URI")
 iclient = MongoClient(index_uri)
-index_db = iclient["MedicalChatbotDB"]
+idb = iclient["FAISSIndexCluster"]
 # List all collection
-print("Collection: ",index_db.list_collection_names())
+print("FAISS Collection: ",idb.list_collection_names())
 # Count document QA related
-print("Index count: ", index_db.faiss_index.count_documents({}))
+print("Index count: ", idb.faiss_index.count_documents({}))
