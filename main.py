@@ -62,13 +62,19 @@ embedding_model = SentenceTransformer(model_loc, device="cpu")
 
 # --- MongoDB Setup ---
 from pymongo import MongoClient
+# QA client
 client = MongoClient(mongo_uri)
 db = client["MedicalChatbotDB"]  # Use your chosen database name
 qa_collection = db["qa_data"]
 
+# FAISS index client
 iclient = MongoClient(index_uri)
 idb = iclient["MedicalChatbotDB"]  # Use your chosen database name
 index_collection = idb["faiss_index"]
+
+##---------------------------##
+## EMBEDDING AND DATA RETRIEVAL
+##---------------------------##
 
 # --- Load or Build QA Data in MongoDB ---
 print("✅ Checking MongoDB for existing QA data...")
@@ -77,7 +83,7 @@ if qa_collection.count_documents({}) == 0:
     from datasets import load_dataset
     dataset = load_dataset("ruslanmv/ai-medical-chatbot", cache_dir=huggingface_cache_dir)
     df = dataset["train"].to_pandas()[["Patient", "Doctor"]]
-    # Add an index column to preserve order.
+    # Add an index column "i" to preserve order.
     df["i"] = range(len(df))
     qa_data = df.to_dict("records")
     # Insert in batches (e.g., batches of 1000) to avoid document size limits.
@@ -87,19 +93,27 @@ if qa_collection.count_documents({}) == 0:
     print(f"✅ QA data stored in MongoDB. Total entries: {len(qa_data)}")
 else:
     print("✅ Loaded existing QA data from MongoDB.")
-    # Create an index on "i" (if not exists) to help with sorting.
-    qa_collection.create_index("i")
-    # Load all QA documents sorted by "i" using a cursor with batch size.
-    qa_data = list(qa_collection.find({}, {"_id": 0}).sort("i", 1).batch_size(1000))
+    # Use an aggregation pipeline with allowDiskUse to sort by "i" without creating an index.
+    qa_docs = list(qa_collection.aggregate([
+        {"$sort": {"i": 1}},
+        {"$project": {"_id": 0}}
+    ], allowDiskUse=True))
+    qa_data = qa_docs
     print("Total QA entries loaded:", len(qa_data))
 
 # --- Build or Load the FAISS Index from MongoDB (using GridFS on the separate cluster) ---
 print("✅ Checking GridFS for existing FAISS index...")
 import gridfs
-fs = gridfs.GridFS(idb, collection="faiss_index_files")  # 'idb' is connected using INDEX_URI
+# Use the 'idb' client (connected via INDEX_URI) and a dedicated GridFS collection.
+fs = gridfs.GridFS(idb, collection="faiss_index_files")
 existing_file = fs.find_one({"filename": "faiss_index.bin"})
 
-if existing_file is None:
+if existing_file is not None:
+    print("✅ Loading existing FAISS index from GridFS...")
+    stored_index_bytes = existing_file.read()
+    index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
+    index = faiss.deserialize_index(index_bytes_np)
+else:
     print("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
     # Compute embeddings for each QA pair by concatenating "Patient" and "Doctor" fields.
     texts = [item.get("Patient", "") + " " + item.get("Doctor", "") for item in qa_data]
@@ -112,25 +126,24 @@ if existing_file is None:
         print(f"Encoded batch {i} to {i + len(batch)}")
     embeddings = np.vstack(embeddings_list)
     dim = embeddings.shape[1]
-    # Create a FAISS index (using IndexHNSWFlat; you can also use IVFPQ if you need compression)
+    # Create the FAISS index (using IndexHNSWFlat here; you might use IVFPQ if preferred)
     index = faiss.IndexHNSWFlat(dim, 32)
     index.add(embeddings)
     print("FAISS index built. Total vectors:", index.ntotal)
-    # Serialize the index
+    # Serialize and store in GridFS
     index_bytes = faiss.serialize_index(index)
-    # Convert to a native Python bytes object
     index_data = np.frombuffer(index_bytes, dtype='uint8').tobytes()
-    # Store in GridFS (this bypasses the 16 MB per-document limit)
     file_id = fs.put(index_data, filename="faiss_index.bin")
     print("✅ FAISS index built and stored in GridFS with file_id:", file_id)
     del embeddings
     gc.collect()
-else:
-    print("✅ Loading existing FAISS index from GridFS...")
-    stored_index_bytes = existing_file.read()
-    index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
-    index = faiss.deserialize_index(index_bytes_np)
+
 print("✅ FAISS index loaded successfully!")
+
+
+##---------------------------##
+## INFERENCE BACK+FRONT END
+##---------------------------##
 
 # --- Prepare Retrieval and Chat Logic ---
 def retrieve_medical_info(query):
