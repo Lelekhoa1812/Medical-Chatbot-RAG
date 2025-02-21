@@ -28,10 +28,13 @@ from dotenv import load_dotenv
 load_dotenv()
 gemini_flash_api_key = os.getenv("FlashAPI")
 mongo_uri = os.getenv("MONGO_URI")
+index_uri = os.getenv("INDEX_URI")
 if not gemini_flash_api_key:
     raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
 if not mongo_uri:
     raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
+if not index_uri:
+    raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
 
 # --- Environment variables to mitigate segmentation faults ---
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -61,8 +64,11 @@ embedding_model = SentenceTransformer(model_loc, device="cpu")
 from pymongo import MongoClient
 client = MongoClient(mongo_uri)
 db = client["MedicalChatbotDB"]  # Use your chosen database name
-index_collection = db["faiss_index"]
 qa_collection = db["qa_data"]
+
+iclient = MongoClient(index_uri)
+idb = iclient["MedicalChatbotDB"]  # Use your chosen database name
+index_collection = idb["faiss_index"]
 
 # --- Load or Build QA Data in MongoDB ---
 print("✅ Checking MongoDB for existing QA data...")
@@ -87,11 +93,14 @@ else:
     qa_data = list(qa_collection.find({}, {"_id": 0}).sort("i", 1).batch_size(1000))
     print("Total QA entries loaded:", len(qa_data))
 
-# --- Build or Load the FAISS Index from MongoDB ---
-print("✅ Checking MongoDB for existing FAISS index...")
-doc = index_collection.find_one({"_id": "faiss_index"})
-if doc is None:
-    print("⚠️ FAISS index not found in MongoDB. Building FAISS index from QA data...")
+# --- Build or Load the FAISS Index from MongoDB (using GridFS on the separate cluster) ---
+print("✅ Checking GridFS for existing FAISS index...")
+import gridfs
+fs = gridfs.GridFS(idb, collection="faiss_index_files")  # 'idb' is connected using INDEX_URI
+existing_file = fs.find_one({"filename": "faiss_index.bin"})
+
+if existing_file is None:
+    print("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
     # Compute embeddings for each QA pair by concatenating "Patient" and "Doctor" fields.
     texts = [item.get("Patient", "") + " " + item.get("Doctor", "") for item in qa_data]
     batch_size = 512  # Adjust based on available memory
@@ -103,19 +112,23 @@ if doc is None:
         print(f"Encoded batch {i} to {i + len(batch)}")
     embeddings = np.vstack(embeddings_list)
     dim = embeddings.shape[1]
+    # Create a FAISS index (using IndexHNSWFlat; you can also use IVFPQ if you need compression)
     index = faiss.IndexHNSWFlat(dim, 32)
     index.add(embeddings)
-    # Serialize the index to bytes and store it in MongoDB.
+    print("FAISS index built. Total vectors:", index.ntotal)
+    # Serialize the index
     index_bytes = faiss.serialize_index(index)
-    index_bytes = np.frombuffer(index_bytes, dtype='uint8')
-    index_collection.insert_one({"_id": "faiss_index", "index": index_bytes.tobytes()})
+    # Convert to a native Python bytes object
+    index_data = np.frombuffer(index_bytes, dtype='uint8').tobytes()
+    # Store in GridFS (this bypasses the 16 MB per-document limit)
+    file_id = fs.put(index_data, filename="faiss_index.bin")
+    print("✅ FAISS index built and stored in GridFS with file_id:", file_id)
     del embeddings
     gc.collect()
-    print("✅ FAISS index built and stored in MongoDB.")
 else:
-    print("✅ Loading existing FAISS index from MongoDB...")
-    index_bytes = doc["index"]
-    index_bytes_np = np.frombuffer(index_bytes, dtype='uint8')
+    print("✅ Loading existing FAISS index from GridFS...")
+    stored_index_bytes = existing_file.read()
+    index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
 print("✅ FAISS index loaded successfully!")
 
