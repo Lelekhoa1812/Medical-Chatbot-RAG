@@ -447,7 +447,7 @@ HTML_CONTENT = """
     }
     .loader {
       border: 8px solid #f3f3f3;
-      border-top: 8px solid #0077b6;
+      border-top: 8px solid rgb(18, 129, 144);
       border-radius: 50%;
       width: 60px;
       height: 60px;
@@ -455,7 +455,7 @@ HTML_CONTENT = """
     }
     .loader-text {
       font-size: 1rem;
-      color: #0077b6;
+      color: rgb(18, 129, 144);
       margin-top: 8px;
     }
     @keyframes spin {
