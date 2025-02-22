@@ -1,53 +1,118 @@
-## **AutoGen-Based Medical Chatbot with RAG**
+# AutoGen-Based Medical Chatbot with RAG 🤖🩺
 
-This project is about **Medical Chatbot** using **AutoGen**, **RAG (Retrieval-Augmented Generation)**, and **Gemini Flash 2.0 API** with a **custom Hugging Face medical dataset**. Server is running with **Fast API** and dynamic HTML template render (with **MarkdownJS**).
+Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages cutting‑edge technologies such as **AutoGen**, **Retrieval-Augmented Generation (RAG)**, and the **Gemini Flash 2.0 API** to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on **FastAPI** and dynamically renders HTML using **MarkdownJS**.
 
-## Clone this repository:
+---
+
+## 🚀 Getting Started
+
+### Clone the Repository
+
+Clone the repository to your local machine with:
 
 ```bash
 git clone https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot.git
 ```
 
-## Installation:
-Visit [Setup](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md) guidelines for instruction to install the project.  
+### Installation
 
-## Autogen:
-Find more practical usage ideas with [Autogen](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md).  
+Follow the detailed installation instructions in our [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md) to install and configure the project.
 
-## Run:
+### Autogen Usage
+
+Discover practical usage examples and ideas in our [Autogen Documentation](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md).
+
+---
+
+## ⚙️ Running the Project
+
+### Start the Server
+
+Run the main server script with:
+
 ```bash
 python3 main.py
 ```
 
-## Debug:
+### Debug Mode
+
+For debugging purposes, run:
+
 ```bash
 python3 -X faulthandler main.py
 ```
 
-## Connect and list out collection from MongoDB
-```bash
-python3 connect_mongo.py
-```
+### MongoDB Utilities
 
-## Clear MongoDB data for data reset:
-```bash
-python3 clear_mongo.py
-```
+- **Connect and List Collections:**  
+  ```bash
+  python3 connect_mongo.py
+  ```
+- **Clear MongoDB Data (Data Reset):**  
+  ```bash
+  python3 clear_mongo.py
+  ```
+- **MongoDB Data Migration:**  
+  ```bash
+  python3 migrate.py
+  ```
 
-## MongoDB data migration
-```bash
-python3 migrate.py
-```
+---
 
-## Example:
-<img src="imgsrc/chatbot_console1.png" alt="Chatbot medical answer 1" style="width: 80%; max-width: 1000px;"> 
+## 💡 Features
 
-## Current UI:
-<img src="imgsrc/ui1.png" alt="Chatbot medical answer UI 1" style="width: 80%; max-width: 1000px;"> 
-<img src="imgsrc/ui2.png" alt="Chatbot medical answer UI 2" style="width: 80%; max-width: 1000px;"> 
-<img src="imgsrc/ui3.png" alt="Chatbot medical answer UI 3" style="width: 80%; max-width: 1000px;"> 
-<img src="imgsrc/ui4.png" alt="Chatbot medical answer UI 4" style="width: 80%; max-width: 1000px;"> 
-<img src="imgsrc/ui5.png" alt="Chatbot medical answer UI 5" style="width: 80%; max-width: 1000px;"> 
+- **Advanced RAG Integration:** Combines retrieval of relevant medical QA pairs with generative response formulation.
+- **Custom Medical Dataset:** Utilizes a specialized dataset with over **256,916 QA entries**.
+- **State-of-the-Art API:** Powered by Gemini Flash 2.0 API for dynamic and precise medical responses.
+- **High-Performance Indexing:** Employs FAISS (with IVFPQ compression) for fast, scalable similarity search.
+- **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
+- **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.
+- **Multilingual Support:** Includes English, Vietnamese, and Mandarin language options for a global audience.
 
-## UI in progress:
-<img src="imgsrc/newUI.png" alt="Chatbot new UI" style="width: 80%; max-width: 1000px;"> 
+---
+
+## 📸 Screenshots
+
+### Chatbot Console Example
+<img src="imgsrc/chatbot_console1.png" alt="Chatbot Medical Answer Example" style="width: 80%; max-width: 1000px;">
+
+### Current User Interface
+<img src="imgsrc/ui1.png" alt="Chatbot UI 1" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/ui2.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/ui3.png" alt="Chatbot UI 3" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/ui4.png" alt="Chatbot UI 4" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/ui5.png" alt="Chatbot UI 5" style="width: 80%; max-width: 1000px;">
+
+### New UI with Loader Animation
+<img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;">
+
+---
+
+## 🔧 Customization
+
+- **UI Customization:**  
+  Edit the HTML/CSS templates in the `static` directory to match your branding and design preferences.
+- **Language Settings:**  
+  Update the language translations in the JavaScript section to modify or add new languages.
+- **API Integration:**  
+  Customize the Gemini Flash API integration as needed for your use case.
+
+---
+
+## 📚 Documentation
+
+For more detailed instructions and further documentation, please refer to:  
+- [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md)  
+- [Autogen Documentation](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md)  
+- [Project Wiki](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/wiki)
+
+---
+
+## 📝 License
+
+This project is licensed under the [Apache 2.0 License](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE).
+
+---
+
+Author: Dang Khoa Le
+Latest Update: 22/02/2025
