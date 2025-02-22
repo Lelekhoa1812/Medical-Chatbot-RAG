@@ -1,425 +1,469 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Medical Chatbot</title>
-  <link rel="website icon" type="png" href="/static/img/logo.png">
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Roboto', sans-serif;
-      background: url('/static/img/background.gif') repeat-x center top;
-      background-size: contain;
-      margin: 0;
-      padding: 0;
-    }
-    /* Nav bar */
-    .navbar {
-      display: flex;
-      padding: 22px 0;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-      justify-content: space-between;
-    }
-    .navbar .logo {
-      gap: 10px;
-      display: flex;
-      align-items: center;
-      text-decoration: none;
-      position: relative;
-    }
-    .navbar .logo img {
-      width: 70px;
-      border-radius: 10%;
-      transition: transform 0.2s ease;
-    }
-    .navbar .logo img:hover {
-      transform: scale(1.1);
-    }
-    #nav-header:hover {
-      transform: translateX(5px) translateY(-1px) scale(1.1);
-      transition: transform 0.2s ease;
-    }
-    /* Tooltip (Thinking Cloud) Styles */
-    .logo-tooltip {
-      display: none;
-      position: absolute;
-      bottom: calc(100% - 12px);
-      left: 0; /* Align left edge with logo image */
-      background: url('/static/img/cloud.gif') repeat;
-      background-size: 100% 100%;
-      color: rgb(18, 129, 144);
-      padding: 10px 60px;
-      font-size: 0.9rem;
-      white-space: nowrap;
-      z-index: 10;
-    }
-    .navbar .logo:hover .logo-tooltip {
-      display: block;
-    }
-    .navbar .links {
-      display: flex;
-      gap: 35px;
-      list-style: none;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-    }
-    .navbar .links a {
-      color: rgb(18, 129, 144);
-      font-size: 1.1rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: 0.1s ease;
-    }
-    .navbar .links a:hover {
-      color: rgb(144, 100, 18);
-    }
-    /* Language Dropdown */
-    .dropdown {
-      position: relative;
-      display: inline-block;
-    }
-    .dropdown-btn {
-      background: none;
-      border: none;
-      color: rgb(18, 129, 144);
-      font-size: 1.1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: 0.1s ease;
-    }
-    .dropdown-btn:hover {
-      color: rgb(144, 100, 18);
-    }
-    .dropdown-menu {
-      display: none;
-      position: absolute;
-      top: 110%;
-      left: 0;
-      background-color: #fff;
-      min-width: 140px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-      z-index: 1;
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .dropdown-menu li {
-      padding: 10px;
-      cursor: pointer;
-      color: rgb(18, 129, 144);
-      transition: background-color 0.2s ease;
-    }
-    .dropdown-menu li:hover {
-      background-color: #f1f1f1;
-      color: rgb(144, 100, 18);
-    }
-    /* Text content */
-    h1 {
-      color: rgb(18, 129, 144);
-    }
-    h1:hover {
-      color: rgb(144, 100, 18);
-    }
-    /* Chat container */
-    .chat-container {
-      width: 90%;
-      max-width: 800px;
-      margin: 15px auto;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-      overflow: hidden;
-    }
-    .chat-header {
-      background-color: rgb(18, 129, 144);
-      color: #fff;
-      padding: 20px;
-      text-align: center;
-      font-size: 1.5em;
-    }
-    .chat-messages {
-      padding: 20px;
-      height: 450px;
-      overflow-y: auto;
-      background-color: #f9f9f9;
-      position: relative;
-    }
-    /* Welcome screen (before chat stage) */
-    #welcome-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: top;
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      text-align: center;
-      pointer-events: none;
-    }
-    #welcome-container img {
-      width: 80px;
-      margin: 30px 10px;
-      filter: grayscale(90%);
-    }
-    #welcome-container p, 
-    #welcome-container h1, 
-    #welcome-container a {
-      margin: 5px 150px;
-      color: rgb(117, 117, 117);
-      font-size: 0.8rem;
-    }
-    #welcome-container h1 {
-      font-size: 1rem;
-    }
-    .chat-input {
-      display: flex;
-      border-top: 1px solid #ddd;
-    }
-    .chat-input input {
-      flex: 1;
-      padding: 15px;
-      border: none;
-      font-size: 1em;
-      outline: none;
-    }
-    .chat-input button {
-      padding: 15px;
-      background-color: rgb(18, 129, 144);
-      color: #fff;
-      border: none;
-      font-size: 1em;
-      cursor: pointer;
-      transition: background-color 0.3s ease, transform 0.3s ease;
-    }
-    .chat-input button:hover {
-      background-color: #4e1402;
-      transform: scale(1.1);
-    }
-    .message {
-      margin-bottom: 15px;
-      padding: 10px;
-      border-radius: 5px;
-      animation: fadeIn 0.5s ease-in-out;
-    }
-    .user {
-      background-color: #fafafa;
-      color: #b68f00;
-    }
-    .bot {
-      background-color: #fafafa;
-      color: #00b68f;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <nav class="navbar">
-      <a href="#" class="logo">
-        <img src="/static/img/logo.png" alt="logo">
-        <!-- Tooltip container using cloud.gif -->
-        <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
-        <h1 id="nav-header">Medical Chatbot Doctor</h1>
-      </a>
-      <ul class="links">
-        <li><a id="nav-account" href="account.html">Account</a></li>
-        <li><a id="nav-subscription" href="subscription.html">Subscription</a></li>
-        <li><a id="nav-about" href="about.html">About</a></li>
-        <!-- Dropdown Language Selector -->
-        <li class="dropdown">
-          <button class="dropdown-btn">EN &#x25BC;</button>
-          <ul class="dropdown-menu">
-            <li data-lang="VI">Vietnamese</li>
-            <li data-lang="EN">English</li>
-            <li data-lang="ZH">Mandarin</li>
-          </ul>
-        </li>
-      </ul>
-    </nav>
-  </header>
-  <div class="chat-container">
-    <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
-    <div class="chat-messages" id="chat-messages">
-      <!-- Welcome Screen (visible initially) -->
-      <div id="welcome-container">
-        <img src="/static/img/logo.png" alt="Welcome Logo">
-        <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
-        <h1 id="acknowledgement">Acknowledgement</h1>
-        <p id="author">Author: Dang Khoa Le</p>
-        <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
+  <head>
+    <meta charset="utf-8">
+    <title>Medical Chatbot</title>
+    <link rel="website icon" type="png" href="/static/img/logo.png">
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+        background: url('/static/img/background.gif') repeat-x center top;
+        background-size: contain;
+        margin: 0;
+        padding: 0;
+      }
+      /* Nav bar */
+      .navbar {
+        display: flex;
+        padding: 22px 0;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        justify-content: space-between;
+      }
+      .navbar .logo {
+        gap: 10px;
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        position: relative;
+      }
+      .navbar .logo img {
+        width: 70px;
+        border-radius: 10%;
+        transition: transform 0.2s ease;
+      }
+      .navbar .logo img:hover {
+        transform: scale(1.1);
+      }
+      #nav-header:hover {
+        transform: translateX(5px) translateY(-1px) scale(1.1);
+        transition: transform 0.2s ease;
+      }
+      /* Tooltip (Thinking Cloud) Styles */
+      .logo-tooltip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% - 12px);
+        left: 0; /* Align left edge with logo image */
+        background: url('/static/img/cloud.gif') repeat;
+        background-size: 100% 100%;
+        color: rgb(18, 129, 144);
+        padding: 10px 60px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        z-index: 10;
+      }
+      .navbar .logo:hover .logo-tooltip {
+        display: block;
+      }
+      .navbar .links {
+        display: flex;
+        gap: 35px;
+        list-style: none;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+      }
+      .navbar .links a {
+        color: rgb(18, 129, 144);
+        font-size: 1.1rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: 0.1s ease;
+      }
+      .navbar .links a:hover {
+        color: rgb(144, 100, 18);
+      }
+      /* Language Dropdown */
+      .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-btn {
+        background: none;
+        border: none;
+        color: rgb(18, 129, 144);
+        font-size: 1.1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: 0.1s ease;
+      }
+      .dropdown-btn:hover {
+        color: rgb(144, 100, 18);
+      }
+      .dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 110%;
+        left: 0;
+        background-color: #fff;
+        min-width: 140px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        z-index: 1;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .dropdown-menu li {
+        padding: 10px;
+        cursor: pointer;
+        color: rgb(18, 129, 144);
+        transition: background-color 0.2s ease;
+      }
+      .dropdown-menu li:hover {
+        background-color: #f1f1f1;
+        color: rgb(144, 100, 18);
+      }
+      /* Text content */
+      h1 {
+        color: rgb(18, 129, 144);
+      }
+      h1:hover {
+        color: rgb(144, 100, 18);
+      }
+      /* Chat container */
+      .chat-container {
+        width: 90%;
+        max-width: 800px;
+        margin: 15px auto;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        overflow: hidden;
+      }
+      .chat-header {
+        background-color: rgb(18, 129, 144);
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+        font-size: 1.5em;
+      }
+      .chat-messages {
+        padding: 20px;
+        height: 450px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+        position: relative;
+      }
+      /* Welcome screen (before chat stage) */
+      #welcome-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: top;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        text-align: center;
+        pointer-events: none;
+      }
+      #welcome-container img {
+        width: 80px;
+        margin: 30px 10px;
+        filter: grayscale(90%);
+      }
+      #welcome-container p, 
+      #welcome-container h1, 
+      #welcome-container a {
+        margin: 5px 150px;
+        color: rgb(117, 117, 117);
+        font-size: 0.8rem;
+      }
+      #welcome-container h1 {
+        font-size: 1rem;
+      }
+
+      /* Chat section on chatting */
+      .chat-input {
+        display: flex;
+        border-top: 1px solid #ddd;
+      }
+      .chat-input input {
+        flex: 1;
+        padding: 15px;
+        border: none;
+        font-size: 1em;
+        outline: none;
+      }
+      .chat-input button {
+        padding: 15px;
+        background-color: rgb(18, 129, 144);
+        color: #fff;
+        border: none;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+      }
+      .chat-input button:hover {
+        background-color: #4e1402;
+        transform: scale(1.1);
+      }
+      .message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      .user {
+        background-color: #fafafa;
+        color: #4a1505;
+      }
+      .bot {
+        background-color: #fafafa;
+        color: #00b68f;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Spinner Loader Styles */
+      .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 10px 0;
+      }
+      .loader {
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid rgb(144, 100, 18);
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 1s linear infinite;
+      }
+      .loader-text {
+        font-size: 1rem;
+        color: rgb(144, 100, 18);
+        margin-top: 8px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav class="navbar">
+        <a href="#" class="logo">
+          <img src="/static/img/logo.png" alt="logo">
+          <!-- Tooltip container using cloud.gif -->
+          <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
+          <h1 id="nav-header">Medical Chatbot Doctor</h1>
+        </a>
+        <ul class="links">
+          <li><a id="nav-account" href="account.html">Account</a></li>
+          <li><a id="nav-subscription" href="subscription.html">Subscription</a></li>
+          <li><a id="nav-about" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot">About</a></li>
+          <!-- Dropdown Language Selector -->
+          <li class="dropdown">
+            <button class="dropdown-btn">EN &#x25BC;</button>
+            <ul class="dropdown-menu">
+              <li data-lang="VI">Vietnamese</li>
+              <li data-lang="EN">English</li>
+              <li data-lang="ZH">Mandarin</li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <div class="chat-container">
+      <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- Welcome Screen (visible initially) -->
+        <div id="welcome-container">
+          <img src="/static/img/logo.png" alt="Welcome Logo">
+          <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
+          <h1 id="acknowledgement">Acknowledgement</h1>
+          <p id="author">Author: Dang Khoa Le</p>
+          <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
+        </div>
+        <!-- Loader: hidden by default -->
+        <div id="loader" class="loader"></div>
+      </div>
+      <div class="chat-input">
+        <button onclick="sendMessage()">Send</button>
       </div>
     </div>
-    <div class="chat-input">
-      <input type="text" id="user-input" placeholder="Type your question here..." />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
 
-  <!-- Include Marked.js for markdown rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script>
-    // Global variable for current language (default English)
-    let currentLang = "EN";
+    <!-- Include Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      // Global variable for current language (default English)
+      let currentLang = "EN";
 
-    // Translation strings
-    const translations = {
-      "EN": {
-        header: "Medical Chatbot Doctor",
-        tooltip: "Hello, how can I help you today?",
-        welcomeText: "Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.",
-        acknowledgement: "Acknowledgement",
-        author: "Author: Dang Khoa Le",
-        license: "License: Apache 2.0 License",
-        chatInputPlaceholder: "Type your question here...",
-        you: "You",
-        bot: "DocBot",
-        account: "Account",
-        subscription: "Subscription",
-        about: "About"
-      },
-      "VI": {
-        header: "Bác Sĩ Chatbot",
-        tooltip: "Xin chào, tôi có thể giúp gì cho bạn?",
-        welcomeText: "Chào bạn! Tôi là trợ lý sức khỏe tận tâm của bạn, sẵn sàng hỗ trợ mọi thắc mắc về sức khỏe và phúc lợi của bạn. Hãy thoải mái đặt câu hỏi nhé!",
-        acknowledgement: "Thông tin",
-        author: "Tác giả: Dang Khoa Le",
-        license: "Giấy phép: Apache 2.0",
-        chatInputPlaceholder: "Nhập câu hỏi của bạn...",
-        you: "Bạn",
-        bot: "Bác Sĩ Chatbot",
-        account: "Tài Khoản",
-        subscription: "Đăng Ký",
-        about: "Thông Tin"
-      },
-      "ZH": {
-        header: "医疗聊天机器人医生",
-        tooltip: "您好，我今天能为您提供什么帮助？",
-        welcomeText: "您好！我是您专属的健康助手，随时为您解答关于健康与福祉的问题。请随时向我提问。",
-        acknowledgement: "鸣谢",
-        author: "作者：Dang Khoa Le",
-        license: "许可证：Apache 2.0 许可证",
-        chatInputPlaceholder: "请输入您的问题...",
-        you: "您",
-        bot: "医生机器人",
-        account: "账户",
-        subscription: "订阅",
-        about: "关于"
+      // Translation strings
+      const translations = {
+        "EN": {
+          header: "Medical Chatbot Doctor",
+          tooltip: "Hello, how can I help you today?",
+          welcomeText: "Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.",
+          acknowledgement: "Acknowledgement",
+          author: "Author: Dang Khoa Le",
+          license: "License: Apache 2.0 License",
+          chatInputPlaceholder: "Type your question here...",
+          you: "You",
+          bot: "DocBot",
+          account: "Account",
+          subscription: "Subscription",
+          about: "About",
+          loaderMessage: "Doctor Chatbot is finding the best solution for you, hang tight..."
+        },
+        "VI": {
+          header: "Bác Sĩ Chatbot",
+          tooltip: "Xin chào, tôi có thể giúp gì cho bạn?",
+          welcomeText: "Chào bạn! Tôi là trợ lý sức khỏe tận tâm của bạn, sẵn sàng hỗ trợ mọi thắc mắc về sức khỏe và phúc lợi của bạn. Hãy thoải mái đặt câu hỏi nhé!",
+          acknowledgement: "Thông tin",
+          author: "Tác giả: Dang Khoa Le",
+          license: "Giấy phép: Apache 2.0",
+          chatInputPlaceholder: "Nhập câu hỏi của bạn...",
+          you: "Bạn",
+          bot: "Bác Sĩ Chatbot",
+          account: "Tài Khoản",
+          subscription: "Đăng Ký",
+          about: "Thông Tin",
+          loaderMessage: "Bác sĩ Chatbot đang tìm giải pháp tốt nhất cho bạn, vui lòng chờ trong giây lát..."
+        },
+        "ZH": {
+          header: "医疗聊天机器人医生",
+          tooltip: "您好，我今天能为您提供什么帮助？",
+          welcomeText: "您好！我是您专属的健康助手，随时为您解答关于健康与福祉的问题。请随时向我提问。",
+          acknowledgement: "鸣谢",
+          author: "作者：Dang Khoa Le",
+          license: "许可证：Apache 2.0 许可证",
+          chatInputPlaceholder: "请输入您的问题...",
+          you: "您",
+          bot: "医生机器人",
+          account: "账户",
+          subscription: "订阅",
+          about: "关于",
+          loaderMessage: "医生聊天机器人正在为您寻找最佳解决方案，请稍候…"
+        }
+      };
+
+      // Function to update all UI strings based on selected language
+      function updateLanguage(lang) {
+        currentLang = lang;
+        // Update nav header and tooltip
+        document.getElementById('nav-header').innerText = translations[lang].header;
+        document.getElementById('tooltip').innerText = translations[lang].tooltip;
+        // Update chat header
+        document.getElementById('chat-header').innerText = translations[lang].header;
+        // Update welcome screen texts
+        document.getElementById('welcome-text').innerText = translations[lang].welcomeText;
+        document.getElementById('acknowledgement').innerText = translations[lang].acknowledgement;
+        document.getElementById('author').innerText = translations[lang].author;
+        document.getElementById('license').innerText = translations[lang].license;
+        // Update chat input placeholder
+        document.getElementById('user-input').placeholder = translations[lang].chatInputPlaceholder;
+        // Update nav links
+        document.getElementById('nav-account').innerText = translations[lang].account;
+        document.getElementById('nav-subscription').innerText = translations[lang].subscription;
+        document.getElementById('nav-about').innerText = translations[lang].about;
       }
-    };
 
-    // Function to update all UI strings based on selected language
-    function updateLanguage(lang) {
-      currentLang = lang;
-      // Update nav header and tooltip
-      document.getElementById('nav-header').innerText = translations[lang].header;
-      document.getElementById('tooltip').innerText = translations[lang].tooltip;
-      // Update chat header
-      document.getElementById('chat-header').innerText = translations[lang].header;
-      // Update welcome screen texts
-      document.getElementById('welcome-text').innerText = translations[lang].welcomeText;
-      document.getElementById('acknowledgement').innerText = translations[lang].acknowledgement;
-      document.getElementById('author').innerText = translations[lang].author;
-      document.getElementById('license').innerText = translations[lang].license;
-      // Update chat input placeholder
-      document.getElementById('user-input').placeholder = translations[lang].chatInputPlaceholder;
-      // Update nav links
-      document.getElementById('nav-account').innerText = translations[lang].account;
-      document.getElementById('nav-subscription').innerText = translations[lang].subscription;
-      document.getElementById('nav-about').innerText = translations[lang].about;
-    }
-
-    async function sendMessage() {
-      const input = document.getElementById('user-input');
-      const message = input.value;
-      if (!message) return;
-      // Remove the welcome screen if it exists
-      const welcomeContainer = document.getElementById('welcome-container');
-      if (welcomeContainer) {
-        welcomeContainer.remove();
-      }
-      appendMessage('user', message, false);
-      input.value = '';
-      const response = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message })
-      });
-      const data = await response.json();
-      const htmlResponse = marked.parse(data.response);
-      appendMessage('bot', htmlResponse, true);
-    }
-
-    function appendMessage(role, text, isHTML) {
+    // Remove loader element on message
+    function removeLastMessage() {
       const messagesDiv = document.getElementById('chat-messages');
-      const messageDiv = document.createElement('div');
-      messageDiv.classList.add('message');
-      const prefix = role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
-      if (isHTML) {
-        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
-      } else {
-        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong> ${text}`;
+      if (messagesDiv.lastChild) {
+        messagesDiv.removeChild(messagesDiv.lastChild);
       }
-      messagesDiv.appendChild(messageDiv);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Dropdown language selector functionality
-    document.addEventListener('DOMContentLoaded', function() {
-      const dropdownBtn = document.querySelector('.dropdown-btn');
-      const dropdownMenu = document.querySelector('.dropdown-menu');
+      async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const message = input.value;
+        if (!message) return;
+        // Remove the welcome screen if it exists
+        const welcomeContainer = document.getElementById('welcome-container');
+        if (welcomeContainer) {
+          welcomeContainer.remove();
+        }
+        appendMessage('user', message, false);
+        input.value = '';
+        // Insert loader message as bot message
+        const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
+        appendMessage('bot', loaderHTML, true);
+        // Prepare JSON message posting to Gemini API (with language)
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: message, lang: currentLang })
+        });
+        const data = await response.json();
+        const htmlResponse = marked.parse(data.response);
+        // Remove the loader message and then append the actual bot response when obtained from Gemini
+        removeLastMessage();
+        appendMessage('bot', htmlResponse, true);
+      }
 
-      dropdownBtn.addEventListener('click', function(event) {
-        event.stopPropagation();
-        dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
-      });
+      function appendMessage(role, text, isHTML) {
+        const messagesDiv = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+        const prefix = role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
+        if (isHTML) {
+          messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
+        } else {
+          messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong> ${text}`;
+        }
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
 
-      // Update dropdown button text and UI when a language option is selected
-      document.querySelectorAll('.dropdown-menu li').forEach(item => {
-        item.addEventListener('click', function(event) {
+      // Dropdown language selector functionality
+      document.addEventListener('DOMContentLoaded', function() {
+        const dropdownBtn = document.querySelector('.dropdown-btn');
+        const dropdownMenu = document.querySelector('.dropdown-menu');
+
+        dropdownBtn.addEventListener('click', function(event) {
           event.stopPropagation();
-          const selectedLang = this.getAttribute('data-lang');
-          dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
+          dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        // Update dropdown button text and UI when a language option is selected
+        document.querySelectorAll('.dropdown-menu li').forEach(item => {
+          item.addEventListener('click', function(event) {
+            event.stopPropagation();
+            const selectedLang = this.getAttribute('data-lang');
+            dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
+            dropdownMenu.style.display = 'none';
+            updateLanguage(selectedLang);
+          });
+        });
+
+        // Close the dropdown if clicking outside
+        document.addEventListener('click', function() {
           dropdownMenu.style.display = 'none';
-          updateLanguage(selectedLang);
         });
       });
 
-      // Close the dropdown if clicking outside
-      document.addEventListener('click', function() {
-        dropdownMenu.style.display = 'none';
-      });
-    });
+      // Replay thinking GIF Without Hard Flicker
+      // 1) Set GIF run duration before it stops.
+      const GIF_DURATION = 800;
 
-    // Replay thinking GIF Without Hard Flicker
-    // 1) Set GIF run duration before it stops.
-    const GIF_DURATION = 800;
-
-    // 2) Use setInterval to periodically reload the image
-    setInterval(() => {
-      const tooltip = document.getElementById('tooltip');
-      // Create an offscreen Image object
-      const newImg = new Image();
-      const newSrc = `/static/img/cloud.gif?t=${Date.now()}`; // Cache-busting parameter
-
-      // Once it's loaded, switch the background to the new image
-      newImg.onload = () => {
-        tooltip.style.background = `url('${newSrc}') repeat`;
-        tooltip.style.backgroundSize = '100% 100%';
-      };
-      // Start loading
-      newImg.src = newSrc;
-    }, GIF_DURATION);
-  </script>
-</body>
+      // 2) Use setInterval to periodically reload the image
+      setInterval(() => {
+        const tooltip = document.getElementById('tooltip');
+        // Create an offscreen Image object
+        const newImg = new Image();
+        const newSrc = `/static/img/cloud.gif?t=${Date.now()}`; // Cache-busting parameter
+        // Once it's loaded, switch the background to the new image
+        newImg.onload = () => {
+          tooltip.style.background = `url('${newSrc}') repeat`;
+          tooltip.style.backgroundSize = '100% 100%';
+        };
+        // Start loading
+        newImg.src = newSrc;
+      }, GIF_DURATION);
+    </script>
+  </body>
 </html>

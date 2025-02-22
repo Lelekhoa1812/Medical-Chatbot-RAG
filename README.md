@@ -1,6 +1,6 @@
 ## **AutoGen-Based Medical Chatbot with RAG**
 
-This project is about **Medical Chatbot** using **AutoGen**, **RAG (Retrieval-Augmented Generation)**, and **OpenAI API** with a **custom Hugging Face medical dataset**.
+This project is about **Medical Chatbot** using **AutoGen**, **RAG (Retrieval-Augmented Generation)**, and **Gemini Flash 2.0 API** with a **custom Hugging Face medical dataset**. Server is running with **Fast API** and dynamic HTML template render (with **MarkdownJS**).
 
 ## Clone this repository:
 
