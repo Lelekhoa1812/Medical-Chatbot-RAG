@@ -119,7 +119,7 @@ python3 -X faulthandler main.py
 
 ---
 
-作者: Dang Khoa Le
+作者: 黎登科     
 最新的更新: 22/02/2025
 
 ---

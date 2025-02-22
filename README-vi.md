@@ -115,7 +115,7 @@ Nếu bạn có bất kỳ câu hỏi hay đề xuất nào, vui lòng đóng g�
 
 ---
 
-Author: Dang Khoa Le
+Author: Lê Đăng Khoa   
 Latest Update: 22/02/2025
 
 ---
