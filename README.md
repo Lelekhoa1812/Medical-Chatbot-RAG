@@ -3,6 +3,11 @@
 Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages cutting‑edge technologies such as **AutoGen**, **Retrieval-Augmented Generation (RAG)**, and the **Gemini Flash 2.0 API** to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on **FastAPI** and dynamically renders HTML using **MarkdownJS**.
 
 ---
+For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-vi.md)
+
+For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-zh.md)
+
+---
 
 ## 🚀 Getting Started
 
@@ -114,5 +119,11 @@ This project is licensed under the [Apache 2.0 License](https://github.com/Lelek
 
 ---
 
+Feel free to contribute or raise issues if you have any questions or suggestions. Happy coding! 😊
+
+---
+
 Author: Dang Khoa Le
 Latest Update: 22/02/2025
+
+---
