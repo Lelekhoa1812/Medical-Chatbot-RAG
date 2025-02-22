@@ -36,12 +36,13 @@ import os
 #     raise ValueError("❌ MongoDB URI (IndexURI) is missing!")
 
 # iclient = MongoClient(index_uri)
-# idb = iclient["FAISSIndexCluster"]  # Use the same database name as in your main script
+# idb = iclient["MedicalChatbotDB"]  # Use the same database name as in your main script
 
 # # To drop just the collection storing the FAISS index:
 # idb.drop_collection("faiss_index_files.files")
-# print("Dropped collection 'faiss_index_files' from FAISSIndexCluster.")
+# idb.drop_collection("faiss_index_files.chunks")
+# print("Dropped collection 'faiss_index_files' and chunks from MedicalChatbotDB.")
 
 # # Alternatively, to drop the entire database:
-# iclient.drop_database("FAISSIndexCluster")
-# print("Dropped database 'FAISSIndexCluster'.")
+# iclient.drop_database("MedicalChatbotDB")
+# print("Dropped database 'MedicalChatbotDB'.")

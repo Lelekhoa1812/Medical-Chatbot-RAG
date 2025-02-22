@@ -24,9 +24,19 @@ python3 main.py
 python3 -X faulthandler main.py
 ```
 
-## Clear MongoDB data for re-embedding:
+## Connect and list out collection from MongoDB
+```bash
+python3 connect_mongo.py
+```
+
+## Clear MongoDB data for data reset:
 ```bash
 python3 clear_mongo.py
+```
+
+## MongoDB data migration
+```bash
+python3 migrate.py
 ```
 
 ## Example:

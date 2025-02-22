@@ -70,7 +70,7 @@ qa_collection = db["qa_data"]
 # FAISS index client
 iclient = MongoClient(index_uri)
 idb = iclient["MedicalChatbotDB"]  # Use your chosen database name
-index_collection = idb["faiss_index"]
+index_collection = idb["faiss_index_files"]
 
 ##---------------------------##
 ## EMBEDDING AND DATA RETRIEVAL
@@ -106,7 +106,7 @@ print("✅ Checking GridFS for existing FAISS index...")
 import gridfs
 fs = gridfs.GridFS(idb, collection="faiss_index_files")  # 'idb' is connected using INDEX_URI
 
-# Attempt to find the FAISS index file by filename.
+# Find the FAISS index file by filename.
 existing_file = fs.find_one({"filename": "faiss_index.bin"})
 if existing_file is None:
     print("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
@@ -138,7 +138,7 @@ else:
     stored_index_bytes = existing_file.read()
     index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
-    print("✅ FAISS index loaded from GridFS successfully!")
+print("✅ FAISS index loaded from GridFS successfully!")
 
 
 ##---------------------------##
@@ -194,6 +194,7 @@ chatbot = RAGMedicalChatbot(
 print("✅ Medical chatbot is ready!")
 
 # --- FastAPI Server ---
+from fastapi.staticfiles import StaticFiles
 app = FastAPI(title="Medical Chatbot")
 
 # HTML Template
@@ -203,13 +204,13 @@ HTML_CONTENT = """
 <head>
   <meta charset="utf-8">
   <title>Medical Chatbot</title>
-  <link rel="website icon" type="png" href="img/logo.png">
+  <link rel="website icon" type="png" href="/static/img/logo.png">
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      background: url('img/background.gif') repeat-x center top;
+      background: url('/static/img/background.gif') repeat-x center top;
       background-size: contain;
       margin: 0;
       padding: 0;
@@ -238,32 +239,23 @@ HTML_CONTENT = """
     .navbar .logo img:hover {
       transform: scale(1.1);
     }
+    #nav-header:hover {
+      transform: translateX(5px) translateY(-1px) scale(1.1);
+      transition: transform 0.2s ease;
+    }
     /* Tooltip (Thinking Cloud) Styles */
     .logo-tooltip {
       display: none;
       position: absolute;
       bottom: calc(100% - 12px);
-      left: 50%;
-      transform: translateX(-90%);
-      background-color: #fff;
+      left: 0; /* Align left edge with logo image */
+      background: url('/static/img/cloud.gif') repeat;
+      background-size: 100% 100%;
       color: rgb(18, 129, 144);
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
+      padding: 10px 60px;
       font-size: 0.9rem;
       white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       z-index: 10;
-    }
-    .logo-tooltip::after {
-      content: "";
-      position: absolute;
-      top: 100%;
-      left: 40%;
-      transform: translateX(-50%);
-      border-width: 6px;
-      border-style: solid;
-      border-color: #fff transparent transparent transparent;
     }
     .navbar .logo:hover .logo-tooltip {
       display: block;
@@ -378,20 +370,15 @@ HTML_CONTENT = """
       margin: 30px 10px;
       filter: grayscale(90%);
     }
-    #welcome-container p {
-      font-size: 0.8rem;
-      color: rgb(117, 117, 117);
-      margin: 0 150px;
-    }
+    #welcome-container p, 
+    #welcome-container h1, 
     #welcome-container a {
-      font-size: 0.8rem;
+      margin: 5px 150px;
       color: rgb(117, 117, 117);
-      margin: 0 150px;
+      font-size: 0.8rem;
     }
     #welcome-container h1 {
       font-size: 1rem;
-      color: rgb(117, 117, 117);
-      margin: 5px 5px;
     }
     .chat-input {
       display: flex;
@@ -436,25 +423,23 @@ HTML_CONTENT = """
       to { opacity: 1; transform: translateY(0); }
     }
   </style>
-  <!-- Include Marked.js for markdown rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <header>
     <nav class="navbar">
       <a href="#" class="logo">
-        <img src="img/logo.png" alt="logo">
-        <!-- Tooltip container -->
-        <div class="logo-tooltip">Hello, how can I help you today?</div>
-        <h1>Medical Chatbot Doctor</h1>
+        <img src="/static/img/logo.png" alt="logo">
+        <!-- Tooltip container using cloud.gif -->
+        <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
+        <h1 id="nav-header">Medical Chatbot Doctor</h1>
       </a>
       <ul class="links">
-        <li><a href="account.html">Account</a></li>
-        <li><a href="subscription.html">Subscription</a></li>
-        <li><a href="about.html">About</a></li>
+        <li><a id="nav-account" href="account.html">Account</a></li>
+        <li><a id="nav-subscription" href="subscription.html">Subscription</a></li>
+        <li><a id="nav-about" href="about.html">About</a></li>
         <!-- Dropdown Language Selector -->
         <li class="dropdown">
-          <button class="dropdown-btn">VI &#x25BC;</button>
+          <button class="dropdown-btn">EN &#x25BC;</button>
           <ul class="dropdown-menu">
             <li data-lang="VI">Vietnamese</li>
             <li data-lang="EN">English</li>
@@ -465,16 +450,14 @@ HTML_CONTENT = """
     </nav>
   </header>
   <div class="chat-container">
-    <div class="chat-header">
-      Medical Chatbot Doctor
-    </div>
+    <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
     <div class="chat-messages" id="chat-messages">
       <!-- Welcome Screen (visible initially) -->
       <div id="welcome-container">
-        <img src="img/logo.png" alt="Welcome Logo">
-        <p>Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
-        <h1>Acknowledgement</h1>
-        <p>Author: Dang Khoa Le</p>
+        <img src="/static/img/logo.png" alt="Welcome Logo">
+        <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
+        <h1 id="acknowledgement">Acknowledgement</h1>
+        <p id="author">Author: Dang Khoa Le</p>
         <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
       </div>
     </div>
@@ -483,7 +466,80 @@ HTML_CONTENT = """
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
+
+  <!-- Include Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
+    // Global variable for current language (default English)
+    let currentLang = "EN";
+
+    // Translation strings
+    const translations = {
+      "EN": {
+        header: "Medical Chatbot Doctor",
+        tooltip: "Hello, how can I help you today?",
+        welcomeText: "Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.",
+        acknowledgement: "Acknowledgement",
+        author: "Author: Dang Khoa Le",
+        license: "License: Apache 2.0 License",
+        chatInputPlaceholder: "Type your question here...",
+        you: "You",
+        bot: "DocBot",
+        account: "Account",
+        subscription: "Subscription",
+        about: "About"
+      },
+      "VI": {
+        header: "Bác Sĩ Chatbot",
+        tooltip: "Xin chào, tôi có thể giúp gì cho bạn?",
+        welcomeText: "Chào bạn! Tôi là trợ lý sức khỏe tận tâm của bạn, sẵn sàng hỗ trợ mọi thắc mắc về sức khỏe và phúc lợi của bạn. Hãy thoải mái đặt câu hỏi nhé!",
+        acknowledgement: "Thông tin",
+        author: "Tác giả: Dang Khoa Le",
+        license: "Giấy phép: Apache 2.0",
+        chatInputPlaceholder: "Nhập câu hỏi của bạn...",
+        you: "Bạn",
+        bot: "Bác Sĩ Chatbot",
+        account: "Tài Khoản",
+        subscription: "Đăng Ký",
+        about: "Thông Tin"
+      },
+      "ZH": {
+        header: "医疗聊天机器人医生",
+        tooltip: "您好，我今天能为您提供什么帮助？",
+        welcomeText: "您好！我是您专属的健康助手，随时为您解答关于健康与福祉的问题。请随时向我提问。",
+        acknowledgement: "鸣谢",
+        author: "作者：Dang Khoa Le",
+        license: "许可证：Apache 2.0 许可证",
+        chatInputPlaceholder: "请输入您的问题...",
+        you: "您",
+        bot: "医生机器人",
+        account: "账户",
+        subscription: "订阅",
+        about: "关于"
+      }
+    };
+
+    // Function to update all UI strings based on selected language
+    function updateLanguage(lang) {
+      currentLang = lang;
+      // Update nav header and tooltip
+      document.getElementById('nav-header').innerText = translations[lang].header;
+      document.getElementById('tooltip').innerText = translations[lang].tooltip;
+      // Update chat header
+      document.getElementById('chat-header').innerText = translations[lang].header;
+      // Update welcome screen texts
+      document.getElementById('welcome-text').innerText = translations[lang].welcomeText;
+      document.getElementById('acknowledgement').innerText = translations[lang].acknowledgement;
+      document.getElementById('author').innerText = translations[lang].author;
+      document.getElementById('license').innerText = translations[lang].license;
+      // Update chat input placeholder
+      document.getElementById('user-input').placeholder = translations[lang].chatInputPlaceholder;
+      // Update nav links
+      document.getElementById('nav-account').innerText = translations[lang].account;
+      document.getElementById('nav-subscription').innerText = translations[lang].subscription;
+      document.getElementById('nav-about').innerText = translations[lang].about;
+    }
+
     async function sendMessage() {
       const input = document.getElementById('user-input');
       const message = input.value;
@@ -504,14 +560,16 @@ HTML_CONTENT = """
       const htmlResponse = marked.parse(data.response);
       appendMessage('bot', htmlResponse, true);
     }
+
     function appendMessage(role, text, isHTML) {
       const messagesDiv = document.getElementById('chat-messages');
       const messageDiv = document.createElement('div');
       messageDiv.classList.add('message');
+      const prefix = role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
       if (isHTML) {
-        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong><br/>${text}`;
+        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
       } else {
-        messageDiv.innerHTML = `<strong class="${role}">${role === 'user' ? 'You' : 'DocBot'}:</strong> ${text}`;
+        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong> ${text}`;
       }
       messagesDiv.appendChild(messageDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -521,20 +579,20 @@ HTML_CONTENT = """
     document.addEventListener('DOMContentLoaded', function() {
       const dropdownBtn = document.querySelector('.dropdown-btn');
       const dropdownMenu = document.querySelector('.dropdown-menu');
-      
+
       dropdownBtn.addEventListener('click', function(event) {
         event.stopPropagation();
         dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
       });
 
-      // Update dropdown button text when a language option is selected
+      // Update dropdown button text and UI when a language option is selected
       document.querySelectorAll('.dropdown-menu li').forEach(item => {
         item.addEventListener('click', function(event) {
           event.stopPropagation();
           const selectedLang = this.getAttribute('data-lang');
           dropdownBtn.innerHTML = selectedLang + " &#x25BC;";
           dropdownMenu.style.display = 'none';
-          // Optional: Add any language change functionality here.
+          updateLanguage(selectedLang);
         });
       });
 
@@ -543,10 +601,32 @@ HTML_CONTENT = """
         dropdownMenu.style.display = 'none';
       });
     });
+
+    // Replay thinking GIF Without Hard Flicker
+    // 1) Set GIF run duration before it stops.
+    const GIF_DURATION = 800;
+
+    // 2) Use setInterval to periodically reload the image
+    setInterval(() => {
+      const tooltip = document.getElementById('tooltip');
+      // Create an offscreen Image object
+      const newImg = new Image();
+      const newSrc = `/static/img/cloud.gif?t=${Date.now()}`; // Cache-busting parameter
+      // Once it's loaded, switch the background to the new image
+      newImg.onload = () => {
+        tooltip.style.background = `url('${newSrc}') repeat`;
+        tooltip.style.backgroundSize = '100% 100%';
+      };
+      // Start loading
+      newImg.src = newSrc;
+    }, GIF_DURATION);
   </script>
 </body>
 </html>
 """
+
+# Mount static files (make sure the "static" folder exists and contains your images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Get statics template route
 @app.get("/", response_class=HTMLResponse)

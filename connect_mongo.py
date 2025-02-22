@@ -17,8 +17,8 @@ print("QA count: ", db.qa_data.count_documents({}))
 # Index Cluster
 index_uri = os.getenv("INDEX_URI")
 iclient = MongoClient(index_uri)
-idb = iclient["FAISSIndexCluster"]
+idb = iclient["MedicalChatbotDB"]
 # List all collection
 print("FAISS Collection: ",idb.list_collection_names())
 # Count document QA related
-print("Index count: ", idb.faiss_index.count_documents({}))
+print("Index count: ", idb.faiss_index_files.files.count_documents({}))
