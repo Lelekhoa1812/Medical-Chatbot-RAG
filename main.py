@@ -183,7 +183,7 @@ class RAGMedicalChatbot:
         self.retrieve = retrieve_function
 
     # Chat function with professional prompt
-    def chat(self, user_query):
+    def chat(self, user_query, lang="EN"):
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
         # Get the language name from our mapping
@@ -200,6 +200,7 @@ class RAGMedicalChatbot:
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
         return completion.strip()
 
+# --- Model Class (change to others if needed) ---
 chatbot = RAGMedicalChatbot(
     model_name="gemini-2.0-flash",
     retrieve_function=retrieve_medical_info
@@ -605,7 +606,6 @@ HTML_CONTENT = """
       // Insert loader message as bot message
       const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
       appendMessage('bot', loaderHTML, true);
-
       // Prepare JSON message posting to Gemini API (with language)
       const response = await fetch('/chat', {
         method: 'POST',
