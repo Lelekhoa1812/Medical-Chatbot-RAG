@@ -19,7 +19,11 @@ conda activate chatbot_env
 Ensure your environment has the necessary libraries:   
 ```bash
 pip install -U "autogen-agentchat" "autogenstudio" \
-                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo"
+                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo" "googletrans"
+```
+Or install all:  
+```bash
+pip install -U requirements.txt
 ```
 
 - `faiss-cpu`: Efficient vector search for RAG.

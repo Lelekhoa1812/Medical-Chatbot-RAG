@@ -77,14 +77,13 @@ python3 -X faulthandler main.py
 ### 聊天机器人控制台示例
 <img src="imgsrc/chatbot_console1.png" alt="聊天机器人医疗回答示例" style="width: 80%; max-width: 1000px;">
 
-### 当前界面
-<img src="imgsrc/ui1.png" alt="聊天机器人界面 1" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui2.png" alt="聊天机器人界面 2" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui3.png" alt="聊天机器人界面 3" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui4.png" alt="聊天机器人界面 4" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui5.png" alt="聊天机器人界面 5" style="width: 80%; max-width: 1000px;">
+### 界面
+<img src="imgsrc/chat-zh1.png" alt="聊天机器人界面 1" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-zh2.png" alt="聊天机器人界面 2" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-zh3.png" alt="聊天机器人界面 3" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-zh4.png" alt="聊天机器人界面 4" style="width: 80%; max-width: 1000px;">
 
-### 新界面（含加载动画）
+### 界面（含加载动画）
 <img src="imgsrc/loaderUI.png" alt="包含加载器的新界面" style="width: 80%; max-width: 1000px;">
 
 ---

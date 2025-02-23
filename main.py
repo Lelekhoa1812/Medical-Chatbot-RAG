@@ -173,31 +173,34 @@ def gemini_flash_completion(prompt, model, temperature=0.7):
 language_map = {
     "EN": "English",
     "VI": "Vietnamese",
-    "ZH": "Mandarin"
+    "ZH": "Chinese"
 }
 
 # --- Chatbot Class ---
+from googletrans import Translator
 class RAGMedicalChatbot:
     def __init__(self, model_name, retrieve_function):
         self.model_name = model_name
         self.retrieve = retrieve_function
+        self.translator = Translator()  # Initialize Google Translator
 
-    # Chat function with professional prompt
     def chat(self, user_query, lang="EN"):
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
-        # Get the language name from our mapping
-        lang_name = language_map.get(lang.upper(), "English")
-        # Build professional prompt with language
+        # Construct prompt for Gemini Flash
         prompt = (
             "Please format your answer using markdown. Use **bold** for titles, *italic* for emphasis, "
             "and ensure that headings and paragraphs are clearly separated.\n\n"
-            f"Using the following medical knowledge:\n{knowledge_base}\n\n"
-            f"Answer the following question in a professional and medically accurate manner "
-            f"(trained with 256,916 data entries). Please ensure your response is in {lang_name}.\n\n"
-            f"Question: {user_query}"
+            f"Using the following medical knowledge:\n{knowledge_base} \n(trained with 256,916 data entries).\n\n"
+            f"Answer the following question in a professional and medically accurate manner:\n{user_query}.\n\n"
+            f"Your response answer must be in {lang} language."
         )
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
+        # If the selected language is not English, translate the response
+        # if lang != "EN":
+        #     print(f"Translating response to {lang}...")
+        #     translated_response = self.translator.translate(completion, dest=lang).text
+        #     return translated_response.strip()
         return completion.strip()
 
 # --- Model Class (change to others if needed) ---
@@ -484,7 +487,7 @@ HTML_CONTENT = """
           <ul class="dropdown-menu">
             <li data-lang="VI">Vietnamese</li>
             <li data-lang="EN">English</li>
-            <li data-lang="ZH">Mandarin</li>
+            <li data-lang="ZH">Chinese</li>
           </ul>
         </li>
       </ul>
@@ -610,7 +613,7 @@ HTML_CONTENT = """
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message, lang: currentLang })
+        body: JSON.stringify({ query: message, lang: currentLang }) // Include selected language
       });
       const data = await response.json();
       const htmlResponse = marked.parse(data.response);
@@ -699,7 +702,7 @@ async def chat_endpoint(data: dict):
     if not user_query:
         return JSONResponse(content={"response": "No query provided."})
     start_time = time.time()
-    response_text = chatbot.chat(user_query)
+    response_text = chatbot.chat(user_query, lang)  # Pass language selection
     end_time = time.time()
     response_text += f"\n\n(Response time: {end_time - start_time:.2f} seconds)"
     return JSONResponse(content={"response": response_text})

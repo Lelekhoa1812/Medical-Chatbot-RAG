@@ -81,14 +81,13 @@ python3 -X faulthandler main.py
 ### Chatbot Console Example
 <img src="imgsrc/chatbot_console1.png" alt="Chatbot Medical Answer Example" style="width: 80%; max-width: 1000px;">
 
-### Current User Interface
-<img src="imgsrc/ui1.png" alt="Chatbot UI 1" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui2.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui3.png" alt="Chatbot UI 3" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui4.png" alt="Chatbot UI 4" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui5.png" alt="Chatbot UI 5" style="width: 80%; max-width: 1000px;">
+### Chatbot with Answer:
+<img src="imgsrc/chat-en1.png" alt="Chatbot UI 1" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-en2.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-en3.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-en4.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
 
-### New UI with Loader Animation
+### UI with Loader Animation
 <img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;">
 
 ---

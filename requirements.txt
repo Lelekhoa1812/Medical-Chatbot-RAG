@@ -1,0 +1,12 @@
+autogen-agentchat
+# autogenstudio
+faiss-cpu
+chromadb 
+datasets
+tiktoken
+sentence-transformers
+python-dotenv
+google-genai
+huggingface_hub
+pymongo
+googletrans

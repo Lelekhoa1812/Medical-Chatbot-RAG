@@ -76,14 +76,12 @@ python3 -X faulthandler main.py
 ### Ví dụ về giao diện Chatbot
 <img src="imgsrc/chatbot_console1.png" alt="Ví dụ về câu trả lời y tế của Chatbot" style="width: 80%; max-width: 1000px;">
 
-### Giao diện hiện tại
-<img src="imgsrc/ui1.png" alt="Giao diện Chatbot 1" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui2.png" alt="Giao diện Chatbot 2" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui3.png" alt="Giao diện Chatbot 3" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui4.png" alt="Giao diện Chatbot 4" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/ui5.png" alt="Giao diện Chatbot 5" style="width: 80%; max-width: 1000px;">
+### Giao diện và câu trả lời
+<img src="imgsrc/chat-vi1.png" alt="Giao diện Chatbot 1" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-vi2.png" alt="Giao diện Chatbot 2" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/chat-vi3.png" alt="Giao diện Chatbot 3" style="width: 80%; max-width: 1000px;">
 
-### Giao diện mới với hiệu ứng loader
+### Giao diện với hiệu ứng loader
 <img src="imgsrc/loaderUI.png" alt="Giao diện mới với Loader" style="width: 80%; max-width: 1000px;">
 
 ---
