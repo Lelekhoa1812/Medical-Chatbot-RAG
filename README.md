@@ -5,7 +5,7 @@ Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages c
 ---
 For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-vi.md)
 
-For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-zh.md)
+For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/%08README-zh.md)
 
 ---
 
