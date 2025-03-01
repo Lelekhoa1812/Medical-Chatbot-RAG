@@ -775,6 +775,6 @@ async def chat_endpoint(data: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 8000)) # Default to 8000 if PORT isn't set
     print(f"\n🩺 Starting Medical Chatbot FastAPI server on port {port}...\n")
     uvicorn.run(app, host="0.0.0.0", port=port)
