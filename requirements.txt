@@ -2,7 +2,7 @@
 # autogenstudio
 faiss-cpu
 # chromadb # Not used for RAG pipeline now
-datasets
+# datasets # Expect to load from Mongo only, no need to fetch dataset from HuggingFace
 # tiktoken # Not uaing OpenAI agent now
 sentence-transformers
 python-dotenv
