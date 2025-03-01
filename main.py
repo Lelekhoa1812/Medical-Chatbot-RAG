@@ -177,7 +177,6 @@ language_map = {
 }
 
 # --- Chatbot Class ---
-from googletrans import Translator
 class RAGMedicalChatbot:
     def __init__(self, model_name, retrieve_function):
         self.model_name = model_name
@@ -196,11 +195,6 @@ class RAGMedicalChatbot:
             f"Your response answer must be in {lang} language."
         )
         completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
-        # If the selected language is not English, translate the response
-        # if lang != "EN":
-        #     print(f"Translating response to {lang}...")
-        #     translated_response = self.translator.translate(completion, dest=lang).text
-        #     return translated_response.strip()
         return completion.strip()
 
 # --- Model Class (change to others if needed) ---
@@ -225,14 +219,15 @@ HTML_CONTENT = """
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    /* General Styling */
     body {
       font-family: 'Roboto', sans-serif;
-      background: url('/static/img/background.gif') repeat-x center top;
-      background-size: contain;
+      background: linear-gradient(270deg, rgb(44, 13, 58), rgb(13, 58, 56));
+      background-size: cover;
       margin: 0;
       padding: 0;
     }
-    /* Nav bar */
+    /* Navbar & Logo */
     .navbar {
       display: flex;
       padding: 22px 0;
@@ -242,9 +237,9 @@ HTML_CONTENT = """
       justify-content: space-between;
     }
     .navbar .logo {
-      gap: 10px;
       display: flex;
       align-items: center;
+      gap: 10px;
       text-decoration: none;
       position: relative;
     }
@@ -256,11 +251,15 @@ HTML_CONTENT = """
     .navbar .logo img:hover {
       transform: scale(1.1);
     }
+    #nav-header {
+      color: rgb(18, 129, 144);
+    }
     #nav-header:hover {
+      color: rgb(144, 100, 18);
       transform: translateX(5px) translateY(-1px) scale(1.1);
       transition: transform 0.2s ease;
     }
-    /* Tooltip (Thinking Cloud) Styles */
+    /* Tooltip (Thinking Cloud) */
     .logo-tooltip {
       display: none;
       position: absolute;
@@ -277,6 +276,7 @@ HTML_CONTENT = """
     .navbar .logo:hover .logo-tooltip {
       display: block;
     }
+    /* Navbar Links & Language Dropdown */
     .navbar .links {
       display: flex;
       gap: 35px;
@@ -295,7 +295,6 @@ HTML_CONTENT = """
     .navbar .links a:hover {
       color: rgb(144, 100, 18);
     }
-    /* Language Dropdown */
     .dropdown {
       position: relative;
       display: inline-block;
@@ -316,7 +315,7 @@ HTML_CONTENT = """
       display: none;
       position: absolute;
       top: 110%;
-      left: 0;
+      left: -90px;
       background-color: #fff;
       min-width: 140px;
       box-shadow: 0 8px 16px rgba(0,0,0,0.2);
@@ -337,14 +336,7 @@ HTML_CONTENT = """
       background-color: #f1f1f1;
       color: rgb(144, 100, 18);
     }
-    /* Text content */
-    h1 {
-      color: rgb(18, 129, 144);
-    }
-    h1:hover {
-      color: rgb(144, 100, 18);
-    }
-    /* Chat container */
+    /* Chat Container */
     .chat-container {
       width: 90%;
       max-width: 800px;
@@ -355,7 +347,7 @@ HTML_CONTENT = """
       overflow: hidden;
     }
     .chat-header {
-      background-color: rgb(18, 129, 144);
+      background: linear-gradient(270deg, rgb(13, 58, 56), rgb(44, 13, 58));
       color: #fff;
       padding: 20px;
       text-align: center;
@@ -367,13 +359,26 @@ HTML_CONTENT = """
       overflow-y: auto;
       background-color: #f9f9f9;
       position: relative;
+      min-height: 60vh; /* Ensure the container covers the full viewport height */
     }
-    /* Welcome screen (before chat stage) */
+    /* Tablet Devices */
+    @media (max-width: 1100px) {
+      .chat-messages {
+        min-height: 70vh; /* Ensure the container covers the full viewport height */
+      }
+    }
+    /* Mobile Devices */
+    @media (max-width: 768px) {
+      .chat-messages {
+        min-height: 80vh; /* Ensure the container covers the full viewport height */
+      }
+    }
+    /* Welcome Screen */
     #welcome-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: top;
+      justify-content: flex-start;
       position: absolute;
       top: 0;
       left: 0;
@@ -397,8 +402,7 @@ HTML_CONTENT = """
     #welcome-container h1 {
       font-size: 1rem;
     }
-
-    /* Chat section on chatting */
+    /* Chat Input */
     .chat-input {
       display: flex;
       border-top: 1px solid #ddd;
@@ -412,7 +416,7 @@ HTML_CONTENT = """
     }
     .chat-input button {
       padding: 15px;
-      background-color: rgb(18, 129, 144);
+      background: linear-gradient(270deg, rgb(13, 58, 56), rgb(44, 13, 58));
       color: #fff;
       border: none;
       font-size: 1em;
@@ -420,7 +424,7 @@ HTML_CONTENT = """
       transition: background-color 0.3s ease, transform 0.3s ease;
     }
     .chat-input button:hover {
-      background-color: #4e1402;
+      background: linear-gradient(270deg, rgb(144, 100, 18), rgb(52, 18, 8)); 
       transform: scale(1.1);
     }
     .message {
@@ -441,8 +445,7 @@ HTML_CONTENT = """
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
-    /* Loader Container & Text */
+    /* Loader Styles */
     .loader-container {
       display: flex;
       flex-direction: column;
@@ -466,9 +469,60 @@ HTML_CONTENT = """
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    /* Modal Styles */
+    #language-modal {
+      display: flex;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    #language-modal .modal-content {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    }
+    #language-modal h2 {
+      color: rgb(18, 129, 144);
+      margin-bottom: 20px;
+    }
+    #language-modal button {
+      background: linear-gradient(270deg, rgb(44, 13, 58), rgb(13, 58, 56));
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s ease;
+    }
+    #language-modal button:hover {
+      background: linear-gradient(270deg, rgb(144, 100, 18), rgb(52, 18, 8)); 
+    }
   </style>
 </head>
 <body>
+  <!-- Language Selection Modal -->
+  <div id="language-modal">
+    <div class="modal-content">
+      <h2>Please select your preferred language</h2>
+      <button data-lang="EN">English</button>
+      <button data-lang="VI">Tiếng Việt</button>
+      <button data-lang="ZH">中文</button>
+    </div>
+  </div>
+
   <header>
     <nav class="navbar">
       <a href="#" class="logo">
@@ -487,12 +541,13 @@ HTML_CONTENT = """
           <ul class="dropdown-menu">
             <li data-lang="VI">Vietnamese</li>
             <li data-lang="EN">English</li>
-            <li data-lang="ZH">Chinese</li>
+            <li data-lang="ZH">Mandarin</li>
           </ul>
         </li>
       </ul>
     </nav>
   </header>
+
   <div class="chat-container">
     <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
     <div class="chat-messages" id="chat-messages">
@@ -501,7 +556,7 @@ HTML_CONTENT = """
         <img src="/static/img/logo.png" alt="Welcome Logo">
         <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
         <h1 id="acknowledgement">Acknowledgement</h1>
-        <p id="author">Author: Dang Khoa Le</p>
+        <p id="author">Author: (Liam) Dang Khoa Le</p>
         <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
       </div>
     </div>
@@ -524,7 +579,7 @@ HTML_CONTENT = """
         tooltip: "Hello, how can I help you today?",
         welcomeText: "Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.",
         acknowledgement: "Acknowledgement",
-        author: "Author: Dang Khoa Le",
+        author: "Author: (Liam) Dang Khoa Le",
         license: "License: Apache 2.0 License",
         chatInputPlaceholder: "Type your question here...",
         you: "You",
@@ -539,7 +594,7 @@ HTML_CONTENT = """
         tooltip: "Xin chào, tôi có thể giúp gì cho bạn?",
         welcomeText: "Chào bạn! Tôi là trợ lý sức khỏe tận tâm của bạn, sẵn sàng hỗ trợ mọi thắc mắc về sức khỏe và phúc lợi của bạn. Hãy thoải mái đặt câu hỏi nhé!",
         acknowledgement: "Thông tin",
-        author: "Tác giả: Dang Khoa Le",
+        author: "Tác giả: Lê Đăng Khoa",
         license: "Giấy phép: Apache 2.0",
         chatInputPlaceholder: "Nhập câu hỏi của bạn...",
         you: "Bạn",
@@ -554,7 +609,7 @@ HTML_CONTENT = """
         tooltip: "您好，我今天能为您提供什么帮助？",
         welcomeText: "您好！我是您专属的健康助手，随时为您解答关于健康与福祉的问题。请随时向我提问。",
         acknowledgement: "鸣谢",
-        author: "作者：Dang Khoa Le",
+        author: "作者：黎登科",
         license: "许可证：Apache 2.0 许可证",
         chatInputPlaceholder: "请输入您的问题...",
         you: "您",
@@ -587,7 +642,7 @@ HTML_CONTENT = """
       document.getElementById('nav-about').innerText = translations[lang].about;
     }
 
-    // Remove last child element (i.e. loader)
+    // Remove last message (for loader)
     function removeLastMessage() {
       const messagesDiv = document.getElementById('chat-messages');
       if (messagesDiv.lastChild) {
@@ -599,7 +654,7 @@ HTML_CONTENT = """
       const input = document.getElementById('user-input');
       const message = input.value;
       if (!message) return;
-      // Remove the welcome screen if it exists
+      // Remove welcome screen if exists
       const welcomeContainer = document.getElementById('welcome-container');
       if (welcomeContainer) {
         welcomeContainer.remove();
@@ -609,15 +664,15 @@ HTML_CONTENT = """
       // Insert loader message as bot message
       const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
       appendMessage('bot', loaderHTML, true);
-      // Prepare JSON message posting to Gemini API (with language)
+
+      // Post the query (and language) to the backend
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message, lang: currentLang }) // Include selected language
+        body: JSON.stringify({ query: message, lang: currentLang })
       });
       const data = await response.json();
       const htmlResponse = marked.parse(data.response);
-      // Remove the loader message and then append the actual bot response.
       removeLastMessage();
       appendMessage('bot', htmlResponse, true);
     }
@@ -646,7 +701,7 @@ HTML_CONTENT = """
         dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
       });
 
-      // Update dropdown button text and UI when a language option is selected
+      // When a language option is selected from the dropdown
       document.querySelectorAll('.dropdown-menu li').forEach(item => {
         item.addEventListener('click', function(event) {
           event.stopPropagation();
@@ -663,22 +718,33 @@ HTML_CONTENT = """
       });
     });
 
-    // Replay thinking GIF Without Hard Flicker
-    // 1) Set GIF run duration before it stops.
-    const GIF_DURATION = 800;
+    // Modal Language Selection Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const modal = document.getElementById('language-modal');
+      const modalButtons = modal.querySelectorAll('button');
+      // When any modal button is clicked:
+      modalButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const lang = this.getAttribute('data-lang');
+          updateLanguage(lang);
+          // Also update the dropdown button text
+          document.querySelector('.dropdown-btn').innerHTML = lang + " &#x25BC;";
+          // Hide the modal
+          modal.style.display = 'none';
+        });
+      });
+    });
 
-    // 2) Use setInterval to periodically reload the image
+    // Replay thinking GIF without hard flicker
+    const GIF_DURATION = 800;
     setInterval(() => {
       const tooltip = document.getElementById('tooltip');
-      // Create an offscreen Image object
       const newImg = new Image();
-      const newSrc = `/static/img/cloud.gif?t=${Date.now()}`; // Cache-busting parameter
-      // Once it's loaded, switch the background to the new image
+      const newSrc = `/static/img/cloud.gif?t=${Date.now()}`;
       newImg.onload = () => {
         tooltip.style.background = `url('${newSrc}') repeat`;
         tooltip.style.backgroundSize = '100% 100%';
       };
-      // Start loading
       newImg.src = newSrc;
     }, GIF_DURATION);
   </script>

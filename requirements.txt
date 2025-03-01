@@ -1,12 +1,12 @@
-autogen-agentchat
+# autogen-agentchat # Not using Autogen since not implementing multi-agent yet
 # autogenstudio
 faiss-cpu
-chromadb 
+# chromadb # Not used for RAG pipeline now
 datasets
-tiktoken
+# tiktoken # Not uaing OpenAI agent now
 sentence-transformers
 python-dotenv
 google-genai
 huggingface_hub
 pymongo
-googletrans
+# googletrans # Translate and process multi-language with LLM already

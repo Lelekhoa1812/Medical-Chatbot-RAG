@@ -19,7 +19,7 @@ conda activate chatbot_env
 Ensure your environment has the necessary libraries:   
 ```bash
 pip install -U "autogen-agentchat" "autogenstudio" \
-                "faiss-cpu" "chromadb" "datasets" "tiktoken" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo" "googletrans"
+                "faiss-cpu" "chromadb" "datasets" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo" "googletrans"
 ```
 Or install all:  
 ```bash
@@ -27,7 +27,7 @@ pip install -U requirements.txt
 ```
 
 - `faiss-cpu`: Efficient vector search for RAG.
-- `chromadb`: Local vector database for retrieval.
+- `chromadb`: Local vector database for retrieval (Not using now).
 - `datasets`: Loading and processing custom data.
 - `sentence-transformers`: Converting text into embeddings.
 - `python-dotenv`: Managing API keys securely from `.env`.
@@ -41,16 +41,25 @@ pip install fastapi uvicorn requests python-multipart
 ---
 
 ## **Configuration**
-### **Step 3: Set Up OpenAI API Key**
+### **Step 3: Set Up a genAI API Key**
 To integrate RAG and answer intelligently, you'll need an **OpenAI API key**:  
 ```bash
 export OPENAI_API_KEY="your_openai_api_key"
+```
+Alternatively using Flash GeminiAPI for lower/free-tier cost:
+```bash
+export Flash_API="your_gemini_api_key"
 ```
 
 Alternatively, store it in a `.env` file:
 ```bash
 echo 'OPENAI_API_KEY="your_openai_api_key"' > .env
 ```
+Or:
+```bash
+echo 'Flash_API="your_gemini_api_key"' > .env
+```
+
 ### **Optional: Saving embedded vector database to MongoDB**
 Store MongoDB cluster API key into `.env` file. You need 2 MongoDB clusters (you can store in 1 individually, however, notice that it could consume high storage availability and wouldn't be ideal for free tier).
 
