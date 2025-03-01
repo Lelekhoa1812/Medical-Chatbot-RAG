@@ -53,16 +53,36 @@
       position: absolute;
       bottom: calc(100% - 12px);
       left: 0; /* Align left edge with logo image */
-      background: url('/static/img/cloud.gif') repeat;
+      background: linear-gradient(270deg, rgb(13, 58, 56), rgb(44, 13, 58));
       background-size: 100% 100%;
-      color: rgb(18, 129, 144);
-      padding: 10px 60px;
+      color: rgb(255, 255, 255);
+      padding: 5px 5px 2px 2px;
       font-size: 0.9rem;
       white-space: nowrap;
       z-index: 10;
     }
     .navbar .logo:hover .logo-tooltip {
       display: block;
+    }
+    /* Nav-header dialog */
+    .tooltip {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgb(0,0,0); /* Fallback color */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    }
+    .tooltip-content {
+      background-color: #fefefe;
+      margin: 15% auto; /* 15% from the top and centered */
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%; /* Could be more or less, depending on screen size */
     }
     /* Navbar Links & Language Dropdown */
     .navbar .links {
@@ -522,19 +542,6 @@
         });
       });
     });
-
-    // Replay thinking GIF without hard flicker
-    const GIF_DURATION = 800;
-    setInterval(() => {
-      const tooltip = document.getElementById('tooltip');
-      const newImg = new Image();
-      const newSrc = `/static/img/cloud.gif?t=${Date.now()}`;
-      newImg.onload = () => {
-        tooltip.style.background = `url('${newSrc}') repeat`;
-        tooltip.style.backgroundSize = '100% 100%';
-      };
-      newImg.src = newSrc;
-    }, GIF_DURATION);
   </script>
 </body>
 </html>
