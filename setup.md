@@ -19,7 +19,8 @@ conda activate chatbot_env
 Ensure your environment has the necessary libraries:   
 ```bash
 pip install -U "autogen-agentchat" "autogenstudio" \
-                "faiss-cpu" "chromadb" "datasets" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo" "uvicorn"
+                "faiss-cpu" "chromadb" "datasets" "sentence-transformers" "python-dotenv" "google-genai" "huggingface_hub" "pymongo" \
+                "uvicorn" "fastapi"
 ```
 Or install all:  
 ```bash

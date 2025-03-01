@@ -10,4 +10,5 @@ google-genai
 huggingface_hub
 pymongo
 uvicorn
+fastapi
 # googletrans # Translate and process multi-language with LLM already
