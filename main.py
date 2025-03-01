@@ -1,179 +1,213 @@
-#!/usr/bin/env python3
 # ==========================
-# Medical Chatbot Backend (Gemini Flash API + RAG)
-# Using local prebuilt model with a compressed FAISS Index & QA data stored in MongoDB
+# Medical Chatbot Backend (Gemini Flash API + RAG) - Local Prebuilt Model with FAISS Index & Data Stored in MongoDB
 # ==========================
 """
-This script:
-  1) Uses a compressed FAISS index (IVFPQ) to reduce memory usage.
-  2) Stores/loads the index from MongoDB's GridFS in a separate cluster (or same cluster).
-  3) Fetches only top-3 relevant documents from the "qa_data" collection, avoiding loading 256k rows into RAM.
-  4) Lazily loads the SentenceTransformer and index to fit within ~512MB memory on Render.
-  5) Calls the Gemini Flash API for final completions, with the option to specify output language code.
-  6) Returns markdown-formatted responses via FastAPI endpoints.
+This script loads:
+  1) A FAISS index stored in MongoDB (in the "faiss_index" collection)
+  2) A local SentenceTransformer model (downloaded via snapshot_download)
+  3) QA data (the full dataset of 256916 QA entries) stored in MongoDB (in the "qa_data" collection)
+
+If the QA data or FAISS index are not found in MongoDB, the script loads the full dataset from Hugging Face,
+computes embeddings for all QA pairs (concatenating the "Patient" and "Doctor" fields), and stores both the raw QA data
+and the FAISS index in MongoDB.
+
+The chatbot instructs Gemini Flash to format its answer using markdown.
 """
 
 import os
-import time
-import gc
 import faiss
 import numpy as np
+import gc
+import time
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from pathlib import Path
 from dotenv import load_dotenv
-from pymongo import MongoClient
-import gridfs
 
-# 1) Load environment variables
+# Load environment variables from .env
 load_dotenv()
 gemini_flash_api_key = os.getenv("FlashAPI")
 mongo_uri = os.getenv("MONGO_URI")
 index_uri = os.getenv("INDEX_URI")
 if not gemini_flash_api_key:
-    raise ValueError("❌ Missing Gemini Flash API key (FlashAPI)!")
+    raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
 if not mongo_uri:
-    raise ValueError("❌ Missing main MongoDB URI (MONGO_URI)!")
+    raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
 if not index_uri:
-    raise ValueError("❌ Missing index MongoDB URI (INDEX_URI)!")
+    raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
 
-# 2) Mitigate potential segmentation faults & reduce concurrency overhead
+# --- Environment variables to mitigate segmentation faults ---
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# 3) Setup local caching directory for Hugging Face
+# --- Setup local project directory (for model cache) ---
 project_dir = "./AutoGenRAGMedicalChatbot"
 os.makedirs(project_dir, exist_ok=True)
 huggingface_cache_dir = os.path.join(project_dir, "huggingface_models")
-os.environ["HF_HOME"] = huggingface_cache_dir
+os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
 
-# 4) Lazy globals (avoid loading everything on startup)
-_embedding_model = None
-_faiss_index = None
+# --- Download (or load from cache) the SentenceTransformer model ---
+from huggingface_hub import snapshot_download
+print("Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
+model_loc = snapshot_download(
+    repo_id="sentence-transformers/all-MiniLM-L6-v2",
+    cache_dir=os.environ["HF_HOME"],
+    local_files_only=False
+)
+print(f"Model directory: {model_loc}")
 
-# --- Database references ---
-# Main DB for QA:
-qa_client = MongoClient(mongo_uri)
-qa_db = qa_client["MedicalChatbotDB"]
-qa_collection = qa_db["qa_data"]
+from sentence_transformers import SentenceTransformer
+embedding_model = SentenceTransformer(model_loc, device="cpu")
 
-# Separate DB for FAISS index storage:
-index_client = MongoClient(index_uri)
-index_db = index_client["MedicalChatbotDB"]
-fs = gridfs.GridFS(index_db, collection="faiss_index_files")
+# --- MongoDB Setup ---
+from pymongo import MongoClient
+# QA client
+client = MongoClient(mongo_uri)
+db = client["MedicalChatbotDB"]  # Use your chosen database name
+qa_collection = db["qa_data"]
 
-# ---------------------------------------------------------
-# Lazy-load the SentenceTransformer model to conserve memory
-# ---------------------------------------------------------
-def get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        print("🔹 Loading SentenceTransformer model lazily...")
-        from huggingface_hub import snapshot_download
-        from sentence_transformers import SentenceTransformer
+# FAISS index client
+iclient = MongoClient(index_uri)
+idb = iclient["MedicalChatbotDB"]  # Use your chosen database name
+index_collection = idb["faiss_index_files"]
 
-        # Optionally do a snapshot_download or rely on environment caching
-        local_model = snapshot_download(
-            repo_id="sentence-transformers/all-MiniLM-L6-v2",
-            cache_dir=huggingface_cache_dir,
-            local_files_only=False
-        )
-        print(f"Model cached at: {local_model}")
-        _embedding_model = SentenceTransformer(local_model, device="cpu")
-    return _embedding_model
+##---------------------------##
+## EMBEDDING AND DATA RETRIEVAL
+##---------------------------##
 
-# ---------------------------------------------------------
-# Lazy-load the FAISS IVFPQ index from GridFS
-# ---------------------------------------------------------
-def get_faiss_index():
-    global _faiss_index
-    if _faiss_index is None:
-        print("🔹 Checking GridFS for existing FAISS index file...")
-        existing_file = fs.find_one({"filename": "faiss_index.bin"})
-        if not existing_file:
-            raise RuntimeError("⚠️ FAISS index not found in GridFS. Please build & store it first!")
-        print("🔹 Found FAISS index in GridFS. Loading it lazily...")
-        index_data = existing_file.read()
-        index_np = np.frombuffer(index_data, dtype='uint8')
-        _faiss_index = faiss.deserialize_index(index_np)
-        print("✅ Compressed FAISS index loaded successfully!")
-    return _faiss_index
+# --- Load or Build QA Data in MongoDB ---
+print("✅ Checking MongoDB for existing QA data...")
+if qa_collection.count_documents({}) == 0:
+    print("⚠️ QA data not found in MongoDB. Loading dataset from Hugging Face...")
+    from datasets import load_dataset
+    dataset = load_dataset("ruslanmv/ai-medical-chatbot", cache_dir=huggingface_cache_dir)
+    df = dataset["train"].to_pandas()[["Patient", "Doctor"]]
+    # Add an index column "i" to preserve order.
+    df["i"] = range(len(df))
+    qa_data = df.to_dict("records")
+    # Insert in batches (e.g., batches of 1000) to avoid document size limits.
+    batch_size = 1000
+    for i in range(0, len(qa_data), batch_size):
+        qa_collection.insert_many(qa_data[i:i+batch_size])
+    print(f"✅ QA data stored in MongoDB. Total entries: {len(qa_data)}")
+else:
+    print("✅ Loaded existing QA data from MongoDB.")
+    # Use an aggregation pipeline with allowDiskUse to sort by "i" without creating an index.
+    qa_docs = list(qa_collection.aggregate([
+        {"$sort": {"i": 1}},
+        {"$project": {"_id": 0}}
+    ], allowDiskUse=True))
+    qa_data = qa_docs
+    print("Total QA entries loaded:", len(qa_data))
 
-# ---------------------------------------------------------
-# Retrieve top-3 relevant "Doctor" texts for the query
-# without loading all data in memory
-# ---------------------------------------------------------
-def retrieve_medical_info(user_query):
-    model = get_embedding_model()
-    index = get_faiss_index()
+# --- Build or Load the FAISS Index from MongoDB using GridFS (on the separate cluster) ---
+print("✅ Checking GridFS for existing FAISS index...")
+import gridfs
+fs = gridfs.GridFS(idb, collection="faiss_index_files")  # 'idb' is connected using INDEX_URI
 
-    query_emb = model.encode([user_query], convert_to_numpy=True).astype(np.float32)
-    # Retrieve top 3
-    distances, idxs = index.search(query_emb, k=3)
-    doc_texts = []
-    for doc_id in idxs[0]:
-        # Since we never loaded all QA data, we look up doc individually:
-        # Each doc has structure { i, Patient, Doctor } presumably
-        doc = qa_collection.find_one({"i": doc_id}, {"_id": 0, "Doctor": 1})
-        if doc and "Doctor" in doc:
-            doc_texts.append(doc["Doctor"])
+# Find the FAISS index file by filename.
+existing_file = fs.find_one({"filename": "faiss_index.bin"})
+if existing_file is None:
+    print("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
+    # Compute embeddings for each QA pair by concatenating "Patient" and "Doctor" fields.
+    texts = [item.get("Patient", "") + " " + item.get("Doctor", "") for item in qa_data]
+    batch_size = 512  # Adjust as needed
+    embeddings_list = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i+batch_size]
+        batch_embeddings = embedding_model.encode(batch, convert_to_numpy=True).astype(np.float32)
+        embeddings_list.append(batch_embeddings)
+        print(f"Encoded batch {i} to {i + len(batch)}")
+    embeddings = np.vstack(embeddings_list)
+    dim = embeddings.shape[1]
+    # Create a FAISS index (using IndexHNSWFlat; or use IVFPQ for compression)
+    index = faiss.IndexHNSWFlat(dim, 32)
+    index.add(embeddings)
+    print("FAISS index built. Total vectors:", index.ntotal)
+    # Serialize the index
+    index_bytes = faiss.serialize_index(index)
+    index_data = np.frombuffer(index_bytes, dtype='uint8').tobytes()
+    # Store in GridFS (this bypasses the 16 MB limit)
+    file_id = fs.put(index_data, filename="faiss_index.bin")
+    print("✅ FAISS index built and stored in GridFS with file_id:", file_id)
+    del embeddings
+    gc.collect()
+else:
+    print("✅ Found FAISS index in GridFS. Loading...")
+    stored_index_bytes = existing_file.read()
+    index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
+    index = faiss.deserialize_index(index_bytes_np)
+print("✅ FAISS index loaded from GridFS successfully!")
+
+
+##---------------------------##
+## INFERENCE BACK+FRONT END
+##---------------------------##
+
+# --- Prepare Retrieval and Chat Logic ---
+def retrieve_medical_info(query):
+    """Retrieve relevant medical knowledge using the FAISS index."""
+    query_embedding = embedding_model.encode([query], convert_to_numpy=True)
+    _, idxs = index.search(query_embedding, k=3)
+    results = []
+    for i in idxs[0]:
+        if i < len(qa_data):
+            results.append(qa_data[i].get("Doctor", "No answer available."))
         else:
-            doc_texts.append("No answer available.")
-    return doc_texts
+            results.append("No answer available.")
+    return results
 
-# ---------------------------------------------------------
-# Gemini Flash completion call
-# ---------------------------------------------------------
+# --- Gemini Flash API Call ---
 from google import genai
-def gemini_flash_completion(prompt: str, model_name="gemini-2.0-flash", temperature=0.7):
-    client = genai.Client(api_key=gemini_flash_api_key)
+def gemini_flash_completion(prompt, model, temperature=0.7):
+    client_genai = genai.Client(api_key=gemini_flash_api_key)
     try:
-        response = client.models.generate_content(model=model_name, contents=prompt, temperature=temperature)
+        response = client_genai.models.generate_content(model=model, contents=prompt)
         return response.text
-    except Exception as ex:
-        print(f"Error from Gemini Flash API: {ex}")
-        return "[Gemini API Error]"
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
+        return "Error generating response from Gemini."
 
-# ---------------------------------------------------------
-# Chatbot class
-# ---------------------------------------------------------
+# --- Define a simple language mapping (modify or add more as needed)
+language_map = {
+    "EN": "English",
+    "VI": "Vietnamese",
+    "ZH": "Chinese"
+}
+
+# --- Chatbot Class ---
 class RAGMedicalChatbot:
-    def __init__(self, retrieve_function):
+    def __init__(self, model_name, retrieve_function):
+        self.model_name = model_name
         self.retrieve = retrieve_function
 
-    def chat(self, user_query: str, lang: str = "EN") -> str:
-        # 1) Retrieve relevant context
-        context_docs = self.retrieve(user_query)
-        knowledge_base = "\n".join(context_docs)
-
-        # 2) Build prompt
+    def chat(self, user_query, lang="EN"):
+        retrieved_info = self.retrieve(user_query)
+        knowledge_base = "\n".join(retrieved_info)
+        # Construct prompt for Gemini Flash
         prompt = (
-            "Please format your answer using markdown. Use **bold** for headings, *italic* for emphasis.\n"
-            "Ensure paragraphs are clearly separated.\n\n"
-            f"Below is the relevant medical knowledge (trained with 256,916 QA pairs):\n\n{knowledge_base}\n\n"
-            f"Q: {user_query}\n"
-            f"Your answer must be in language: {lang}."
+            "Please format your answer using markdown. Use **bold** for titles, *italic* for emphasis, "
+            "and ensure that headings and paragraphs are clearly separated.\n\n"
+            f"Using the following medical knowledge:\n{knowledge_base} \n(trained with 256,916 data entries).\n\n"
+            f"Answer the following question in a professional and medically accurate manner:\n{user_query}.\n\n"
+            f"Your response answer must be in {lang} language."
         )
-        # 3) Gemini Flash completion
-        output_text = gemini_flash_completion(prompt, model_name="gemini-2.0-flash", temperature=0.7)
-        return output_text.strip()
+        completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
+        return completion.strip()
 
-# ---------------------------------------------------------
-# Initialize the chatbot with the retrieval function
-# ---------------------------------------------------------
-chatbot = RAGMedicalChatbot(retrieve_medical_info)
-print("✅ Medical Chatbot is ready!")
+# --- Model Class (change to others if needed) ---
+chatbot = RAGMedicalChatbot(
+    model_name="gemini-2.0-flash",
+    retrieve_function=retrieve_medical_info
+)
+print("✅ Medical chatbot is ready!")
 
-# ---------------------------------------------------------
-# Setup FastAPI
-# ---------------------------------------------------------
+# --- FastAPI Server ---
+from fastapi.staticfiles import StaticFiles
 app = FastAPI(title="Medical Chatbot")
 
-# If you have static files:
-from fastapi.staticfiles import StaticFiles
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Minimal HTML or your advanced UI
+# HTML Template
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html>
@@ -724,28 +758,28 @@ HTML_CONTENT = """
 </html>
 """
 
+# Mount static files (make sure the "static" folder exists and contains your images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Get statics template route
 @app.get("/", response_class=HTMLResponse)
 async def get_home():
     return HTML_CONTENT
 
+# Chat route
 @app.post("/chat")
-async def chat_endpoint(payload: dict):
-    user_query = payload.get("query", "")
-    lang = payload.get("lang", "EN")
+async def chat_endpoint(data: dict):
+    user_query = data.get("query", "")
+    lang = data.get("lang", "EN")  # Expect a language code from the request
     if not user_query:
-        return JSONResponse({"response": "No query provided."}, status_code=400)
-    start_t = time.time()
-    answer = chatbot.chat(user_query, lang)
-    end_t = time.time()
-    # Append response time
-    answer += f"\n\n(Response time: {end_t - start_t:.2f}s)"
-    return JSONResponse({"response": answer})
+        return JSONResponse(content={"response": "No query provided."})
+    start_time = time.time()
+    response_text = chatbot.chat(user_query, lang)  # Pass language selection
+    end_time = time.time()
+    response_text += f"\n\n(Response time: {end_time - start_time:.2f} seconds)"
+    return JSONResponse(content={"response": response_text})
 
-# ---------------------------------------------------------
-# Run if called directly
-# ---------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "8000"))
-    print(f"\n🩺 Starting Medical Chatbot on port {port} ...\n")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print("\n🩺 Starting Medical Chatbot FastAPI server...\n")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
