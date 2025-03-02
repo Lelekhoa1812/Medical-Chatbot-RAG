@@ -3,3 +3,4 @@ Miniconda3.sh
 AutoGenRAGMedicalChatbot
 migrate.py
 connect_mongo.py
+static
