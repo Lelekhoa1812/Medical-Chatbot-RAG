@@ -43,6 +43,13 @@ python3 main.py
 python3 -X faulthandler main.py
 ```
 
+### 启动用户界面 (UI)
+
+将 Vercel 和 Node Module 块安装到您的静态目录并运行：
+```bash
+vercel run dev
+```
+
 ### MongoDB 工具
 
 - **连接并列出集合：**  
@@ -119,6 +126,6 @@ python3 -X faulthandler main.py
 ---
 
 作者: 黎登科     
-最新的更新: 22/02/2025
+最新的更新: 04/03/2025
 
 ---

@@ -42,6 +42,13 @@ python3 main.py
 python3 -X faulthandler main.py
 ```
 
+### Chạy giao diện (UI)
+
+Cài Vercel và Node Modules tới tệp static và chạy:
+```bash
+vercel run dev
+```
+
 ### Các tiện ích MongoDB
 
 - **Kết nối và liệt kê các Collection:**  
@@ -114,6 +121,6 @@ Nếu bạn có bất kỳ câu hỏi hay đề xuất nào, vui lòng đóng g�
 ---
 
 Author: Lê Đăng Khoa   
-Latest Update: 22/02/2025
+Latest Update: 04/03/2025
 
 ---
