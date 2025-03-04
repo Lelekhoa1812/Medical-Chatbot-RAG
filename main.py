@@ -107,7 +107,7 @@ if qa_collection.count_documents({}) == 0:
     for i in range(0, len(qa_data), batch_size):
         qa_collection.insert_many(qa_data[i:i+batch_size])
     print(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
-    st.success(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
+    st.write(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
 else:
     print("✅ Loaded existing QA data from MongoDB.")
     st.write("✅ Loaded existing QA data from MongoDB.")
@@ -118,7 +118,7 @@ else:
     ], allowDiskUse=True))
     qa_data = qa_docs
     print("📦 Total QA entries loaded:", len(qa_data))
-    st.success("📦 Total QA entries loaded:", len(qa_data))
+    st.write("📦 Total QA entries loaded:", len(qa_data))
 
 # 🔹 Build or Load the FAISS Index from MongoDB using GridFS (on the separate cluster) 
 print("⏳ Checking GridFS for existing FAISS index...")
@@ -152,7 +152,7 @@ if existing_file is None:
     # Store in GridFS (this bypasses the 16 MB limit)
     file_id = fs.put(index_data, filename="faiss_index.bin")
     print("📦 FAISS index built and stored in GridFS with file_id:", file_id)
-    st.success("📦 FAISS index built and stored in GridFS with file_id:", file_id)
+    st.write("📦 FAISS index built and stored in GridFS with file_id:", file_id)
     del embeddings
     gc.collect()
 else:
@@ -162,7 +162,7 @@ else:
     index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
 print("📦 FAISS index loaded from GridFS successfully!")
-st.success("📦 FAISS index loaded from GridFS successfully!")
+st.succwriteess("📦 FAISS index loaded from GridFS successfully!")
 
 
 ##---------------------------##
@@ -238,6 +238,7 @@ origins = [
     "http://localhost:5173",            # Vite dev server
     "http://localhost:3000",            # Another vercel dev server
     "medical-chatbot-henna.vercel.app", # ✅ Vercel frontend production URL
+    
 ]
 # 2. Then add the CORS middleware:
 app.add_middleware(
@@ -272,6 +273,7 @@ async def chat_endpoint(data: dict):
 # 1. On Streamlit (free-tier allowance 1GB)
 # 🌐 Start FastAPI server in a separate thread
 def run_fastapi():
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 threading.Thread(target=run_fastapi, daemon=True).start()
 
@@ -284,7 +286,7 @@ if st.button("Ask Doctor Bot"):
     lang_code = selected_lang.split("(")[-1].strip(")")
     st.markdown("🤖 **DocBot is thinking...**")
     # a) API request to FastAPI
-    response = requests.post("http://localhost:8000/chat", json={"query": user_query, "lang": lang_code})
+    response = requests.post("http://127.0.0.1:8000/chat", json={"query": user_query, "lang": lang_code})
     response_json = response.json()
     # b) Display response
     st.markdown(response_json["response"])
