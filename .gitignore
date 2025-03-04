@@ -6,6 +6,8 @@ storage.md
 # Backend
 Medical-Chatbot/secrets.toml
 Medical-Chatbot/.env
+.devcontainer/secrets.toml
+.devcontainer/.env
 
 # Frontend
 static/dist
