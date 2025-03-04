@@ -2,7 +2,6 @@
 Miniconda3.sh
 AutoGenRAGMedicalChatbot
 storage.md
-.devcontainer
 
 # Backend
 Medical-Chatbot/secrets.toml
