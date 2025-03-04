@@ -1,7 +1,14 @@
-.env
+# Utils
 Miniconda3.sh
 AutoGenRAGMedicalChatbot
-migrate.py
-connect_mongo.py
-static
-secrets.toml
+storage.md
+.devcontainer
+
+# Backend
+Medical-Chatbot/secrets.toml
+Medical-Chatbot/.env
+
+# Frontend
+static/dist
+static/node_modules
+static/.vercel

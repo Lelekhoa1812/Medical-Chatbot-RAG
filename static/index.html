@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Medical Chatbot</title>
+  <link rel="website icon" type="png" href="/img/logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Language Selection Modal -->
+  <div id="language-modal">
+    <div class="modal-content">
+      <h2>Please select your preferred language</h2>
+      <button data-lang="EN">English</button>
+      <button data-lang="VI">Tiếng Việt</button>
+      <button data-lang="ZH">中文</button>
+    </div>
+  </div>
+
+  <header>
+    <nav class="navbar">
+      <a href="#" class="logo">
+        <img src="/img/logo.png" alt="logo">
+        <!-- Tooltip container using cloud.gif -->
+        <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
+        <h1 id="nav-header">Medical Chatbot Doctor</h1>
+      </a>
+      <ul class="links">
+        <li><a id="nav-account" href="account.html">Account</a></li>
+        <li><a id="nav-subscription" href="subscription.html">Subscription</a></li>
+        <li><a id="nav-about" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot">About</a></li>
+        <!-- Dropdown Language Selector -->
+        <li class="dropdown">
+          <button class="dropdown-btn">EN &#x25BC;</button>
+          <ul class="dropdown-menu">
+            <li data-lang="VI">Vietnamese</li>
+            <li data-lang="EN">English</li>
+            <li data-lang="ZH">Mandarin</li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="chat-container">
+    <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
+    <div class="chat-messages" id="chat-messages">
+      <!-- Welcome Screen (visible initially) -->
+      <div id="welcome-container">
+        <img src="/img/logo.png" alt="Welcome Logo">
+        <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
+        <h1 id="acknowledgement">Acknowledgement</h1>
+        <p id="author">Author: (Liam) Dang Khoa Le</p>
+        <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type your question here..." />
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+  <!-- Include Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Main scripts -->
+  <script type="module" src="./script.js"></script>
+</body>
+</html>

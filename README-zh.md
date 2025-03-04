@@ -32,7 +32,7 @@ git clone https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot.git
 使用以下命令运行主服务器脚本：
 
 ```bash
-python3 main.py
+python3 app.py
 ```
 
 ### 调试模式
@@ -40,7 +40,7 @@ python3 main.py
 若需调试，请运行：
 
 ```bash
-python3 -X faulthandler main.py
+python3 -X faulthandler app.py
 ```
 
 ### 启动用户界面 (UI)

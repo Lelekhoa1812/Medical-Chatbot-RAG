@@ -3,7 +3,7 @@
 Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages cutting‑edge technologies such as **AutoGen**, **Retrieval-Augmented Generation (RAG)**, and the **Gemini Flash 2.0 API** to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on **FastAPI** and dynamically renders HTML using **MarkdownJS**.
 
 1. **Backend**:  
-   “FastAPI backend is hosted on Huggingface API inference (Render and Streamlit as alternative options) with Cross-Origin Resource Sharing (CORS) configured to allow local and production development.”
+   “FastAPI backend is hosted on Hugging Face API inference (Render and Streamlit as alternative options) with Cross-Origin Resource Sharing (CORS) configured to allow local and production development.”
 
 2. **Frontend**:  
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, and http-server, is deployed on Vercel.”
@@ -46,7 +46,7 @@ Discover practical usage examples and ideas in our [Autogen Documentation](https
 Run the main server script with:
 
 ```bash
-python3 main.py
+python3 app.py
 ```
 
 ### Debug Mode
@@ -54,7 +54,7 @@ python3 main.py
 For debugging purposes, run:
 
 ```bash
-python3 -X faulthandler main.py
+python3 -X faulthandler app.py
 ```
 
 ### Start the Interface (UI)

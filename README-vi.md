@@ -31,7 +31,7 @@ Khám phá các ví dụ thực tế và ý tưởng sử dụng tại [Tài Li�
 Chạy script chính với lệnh:
 
 ```bash
-python3 main.py
+python3 app.py
 ```
 
 ### Chế độ Debug
@@ -39,7 +39,7 @@ python3 main.py
 Để chạy chế độ debug, sử dụng:
 
 ```bash
-python3 -X faulthandler main.py
+python3 -X faulthandler app.py
 ```
 
 ### Chạy giao diện (UI)
