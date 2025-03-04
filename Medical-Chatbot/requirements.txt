@@ -1,0 +1,20 @@
+# **Agents**
+google-genai
+huggingface_hub
+# autogen-agentchat # Not using Autogen since not implementing multi-agent yet
+# autogenstudio
+faiss-cpu
+sentence-transformers
+# tiktoken          # Not using OpenAI agent 
+# chromadb          # Not used for RAG pipeline now
+# datasets          # Expect to load from Mongo only, no need to fetch dataset from HuggingFace unless re-embedding
+# googletrans       # Translate and process multi-language with LLM already
+# **Environment**
+python-dotenv     # Not used in Streamlit deployment
+pymongo
+# **Deployment**
+uvicorn
+fastapi
+gradio              # On Huggingface deployment with gradio
+# streamlit         # On streamlit deployment with daemon
+# requests
