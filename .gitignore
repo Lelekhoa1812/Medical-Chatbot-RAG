@@ -4,3 +4,4 @@ AutoGenRAGMedicalChatbot
 migrate.py
 connect_mongo.py
 static
+secrets.toml

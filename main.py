@@ -22,19 +22,29 @@ import time
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # 🔹 Load environment variables from .env
-load_dotenv()
-gemini_flash_api_key = os.getenv("FlashAPI")
-mongo_uri = os.getenv("MONGO_URI")
-index_uri = os.getenv("INDEX_URI")
+# load_dotenv()
+# gemini_flash_api_key = os.getenv("FlashAPI")
+# mongo_uri = os.getenv("MONGO_URI")
+# index_uri = os.getenv("INDEX_URI")
+# 🔹 Load Streamlit secrets from .toml
+gemini_flash_api_key = st.secrets["general"]["FlashAPI"]
+mongo_uri = st.secrets["general"]["MONGO_URI"]
+index_uri = st.secrets["general"]["INDEX_URI"]
 if not gemini_flash_api_key:
-    raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
+    # raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
+    st.error("❌ Gemini Flash API key (FlashAPI) is missing!")
+    st.stop()  # Prevent the app from running without necessary API keys
 if not mongo_uri:
-    raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
+    # raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
+    st.error("❌ MongoDB URI (MongoURI) is missing!")
+    st.stop()  # Prevent the app from running without necessary API keys
 if not index_uri:
-    raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
+    # raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
+    st.error("❌ INDEX_URI for FAISS index cluster is missing!")
+    st.stop()  # Prevent the app from running without necessary API keys
 
 # 1. Environment variables to mitigate segmentation faults 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -259,6 +269,7 @@ async def chat_endpoint(data: dict):
 # 1. On Streamlit (free-tier allowance 1GB)
 import streamlit as st
 import threading
+import requests
 # 🌐 Start FastAPI server in a separate thread
 def run_fastapi():
     uvicorn.run(app, host="0.0.0.0", port=8000)

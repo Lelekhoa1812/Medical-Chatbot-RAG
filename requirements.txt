@@ -10,7 +10,7 @@ sentence-transformers
 # datasets          # Expect to load from Mongo only, no need to fetch dataset from HuggingFace unless re-embedding
 # googletrans       # Translate and process multi-language with LLM already
 # **Environment**
-python-dotenv
+# python-dotenv     # Not used in Streamlit deployment
 pymongo
 # **Deployment**
 uvicorn
