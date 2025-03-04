@@ -6,6 +6,7 @@ storage.md
 # Backend
 Medical-Chatbot/secrets.toml
 Medical-Chatbot/.env
+Medical-Chatbot/.git
 
 # Frontend
 static/dist
