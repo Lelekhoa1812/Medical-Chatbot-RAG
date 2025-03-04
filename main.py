@@ -22,32 +22,32 @@ import time
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
-import streamlit as st
-import threading
-import requests
-# from dotenv import load_dotenv
+# import streamlit as st
+# import threading
+# import requests
+from dotenv import load_dotenv
 
 # 🔹 Load environment variables from .env
-# load_dotenv()
-# gemini_flash_api_key = os.getenv("FlashAPI")
-# mongo_uri = os.getenv("MONGO_URI")
-# index_uri = os.getenv("INDEX_URI")
+load_dotenv()
+gemini_flash_api_key = os.getenv("FlashAPI")
+mongo_uri = os.getenv("MONGO_URI")
+index_uri = os.getenv("INDEX_URI")
 # 🔹 Load Streamlit secrets from .toml
-gemini_flash_api_key = st.secrets["general"]["FlashAPI"]
-mongo_uri = st.secrets["general"]["MONGO_URI"]
-index_uri = st.secrets["general"]["INDEX_URI"]
+# gemini_flash_api_key = st.secrets["general"]["FlashAPI"]
+# mongo_uri = st.secrets["general"]["MONGO_URI"]
+# index_uri = st.secrets["general"]["INDEX_URI"]
 if not gemini_flash_api_key:
-    # raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
-    st.error("❌ Gemini Flash API key (FlashAPI) is missing!")
-    st.stop()  # Prevent the app from running without necessary API keys
+    raise ValueError("❌ Gemini Flash API key (FlashAPI) is missing!")
+    # st.error("❌ Gemini Flash API key (FlashAPI) is missing!")
+    # st.stop()  # Prevent the app from running without necessary API keys
 if not mongo_uri:
-    # raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
-    st.error("❌ MongoDB URI (MongoURI) is missing!")
-    st.stop()  # Prevent the app from running without necessary API keys
+    raise ValueError("❌ MongoDB URI (MongoURI) is missing!")
+    # st.error("❌ MongoDB URI (MongoURI) is missing!")
+    # st.stop()  # Prevent the app from running without necessary API keys
 if not index_uri:
-    # raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
-    st.error("❌ INDEX_URI for FAISS index cluster is missing!")
-    st.stop()  # Prevent the app from running without necessary API keys
+    raise ValueError("❌ INDEX_URI for FAISS index cluster is missing!")
+    # st.error("❌ INDEX_URI for FAISS index cluster is missing!")
+    # st.stop()  # Prevent the app from running without necessary API keys
 
 # 1. Environment variables to mitigate segmentation faults 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -61,18 +61,18 @@ os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
 # 3. Download (or load from cache) the SentenceTransformer model 
 from huggingface_hub import snapshot_download
 print("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
-st.write("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
+# st.write("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
 model_loc = snapshot_download(
     repo_id="sentence-transformers/all-MiniLM-L6-v2",
     cache_dir=os.environ["HF_HOME"],
     local_files_only=False
 )
 print(f"✅ Model directory: {model_loc}")
-st.write(f"✅ Model directory: {model_loc}")
+# st.write(f"✅ Model directory: {model_loc}")
 
 from sentence_transformers import SentenceTransformer
 print("📥 **Loading Embedding Model...**")
-st.write("📥 **Loading Embedding Model...**")
+# st.write("📥 **Loading Embedding Model...**")
 embedding_model = SentenceTransformer(model_loc, device="cpu")
 
 # 🔹 MongoDB Setup
@@ -92,10 +92,10 @@ index_collection = idb["faiss_index_files"]
 
 # 🔹 Load or Build QA Data in MongoDB
 print("⏳ Checking MongoDB for existing QA data...")
-st.write("⏳ Checking MongoDB for existing QA data...")
+# st.write("⏳ Checking MongoDB for existing QA data...")
 if qa_collection.count_documents({}) == 0:
     print("⚠️ QA data not found in MongoDB. Loading dataset from Hugging Face...")
-    st.write("⚠️ QA data not found in MongoDB. Loading dataset from Hugging Face...")
+    # st.write("⚠️ QA data not found in MongoDB. Loading dataset from Hugging Face...")
     from datasets import load_dataset
     dataset = load_dataset("ruslanmv/ai-medical-chatbot", cache_dir=huggingface_cache_dir)
     df = dataset["train"].to_pandas()[["Patient", "Doctor"]]
@@ -107,10 +107,10 @@ if qa_collection.count_documents({}) == 0:
     for i in range(0, len(qa_data), batch_size):
         qa_collection.insert_many(qa_data[i:i+batch_size])
     print(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
-    st.write(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
+    # st.write(f"📦 QA data stored in MongoDB. Total entries: {len(qa_data)}")
 else:
     print("✅ Loaded existing QA data from MongoDB.")
-    st.write("✅ Loaded existing QA data from MongoDB.")
+    # st.write("✅ Loaded existing QA data from MongoDB.")
     # Use an aggregation pipeline with allowDiskUse to sort by "i" without creating an index.
     qa_docs = list(qa_collection.aggregate([
         {"$sort": {"i": 1}},
@@ -118,18 +118,18 @@ else:
     ], allowDiskUse=True))
     qa_data = qa_docs
     print("📦 Total QA entries loaded:", len(qa_data))
-    st.write("📦 Total QA entries loaded:", len(qa_data))
+    # st.write("📦 Total QA entries loaded:", len(qa_data))
 
 # 🔹 Build or Load the FAISS Index from MongoDB using GridFS (on the separate cluster) 
 print("⏳ Checking GridFS for existing FAISS index...")
-st.write("⏳ Checking GridFS for existing FAISS index...")
+# st.write("⏳ Checking GridFS for existing FAISS index...")
 import gridfs
 fs = gridfs.GridFS(idb, collection="faiss_index_files")  # 'idb' is connected using INDEX_URI
 # 1. Find the FAISS index file by filename.
 existing_file = fs.find_one({"filename": "faiss_index.bin"})
 if existing_file is None:
     print("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
-    st.write("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
+    # st.write("⚠️ FAISS index not found in GridFS. Building FAISS index from QA data...")
     # Compute embeddings for each QA pair by concatenating "Patient" and "Doctor" fields.
     texts = [item.get("Patient", "") + " " + item.get("Doctor", "") for item in qa_data]
     batch_size = 512  # Adjust as needed
@@ -139,7 +139,7 @@ if existing_file is None:
         batch_embeddings = embedding_model.encode(batch, convert_to_numpy=True).astype(np.float32)
         embeddings_list.append(batch_embeddings)
         print(f"Encoded batch {i} to {i + len(batch)}")
-        st.write(f"Encoded batch {i} to {i + len(batch)}")
+        # st.write(f"Encoded batch {i} to {i + len(batch)}")
     embeddings = np.vstack(embeddings_list)
     dim = embeddings.shape[1]
     # Create a FAISS index (using IndexHNSWFlat; or use IVFPQ for compression)
@@ -152,17 +152,17 @@ if existing_file is None:
     # Store in GridFS (this bypasses the 16 MB limit)
     file_id = fs.put(index_data, filename="faiss_index.bin")
     print("📦 FAISS index built and stored in GridFS with file_id:", file_id)
-    st.write("📦 FAISS index built and stored in GridFS with file_id:", file_id)
+    # st.write("📦 FAISS index built and stored in GridFS with file_id:", file_id)
     del embeddings
     gc.collect()
 else:
     print("✅ Found FAISS index in GridFS. Loading...")
-    st.write("✅ Found FAISS index in GridFS. Loading...")
+    # st.write("✅ Found FAISS index in GridFS. Loading...")
     stored_index_bytes = existing_file.read()
     index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
 print("📦 FAISS index loaded from GridFS successfully!")
-st.write("📦 FAISS index loaded from GridFS successfully!")
+# st.write("📦 FAISS index loaded from GridFS successfully!")
 
 
 ##---------------------------##
@@ -191,7 +191,7 @@ def gemini_flash_completion(prompt, model, temperature=0.7):
         return response.text
     except Exception as e:
         print(f"⚠️ Error calling Gemini API: {e}")
-        st.error(f"⚠️ Error calling Gemini API: {e}")
+        # st.error(f"⚠️ Error calling Gemini API: {e}")
         return "Error generating response from Gemini."
 
 # Define a simple language mapping (modify or add more as needed)
@@ -227,7 +227,7 @@ chatbot = RAGMedicalChatbot(
     retrieve_function=retrieve_medical_info
 )
 print("✅ Medical chatbot is ready! 🤖")
-st.success("✅ Medical chatbot is ready! 🤖")
+# st.success("✅ Medical chatbot is ready! 🤖")
 
 # 🔹 FastAPI Server
 # from fastapi.staticfiles import StaticFiles
@@ -243,7 +243,7 @@ origins = [
 # 2. Then add the CORS middleware:
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # or ["*"] to allow all
+    allow_origins=origins,   # or ["*"] to allow all
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -272,28 +272,34 @@ async def chat_endpoint(data: dict):
 # 🔹 Main Execution
 # 1. On Streamlit (free-tier allowance 1GB)
 # 🌐 Start FastAPI server in a separate thread
-def run_fastapi():
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-threading.Thread(target=run_fastapi, daemon=True).start()
+# def run_fastapi():
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+# threading.Thread(target=run_fastapi, daemon=True).start()
+# # 🔍 Streamlit UI for Testing
+# st.title("🩺 Medical Chatbot API")
+# st.info("This is a **FastAPI Backend running on Streamlit Cloud**")
+# user_query = st.text_input("Enter your medical question:")
+# selected_lang = st.selectbox("Select Language:", ["English (EN)", "Vietnamese (VI)", "Chinese (ZH)"])
+# if st.button("Ask Doctor Bot"):
+#     lang_code = selected_lang.split("(")[-1].strip(")")
+#     st.markdown("🤖 **DocBot is thinking...**")
+#     # a) API request to FastAPI
+#     response = requests.post("http://127.0.0.1:8000/chat", json={"query": user_query, "lang": lang_code})
+#     response_json = response.json()
+#     # b) Display response
+#     st.markdown(response_json["response"])
 
-# 🔍 Streamlit UI for Testing
-st.title("🩺 Medical Chatbot API")
-st.info("This is a **FastAPI Backend running on Streamlit Cloud**")
-user_query = st.text_input("Enter your medical question:")
-selected_lang = st.selectbox("Select Language:", ["English (EN)", "Vietnamese (VI)", "Chinese (ZH)"])
-if st.button("Ask Doctor Bot"):
-    lang_code = selected_lang.split("(")[-1].strip(")")
-    st.markdown("🤖 **DocBot is thinking...**")
-    # a) API request to FastAPI
-    response = requests.post("http://127.0.0.1:8000/chat", json={"query": user_query, "lang": lang_code})
-    response_json = response.json()
-    # b) Display response
-    st.markdown(response_json["response"])
-
-# 2. On Render (free-tier allowance 52MB)
+# 2. On Render (free-tier allowance 521MB)
 # if __name__ == "__main__":
 #     import uvicorn
 #     print("\n🩺 Starting Medical Chatbot FastAPI server...\n")
 #     # 🌐 Start app
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# 3. On Hugging Face with Gradio (limited API request)
+import gradio as gr
+import uvicorn
+gr.mount_gradio_app(app, gr.Interface(fn=chatbot.chat, inputs=["text", "text"], outputs="text"), path="/gradio")
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7860)
