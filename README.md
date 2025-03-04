@@ -33,10 +33,6 @@ git clone https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot.git
 
 Follow the detailed installation instructions in our [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md) to install and configure the project.
 
-### Autogen Usage
-
-Discover practical usage examples and ideas in our [Autogen Documentation](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md).
-
 ---
 
 ## ⚙️ Running the Project
@@ -64,7 +60,7 @@ Install Vercel and Node Modules to your static directory and run:
 vercel run dev
 ```
 
-### MongoDB Utilities
+### 🗄️ MongoDB Utilities
 
 - **Connect and List Collections:**  
   ```bash
@@ -117,6 +113,16 @@ vercel run dev
   Update the language translations in the JavaScript section to modify or add new languages.
 - **API Integration:**  
   Customize the Gemini Flash API integration as needed for your use case.
+
+---
+
+## ⚙️ Deployment Setup
+
+|  **Component** | **Hosting Service**  |                   **URL**                         |
+|----------------|----------------------|---------------------------------------------------|
+|  **Backend**   | Hugging Face Spaces  | `https://binkhoale1812-medical-chatbot.hf.space/` |
+|  **Frontend**  | Vercel               | `https://medical-chatbot.vercel.app`              |
+|  **Database**  | MongoDB Atlas        |           2 DBs                                   |
 
 ---
 

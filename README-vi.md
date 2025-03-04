@@ -49,7 +49,7 @@ Cài Vercel và Node Modules tới tệp static và chạy:
 vercel run dev
 ```
 
-### Các tiện ích MongoDB
+### 🗄️ Các tiện ích MongoDB
 
 - **Kết nối và liệt kê các Collection:**  
   ```bash
@@ -75,6 +75,16 @@ vercel run dev
 - **Backend mạnh mẽ với FastAPI:** Cung cấp máy chủ mở rộng, hiệu quả được xây dựng trên FastAPI.
 - **Giao diện người dùng động với Markdown:** Frontend sử dụng template HTML động được cải thiện bởi MarkdownJS cho các câu trả lời dạng rich text.
 - **Hỗ trợ đa ngôn ngữ:** Bao gồm các lựa chọn ngôn ngữ như Tiếng Anh, Tiếng Việt và Tiếng Trung, phục vụ đối tượng toàn cầu.
+
+---
+
+## ⚙️ Deployment Setup
+
+|  **Component** | **Hosting Service**  |                   **URL**                         |
+|----------------|----------------------|---------------------------------------------------|
+|  **Backend**   | Hugging Face Spaces  | `https://binkhoale1812-medical-chatbot.hf.space/` |
+|  **Frontend**  | Vercel               | `https://medical-chatbot.vercel.app`              |
+|  **Database**  | MongoDB Atlas        |           2 DBs                                   |
 
 ---
 

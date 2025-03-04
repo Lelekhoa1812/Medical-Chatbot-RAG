@@ -50,7 +50,7 @@ python3 -X faulthandler app.py
 vercel run dev
 ```
 
-### MongoDB 工具
+### 🗄️ MongoDB 工具
 
 - **连接并列出集合：**  
   ```bash
@@ -76,6 +76,16 @@ vercel run dev
 - **强大的 FastAPI 后端：** 构建了一个可扩展、高效的 FastAPI 服务器。
 - **动态 Markdown 前端：** 前端使用动态 HTML 模板，通过 MarkdownJS 渲染富文本回答。
 - **多语言支持：** 包括英语、越南语和中文，服务于全球用户。
+
+---
+
+## ⚙️ Deployment Setup
+
+|  **Component** | **Hosting Service**  |                   **URL**                         |
+|----------------|----------------------|---------------------------------------------------|
+|  **Backend**   | Hugging Face Spaces  | `https://binkhoale1812-medical-chatbot.hf.space/` |
+|  **Frontend**  | Vercel               | `https://medical-chatbot.vercel.app`              |
+|  **Database**  | MongoDB Atlas        |           2 DBs                                   |
 
 ---
 
