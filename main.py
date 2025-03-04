@@ -237,7 +237,7 @@ app = FastAPI(title="Medical Chatbot")
 origins = [
     "http://localhost:5173",            # Vite dev server
     "http://localhost:3000",            # Another vercel dev server
-    "medical-chatbot-henna.vercel.app", # ✅ Vercel frontend production URL
+    "https://medical-chatbot-henna.vercel.app", # ✅ Vercel frontend production URL
     
 ]
 # 2. Then add the CORS middleware:
