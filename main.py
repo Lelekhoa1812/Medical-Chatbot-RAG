@@ -162,7 +162,7 @@ else:
     index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
     index = faiss.deserialize_index(index_bytes_np)
 print("📦 FAISS index loaded from GridFS successfully!")
-st.succwriteess("📦 FAISS index loaded from GridFS successfully!")
+st.write("📦 FAISS index loaded from GridFS successfully!")
 
 
 ##---------------------------##
