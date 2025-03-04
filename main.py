@@ -22,6 +22,9 @@ import time
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
+import streamlit as st
+import threading
+import requests
 # from dotenv import load_dotenv
 
 # 🔹 Load environment variables from .env
@@ -267,9 +270,6 @@ async def chat_endpoint(data: dict):
 
 # 🔹 Main Execution
 # 1. On Streamlit (free-tier allowance 1GB)
-import streamlit as st
-import threading
-import requests
 # 🌐 Start FastAPI server in a separate thread
 def run_fastapi():
     uvicorn.run(app, host="0.0.0.0", port=8000)
