@@ -10,6 +10,7 @@ Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages c
 
 # 🔗 Access Now: 
 [Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)
+[Direct Backend 🤖](https://medical-chatbot-henna.streamlit.app/)
 
 ---
 For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-vi.md)
