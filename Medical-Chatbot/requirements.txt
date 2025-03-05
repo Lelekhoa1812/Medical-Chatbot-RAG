@@ -15,6 +15,6 @@ pymongo
 # **Deployment**
 uvicorn
 fastapi
-gradio              # On Huggingface deployment with gradio
+# gradio            # On Huggingface deployment with gradio or serving FastAPI only
 # streamlit         # On streamlit deployment with daemon
 # requests

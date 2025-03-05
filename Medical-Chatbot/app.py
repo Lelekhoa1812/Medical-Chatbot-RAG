@@ -53,22 +53,43 @@ if not index_uri:
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# 2. Setup local project directory (for model cache) 
-project_dir = "./AutoGenRAGMedicalChatbot"
-os.makedirs(project_dir, exist_ok=True)
-huggingface_cache_dir = os.path.join(project_dir, "huggingface_models")
-os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
+# 2a) Setup local project model cache
+# project_dir = "./AutoGenRAGMedicalChatbot"
+# os.makedirs(project_dir, exist_ok=True)
+# huggingface_cache_dir = os.path.join(project_dir, "huggingface_models")
+# os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
+# 2b) Setup Hugging Face Cloud project model cache
+hf_cache_dir = "/home/user/.cache/huggingface"
+os.environ["HF_HOME"] = hf_cache_dir
+os.environ["SENTENCE_TRANSFORMERS_HOME"] = hf_cache_dir
+# Model storage location
+model_cache_dir = "/app/model_cache"
 # 3. Download (or load from cache) the SentenceTransformer model 
 from huggingface_hub import snapshot_download
 print("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
 # st.write("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
-model_loc = snapshot_download(
-    repo_id="sentence-transformers/all-MiniLM-L6-v2",
-    cache_dir=os.environ["HF_HOME"],
-    local_files_only=False
-)
-print(f"✅ Model directory: {model_loc}")
-# st.write(f"✅ Model directory: {model_loc}")
+# First, try loading from our copied cache
+if os.path.exists(model_cache_dir) and os.path.exists(os.path.join(model_cache_dir, "config.json")):
+    print(f"✅ Found cached model at {model_cache_dir}")
+    model_loc = model_cache_dir
+# Else, try loading backup from snapshot_download
+else:
+    try:
+        model_loc = snapshot_download(
+            repo_id="sentence-transformers/all-MiniLM-L6-v2",
+            cache_dir=hf_cache_dir,
+            local_files_only=True  # ✅ Ensure it's loaded from cache
+        )
+        print(f"✅ Model loaded from local cache: {model_loc}")
+    except Exception as e:
+        print(f"❌ Error loading model from cache: {e}")
+        print("⚠️ Retrying with online download enabled...")
+        model_loc = snapshot_download(
+            repo_id="sentence-transformers/all-MiniLM-L6-v2",
+            cache_dir=hf_cache_dir,
+            local_files_only=False  # ✅ Fallback to online download
+        )
+        print(f"✅ Model directory after retry: {model_loc}")
 
 from sentence_transformers import SentenceTransformer
 print("📥 **Loading Embedding Model...**")
@@ -298,8 +319,6 @@ async def chat_endpoint(data: dict):
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # 3. On Hugging Face with Gradio (limited API request)
-import gradio as gr
 import uvicorn
-gr.mount_gradio_app(app, gr.Interface(fn=chatbot.chat, inputs=["text", "text"], outputs="text"), path="/gradio")
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7860)

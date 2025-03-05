@@ -1,5 +1,4 @@
 sdk: docker
-# Only the app to run
 app_file: app.py
 port: 7860
 hardware: cpu-basic
