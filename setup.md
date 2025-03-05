@@ -77,6 +77,7 @@ echo 'INDEX_URI=your_mongodb2_api_key' > .env
 ---
 
 ## **Project Structure**
+```plaintext
 /Medical-Chatbot         # Backend
   ├── app.py             # main server
   ├── download_model.py  # model loader
@@ -101,3 +102,4 @@ echo 'INDEX_URI=your_mongodb2_api_key' > .env
 ├── setup.md
 ├── README.md
 ├── Embedding.ipynb
+```
