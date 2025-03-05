@@ -76,3 +76,28 @@ echo 'INDEX_URI=your_mongodb2_api_key' > .env
 
 ---
 
+## **Project Structure**
+/Medical-Chatbot         # Backend
+  ├── app.py             # main server
+  ├── download_model.py  # model loader
+  ├── clear_mongo.py     # debugs
+  ├── connect_mongo.py
+  ├── migrate.py 
+  ├── requirements.txt   # module installation
+  ├── Dockerfile         # configs and build
+  ├── .env
+  ├── .huggingface.yml
+/static                  # Frontend
+  ├── dist               # built-in package by vite
+  ├── node_modules
+  ├── index.html         # interface level
+  ├── script.js
+  ├── styles.css
+  ├── img
+  ├── vercel.json        # build configs
+  ├── vite.config.js
+  ├── package.json
+  ├── package-lock.json
+├── setup.md
+├── README.md
+├── Embedding.ipynb

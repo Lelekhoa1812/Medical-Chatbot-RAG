@@ -60,37 +60,29 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
 # 2b) Setup Hugging Face Cloud project model cache
 hf_cache_dir = "/home/user/.cache/huggingface"
+# Model storage location
+hf_cache_dir = "/home/user/.cache/huggingface"
+model_cache_dir = "/app/model_cache"
 os.environ["HF_HOME"] = hf_cache_dir
 os.environ["SENTENCE_TRANSFORMERS_HOME"] = hf_cache_dir
-# Model storage location
-model_cache_dir = "/app/model_cache"
 # 3. Download (or load from cache) the SentenceTransformer model 
 from huggingface_hub import snapshot_download
 print("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
 # st.write("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
-# First, try loading from our copied cache
-if os.path.exists(model_cache_dir) and os.path.exists(os.path.join(model_cache_dir, "config.json")):
+# a) First, try loading from our copied cache
+if os.path.exists(model_cache_dir) and os.listdir(model_cache_dir):  # Check if model folder exists and is not empty
     print(f"✅ Found cached model at {model_cache_dir}")
     model_loc = model_cache_dir
-# Else, try loading backup from snapshot_download
+# b) Else, try loading backup from snapshot_download
 else:
-    try:
-        model_loc = snapshot_download(
-            repo_id="sentence-transformers/all-MiniLM-L6-v2",
-            cache_dir=hf_cache_dir,
-            local_files_only=True  # ✅ Ensure it's loaded from cache
-        )
-        print(f"✅ Model loaded from local cache: {model_loc}")
-    except Exception as e:
-        print(f"❌ Error loading model from cache: {e}")
-        print("⚠️ Retrying with online download enabled...")
-        model_loc = snapshot_download(
-            repo_id="sentence-transformers/all-MiniLM-L6-v2",
-            cache_dir=hf_cache_dir,
-            local_files_only=False  # ✅ Fallback to online download
-        )
-        print(f"✅ Model directory after retry: {model_loc}")
-
+    print(f"❌ Model not found in {model_cache_dir}. This should not happen!")
+    print("⚠️ Retrying with snapshot_download...")
+    model_loc = snapshot_download(
+        repo_id="sentence-transformers/all-MiniLM-L6-v2",
+        cache_dir=hf_cache_dir,
+        local_files_only=True # Change to `False` for fallback to online download
+    )
+# 4. Load the model to application
 from sentence_transformers import SentenceTransformer
 print("📥 **Loading Embedding Model...**")
 # st.write("📥 **Loading Embedding Model...**")

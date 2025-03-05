@@ -1,6 +1,6 @@
 FROM python:3.11
 
-# Create and use a non-root user
+# Create and use a non-root user (optional)
 RUN useradd -m -u 1000 user
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt 
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Set Hugging Face cache directory to persist model downloads
 ENV HF_HOME="/home/user/.cache/huggingface"
@@ -22,15 +22,14 @@ ENV SENTENCE_TRANSFORMERS_HOME="/home/user/.cache/huggingface/sentence-transform
 RUN mkdir -p $SENTENCE_TRANSFORMERS_HOME && \
     chown -R user:user /home/user/.cache/huggingface
 
-# Download and persist the model properly (USE snapshot_download)
-RUN python -c "from huggingface_hub import snapshot_download; \
-    snapshot_download(repo_id='sentence-transformers/all-MiniLM-L6-v2', cache_dir='/app/model_cache')"
+# Run the model download script
+RUN python /app/download_model.py
 
 # Ensure ownership and permissions remain intact
 RUN chown -R user:user /app/model_cache
 
-# Expose application port
+# Expose port
 EXPOSE 7860
 
-# Run server
+# Run the application
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
