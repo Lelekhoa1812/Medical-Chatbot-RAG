@@ -103,3 +103,25 @@ echo 'INDEX_URI=your_mongodb2_api_key' > .env
 ├── README.md
 ├── Embedding.ipynb
 ```
+
+## **LLM Model Caching**
+This is the directory and list of nested files for LLM model `MiniLM-L6-v2`, which serve as the backbone for Docbot.
+```bash
+📁 /app/model_cache/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/fa97f6e7cb1a59073dff9e6b13e2715cf7475ac9/
+  📄 README.md
+  📄 config_sentence_transformers.json
+  📄 config.json
+  📄 modules.json
+  📄 data_config.json
+  📄 .gitattributes
+  📄 sentence_bert_config.json
+  📄 special_tokens_map.json
+  📄 tokenizer.json
+  📄 tokenizer_config.json
+  📄 model.safetensors
+  📄 train_script.py
+  📄 vocab.txt
+  📄 pytorch_model.bin
+  📄 rust_model.ot
+  📄 tf_model.h5
+```
