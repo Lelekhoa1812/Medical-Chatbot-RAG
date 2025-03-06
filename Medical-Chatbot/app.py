@@ -58,31 +58,34 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # os.makedirs(project_dir, exist_ok=True)
 # huggingface_cache_dir = os.path.join(project_dir, "huggingface_models")
 # os.environ["HF_HOME"] = huggingface_cache_dir  # Use this folder for HF cache
-# 2b) Setup Hugging Face Cloud project model cache
-hf_cache_dir = "/home/user/.cache/huggingface"
-# Model storage location
-hf_cache_dir = "/home/user/.cache/huggingface"
-model_cache_dir = "/app/model_cache"
-os.environ["HF_HOME"] = hf_cache_dir
-os.environ["SENTENCE_TRANSFORMERS_HOME"] = hf_cache_dir
-# 3. Download (or load from cache) the SentenceTransformer model 
-from huggingface_hub import snapshot_download
-print("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
-# st.write("⏳ Checking or downloading the all-MiniLM-L6-v2 model from huggingface_hub...")
-# a) First, try loading from our copied cache
-if os.path.exists(model_cache_dir) and os.listdir(model_cache_dir):  # Check if model folder exists and is not empty
-    print(f"✅ Found cached model at {model_cache_dir}")
-    model_loc = model_cache_dir
-# b) Else, try loading backup from snapshot_download
+# 2. Setup Hugging Face Cloud project model cache
+MODEL_CACHE_DIR = "/app/model_cache"
+# Verify structure
+print("\n📂 LLM Model Structure (Application Level):")
+for root, dirs, files in os.walk(MODEL_CACHE_DIR):
+    print(f"📁 {root}/")
+    for file in files:
+        print(f"  📄 {file}")
+# Ensure all necessary files exist
+required_files = ["config.json", "pytorch_model.bin", "tokenizer.json", "1_Pooling/config.json"]
+for f in required_files:
+    if not os.path.exists(os.path.join(MODEL_CACHE_DIR, f)):
+        print(f"❌ Missing required model file: {f}")
+        exit(1)
+# Check if the required model files exist
+snapshots_path = os.path.join(MODEL_CACHE_DIR, "models--sentence-transformers--all-MiniLM-L6-v2/snapshots")
+if os.path.exists(snapshots_path):
+    snapshot_folders = os.listdir(snapshots_path)
+    if snapshot_folders:
+        model_loc = os.path.join(snapshots_path, snapshot_folders[0])
+        print(f"✅ Found model snapshot at {model_loc}")
+    else:
+        print("❌ No snapshot folder found!")
+        exit(1)
 else:
-    print(f"❌ Model not found in {model_cache_dir}. This should not happen!")
-    print("⚠️ Retrying with snapshot_download...")
-    model_loc = snapshot_download(
-        repo_id="sentence-transformers/all-MiniLM-L6-v2",
-        cache_dir=hf_cache_dir,
-        local_files_only=True # Change to `False` for fallback to online download
-    )
-# 4. Load the model to application
+    print("❌ No snapshots directory found!")
+    exit(1)
+# 3. Load the model to application
 from sentence_transformers import SentenceTransformer
 print("📥 **Loading Embedding Model...**")
 # st.write("📥 **Loading Embedding Model...**")

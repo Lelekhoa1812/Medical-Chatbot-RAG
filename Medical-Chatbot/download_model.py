@@ -2,20 +2,40 @@ import os
 import shutil
 from huggingface_hub import snapshot_download
 
-# Define the target cache directory
+# Set up paths
+MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2"
 MODEL_CACHE_DIR = "/app/model_cache"
 
-# Download model
 print("⏳ Downloading the SentenceTransformer model...")
-model_path = snapshot_download(repo_id="sentence-transformers/all-MiniLM-L6-v2", cache_dir=MODEL_CACHE_DIR)
+model_path = snapshot_download(repo_id=MODEL_REPO, cache_dir=MODEL_CACHE_DIR)
 
-# Find the snapshot folder
-snapshots_dir = os.path.join(model_path, "snapshots")
-if os.path.exists(snapshots_dir):
-    snapshot_subdirs = os.listdir(snapshots_dir)
-    if snapshot_subdirs:
-        snapshot_dir = os.path.join(snapshots_dir, snapshot_subdirs[0])
-        # Move all files to the main model cache directory
-        for filename in os.listdir(snapshot_dir):
-            shutil.move(os.path.join(snapshot_dir, filename), MODEL_CACHE_DIR)
-print(f"✅ Model downloaded and stored in {MODEL_CACHE_DIR}")
+print("Model path: ", model_path)
+
+# Ensure the directory exists
+if not os.path.exists(MODEL_CACHE_DIR):
+    os.makedirs(MODEL_CACHE_DIR)
+
+# Move all contents from the snapshot folder
+if os.path.exists(model_path):
+    print(f"📂 Moving model files from {model_path} to {MODEL_CACHE_DIR}...")
+
+    for item in os.listdir(model_path):
+        source = os.path.join(model_path, item)
+        destination = os.path.join(MODEL_CACHE_DIR, item)
+
+        if os.path.isdir(source):
+            shutil.copytree(source, destination, dirs_exist_ok=True)
+        else:
+            shutil.copy2(source, destination)
+
+    print(f"✅ Model extracted and flattened in {MODEL_CACHE_DIR}")
+else:
+    print("❌ No snapshot directory found!")
+    exit(1)
+
+# Verify structure after moving
+print("\n📂 LLM Model Structure (Build Level):")
+for root, dirs, files in os.walk(MODEL_CACHE_DIR):
+    print(f"📁 {root}/")
+    for file in files:
+        print(f"  📄 {file}")

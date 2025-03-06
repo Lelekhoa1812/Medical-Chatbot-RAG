@@ -19,8 +19,8 @@ ENV HF_HOME="/home/user/.cache/huggingface"
 ENV SENTENCE_TRANSFORMERS_HOME="/home/user/.cache/huggingface/sentence-transformers"
 
 # Create cache directories and ensure permissions
-RUN mkdir -p $SENTENCE_TRANSFORMERS_HOME && \
-    chown -R user:user /home/user/.cache/huggingface
+RUN mkdir -p /app/model_cache /home/user/.cache/huggingface/sentence-transformers && \
+    chown -R user:user /app/model_cache /home/user/.cache/huggingface
 
 # Run the model download script
 RUN python /app/download_model.py

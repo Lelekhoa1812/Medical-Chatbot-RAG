@@ -125,3 +125,5 @@ This is the directory and list of nested files for LLM model `MiniLM-L6-v2`, whi
   📄 rust_model.ot
   📄 tf_model.h5
 ```
+
+`config.json` file supposed to be migrated to the parent directory (/app/model_cache/) so we navigate them from snapshot, in order for SentenceTransformer to recognize the model properly.
