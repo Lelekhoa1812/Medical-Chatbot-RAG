@@ -8,14 +8,17 @@ Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages c
 2. **Frontend**:  
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, and http-server, is deployed on Vercel.”
 
-# 🔗 Access Now: 
-[Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)  
-<!-- [Streamlit Backend 🤖](https://medical-chatbot-henna.streamlit.app/) -->
-
 ---
 For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-vi.md)
 
 For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/%08README-zh.md)
+
+---
+
+# 🔗 Access Now: 
+[Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)     
+[Hugging Face Space🤗](https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot/tree/main)     
+<!-- [Streamlit Backend 🤖](https://medical-chatbot-henna.streamlit.app/) -->
 
 ---
 

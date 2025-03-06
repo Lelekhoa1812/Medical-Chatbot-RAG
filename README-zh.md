@@ -5,6 +5,13 @@
 
 ---
 
+# 🔗 使用: 
+[Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)     
+[Hugging Face Space🤗](https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot/tree/main)     
+<!-- [Streamlit Backend 🤖](https://medical-chatbot-henna.streamlit.app/) -->
+
+---
+
 ## 🚀 入门
 
 ### 克隆仓库

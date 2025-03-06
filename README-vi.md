@@ -4,6 +4,13 @@ Chào mừng bạn đến với dự án **AutoGen-RAG Medical Chatbot**! Dự �
 
 ---
 
+# 🔗 Trang Truy Cập: 
+[Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)     
+[Hugging Face Space🤗](https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot/tree/main)     
+<!-- [Streamlit Backend 🤖](https://medical-chatbot-henna.streamlit.app/) -->
+
+---
+
 ## 🚀 Bắt đầu
 
 ### Clone kho lưu trữ
