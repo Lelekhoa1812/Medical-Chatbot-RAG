@@ -22,8 +22,8 @@ ENV SENTENCE_TRANSFORMERS_HOME="/home/user/.cache/huggingface/sentence-transform
 RUN mkdir -p /app/model_cache /home/user/.cache/huggingface/sentence-transformers && \
     chown -R user:user /app/model_cache /home/user/.cache/huggingface
 
-# Run the model download script
-RUN python /app/download_model.py
+# Pre-load model in a separate script
+RUN python /app/download_model.py && python /app/warmup.py
 
 # Ensure ownership and permissions remain intact
 RUN chown -R user:user /app/model_cache
@@ -32,4 +32,4 @@ RUN chown -R user:user /app/model_cache
 EXPOSE 7860
 
 # Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1", "--log-level", "debug"]

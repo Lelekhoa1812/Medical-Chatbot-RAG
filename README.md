@@ -16,7 +16,7 @@ For my Mandarin/Chinese language user, navigate to [README](https://github.com/L
 ---
 
 # 🔗 Access Now: 
-[Medical Chatbot 🤖](https://medical-chatbot-henna.vercel.app/)     
+[Medical Chatbot 📱](https://medical-chatbot-henna.vercel.app/)     
 [Hugging Face Space 🤗](https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot/tree/main)     
 <!-- [Streamlit Backend 🤖](https://medical-chatbot-henna.streamlit.app/) -->
 
@@ -149,6 +149,6 @@ Feel free to contribute or raise issues if you have any questions or suggestions
 ---
 
 Author: (Liam) Dang Khoa Le    
-Latest Update: 04/03/2025
+Latest Update: 11/03/2025
 
 ---

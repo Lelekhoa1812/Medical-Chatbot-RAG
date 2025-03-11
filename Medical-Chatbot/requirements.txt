@@ -10,11 +10,13 @@ sentence-transformers
 # datasets          # Expect to load from Mongo only, no need to fetch dataset from HuggingFace unless re-embedding
 # googletrans       # Translate and process multi-language with LLM already
 # **Environment**
-python-dotenv     # Not used in Streamlit deployment
+python-dotenv       # Not used in Streamlit deployment
 pymongo
 # **Deployment**
 uvicorn
 fastapi
+torch               # Reduce model load with half-precision (float16) to reduce RAM usage
+psutil              # CPU/RAM logger
 # gradio            # On Huggingface deployment with gradio or serving FastAPI only
 # streamlit         # On streamlit deployment with daemon
 # requests
