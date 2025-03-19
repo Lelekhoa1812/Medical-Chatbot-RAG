@@ -103,8 +103,8 @@ vercel run dev
 <img src="imgsrc/chat-en3.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
 <img src="imgsrc/chat-en4.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
 
-### UI with Loader Animation
-<img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;">
+<!-- ### UI with Loader Animation
+<img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;"> -->
 
 ---
 
@@ -135,6 +135,12 @@ For more detailed instructions and further documentation, please refer to:
 - [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md)  
 - [Autogen Documentation](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md)  
 - [Project Wiki](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/wiki)
+
+---
+
+## 🧩 Flowchart
+
+<img src="Application Flow Chart.png" alt="Flowchart" style="width: 80%; max-width: 1000px;">
 
 ---
 
