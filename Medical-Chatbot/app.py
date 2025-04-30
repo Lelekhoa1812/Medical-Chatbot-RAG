@@ -149,10 +149,12 @@ class RAGMedicalChatbot:
 
         # ✅ Construct Prompt
         prompt = f"""
+        You are a medical chatbot, designed to answer medical questions.
+        
         Please format your answer using markdown. 
         **Bold for titles**, *italic for emphasis*, and clear headings.
 
-        **Medical knowledge:**
+        **Medical knowledge (trained with 256,916 data entries):**
         {knowledge_base}
 
         **Question:** {user_query}
@@ -163,7 +165,7 @@ class RAGMedicalChatbot:
         return completion.strip()
 
 # ✅ Initialize Chatbot
-chatbot = RAGMedicalChatbot(model_name="gemini-2.0-flash", retrieve_function=retrieve_medical_info)
+chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash-preview-04-17", retrieve_function=retrieve_medical_info)
 
 # ✅ Chat Endpoint
 @app.post("/chat")
