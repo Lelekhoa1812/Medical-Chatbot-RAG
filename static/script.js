@@ -60,6 +60,16 @@ const translations = {
     }
 };
 
+// Assign user_id on session
+function getUserId() {
+    let uid = localStorage.getItem('chat_user_id');
+    if (!uid) {
+      uid = crypto.randomUUID();
+      localStorage.setItem('chat_user_id', uid);
+    }
+    return uid;
+}
+
 // Function to update all UI strings based on selected language
 function updateLanguage(lang) {
     currentLang = lang;
@@ -91,6 +101,7 @@ function removeLastMessage() {
 
 // Send the message to server-side
 async function sendMessage() {
+    const user_id = getUserId();
     const input = document.getElementById('user-input');
     const message = input.value;
     if (!message) return;
@@ -109,7 +120,7 @@ async function sendMessage() {
     const response = await fetch(`${API_PREFIX}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message, lang: currentLang })
+        body: JSON.stringify({ query: message, lang: currentLang, user_id })
     });
     const data = await response.json();
     const htmlResponse = marked.parse(data.response);

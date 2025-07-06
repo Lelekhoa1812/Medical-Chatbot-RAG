@@ -1,18 +1,31 @@
+# app.py
 import os
 import faiss
 import numpy as np
 import time
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pymongo import MongoClient
 from google import genai
 from sentence_transformers import SentenceTransformer
+from memory import MemoryManager
 
 # ✅ Enable Logging for Debugging
 import logging
-logging.basicConfig(level=logging.DEBUG)
+# —————— Silence Noisy Loggers ——————
+for name in [
+    "uvicorn.error", "uvicorn.access",
+    "fastapi", "starlette",
+    "pymongo", "gridfs",
+    "sentence_transformers", "faiss",
+    "google", "google.auth",
+]:
+    logging.getLogger(name).setLevel(logging.WARNING)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
 logger = logging.getLogger("medical-chatbot")
+logger.setLevel(logging.DEBUG)
+
 # Debug Start
 logger.info("🚀 Starting Medical Chatbot API...")
 print("🚀 Starting Medical Chatbot API...")
@@ -49,6 +62,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # ✅ Initialize FastAPI app
 app = FastAPI(title="Medical Chatbot API")
+memory = MemoryManager()
+
 from fastapi.middleware.cors import CORSMiddleware # Bypassing CORS origin
 # Define the origins
 origins = [
@@ -143,44 +158,50 @@ class RAGMedicalChatbot:
         self.model_name = model_name
         self.retrieve = retrieve_function
 
-    def chat(self, user_query, lang="EN"):
+    def chat(self, user_id: str, user_query: str, lang: str = "EN") -> str:
+        # 1. Fetch knowledge
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
 
-        # ✅ Construct Prompt
-        prompt = f"""
-        You are a medical chatbot, designed to answer medical questions.
-        
-        Please format your answer using markdown. 
-        **Bold for titles**, *italic for emphasis*, and clear headings.
+        # 2. Use relevant chunks from short-term memory FAISS index (nearest 3 chunks)
+        context = memory.get_relevant_chunks(user_id, user_query, top_k=3)
 
-        **Medical knowledge (trained with 256,916 data entries):**
-        {knowledge_base}
-
-        **Question:** {user_query}
-
-        **Language Required:** {lang}
-        """
-        completion = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
-        return completion.strip()
+        # 3. Build prompt parts
+        parts = ["You are a medical chatbot, designed to answer medical questions."]
+        parts.append("Please format your answer using MarkDown.")
+        parts.append("**Bold for titles**, *italic for emphasis*, and clear headings.")
+        # Historical chat retrieval case
+        if context:
+            parts.append("Relevant context from prior conversation:\n" + "\n".join(context))
+        parts.append(f"Medical knowledge (256,916 medical scenario): {knowledge_base}")
+        parts.append(f"Question: {user_query}")
+        parts.append(f"Language: {lang}")
+        prompt = "\n\n".join(parts)
+        response = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
+         # Store exchange + chunking
+        if user_id:
+            memory.add_exchange(user_id, user_query, response, lang=lang)
+        return response.strip()
 
 # ✅ Initialize Chatbot
 chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash-preview-04-17", retrieve_function=retrieve_medical_info)
 
 # ✅ Chat Endpoint
 @app.post("/chat")
-async def chat_endpoint(data: dict):
-    user_query = data.get("query", "")
-    lang = data.get("lang", "EN")
-    if not user_query:
-        return JSONResponse(content={"response": "No query provided."})
-    # Output parameter
-    start_time = time.time()
-    response_text = chatbot.chat(user_query, lang)
-    end_time = time.time()
-    response_text += f"\n\n(Response time: {end_time - start_time:.2f} seconds)"
-    # Send JSON response
-    return JSONResponse(content={"response": response_text})
+async def chat_endpoint(req: Request):
+    body = await req.json()
+    user_id = body.get("user_id", "anonymous")
+    query   = body.get("query", "").strip()
+    lang    = body.get("lang", "EN")
+    # Error
+    if not query:
+        return JSONResponse({"response": "No query provided."})
+    start = time.time()
+    answer = chatbot.chat(user_id, query, lang)
+    elapsed = time.time() - start
+    # Final
+    return JSONResponse({"response": f"{answer}\n\n(Response time: {elapsed:.2f}s)"})
+
 
 # ✅ Run Uvicorn
 if __name__ == "__main__":

@@ -1,14 +1,14 @@
+# requirements.txt
 # **Agents**
 google-genai
 huggingface_hub
-# autogen-agentchat # Not using Autogen since not implementing multi-agent yet
-# autogenstudio
+# **RAG**
 faiss-cpu
 sentence-transformers
-# tiktoken          # Not using OpenAI agent 
-# chromadb          # Not used for RAG pipeline now
-# datasets          # Expect to load from Mongo only, no need to fetch dataset from HuggingFace unless re-embedding
-# googletrans       # Translate and process multi-language with LLM already
+# **NLPs**
+transformers
+accelerate  
+sentencepiece
 # **Environment**
 python-dotenv       # Not used in Streamlit deployment
 pymongo
@@ -17,6 +17,3 @@ uvicorn
 fastapi
 torch               # Reduce model load with half-precision (float16) to reduce RAM usage
 psutil              # CPU/RAM logger
-# gradio            # On Huggingface deployment with gradio or serving FastAPI only
-# streamlit         # On streamlit deployment with daemon
-# requests
