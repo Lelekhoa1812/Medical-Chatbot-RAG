@@ -38,11 +38,21 @@ class MemoryManager:
         else:
             chunks = self.chunk_response(response, lang)
             self.chunk_cache[cache_key] = chunks
+        text_set = set(c["text"] for c in self.chunk_meta[user_id]) # Set list of metadata for deduplication
         # Store chunks → faiss
         for chunk in chunks:
+            if chunk["text"] in text_set:
+                continue  # skip duplicate
             vec = self._embed(chunk["text"])
             self.chunk_index[user_id].add(np.array([vec]))
-            self.chunk_meta[user_id].append(chunk)
+            # Store each chunk’s vector once and reuse it
+            chunk_with_vec = {
+                **chunk,
+                "vec": vec,
+                "timestamp": time.time(),  # store creation time
+                "used": 0                  # track usage
+            }
+            self.chunk_meta[user_id].append(chunk_with_vec)
         # Trim to max_chunks to keep latency O(1)
         if len(self.chunk_meta[user_id]) > self.max_chunks:
             self._rebuild_index(user_id, keep_last=self.max_chunks)
@@ -55,10 +65,21 @@ class MemoryManager:
         qvec   = self._embed(query)
         sims, idxs = self.chunk_index[user_id].search(np.array([qvec]), k=top_k)
         results = []
+        # Append related result with smart-decay to optimize storage and prioritize most-recent chat
         for sim, idx in zip(sims[0], idxs[0]):
             if idx < len(self.chunk_meta[user_id]) and sim >= min_sim:
-                results.append(self.chunk_meta[user_id][idx]["text"])
-        return results
+                chunk = self.chunk_meta[user_id][idx]
+                chunk["used"] += 1  # increment usage
+                # Decay function (you can tweak)
+                age_sec = time.time() - chunk["timestamp"]
+                decay = 1.0 / (1.0 + age_sec / 300)  # 5-min half-life
+                score = sim * decay * (1 + 0.1 * chunk["used"])
+                # Append chunk with score
+                results.append((score, chunk))
+        # Sort result on best scored
+        results.sort(key=lambda x: x[0], reverse=True)
+        return [f"### Topic: {c['tag']}\n{c['text']}" for _, c in results]
+
 
     def get_context(self, user_id: str, num_turns: int = 3) -> str:
         history = list(self.text_cache.get(user_id, []))[-num_turns:]
@@ -86,9 +107,9 @@ class MemoryManager:
         """Trim chunk list + rebuild FAISS index for user."""
         self.chunk_meta[user_id] = self.chunk_meta[user_id][-keep_last:]
         index = self._new_index()
+        # Store each chunk’s vector once and reuse it.
         for chunk in self.chunk_meta[user_id]:
-            vec = self._embed(chunk["text"])
-            index.add(np.array([vec]))
+            index.add(np.array([chunk["vec"]]))
         self.chunk_index[user_id] = index
 
     @staticmethod
@@ -117,6 +138,7 @@ class MemoryManager:
             instructions.append("- Translate the response to English.")
         instructions.append("- Break the translated (or original) text into semantically distinct parts, grouped by medical topic or symptom.")
         instructions.append("- For each part, generate a clear, concise summary. The summary may vary in length depending on the complexity of the topic — do not omit key clinical instructions.")
+        instructions.append("- At the start of each part, write `Topic: <one line description>`.")
         instructions.append("- Separate each part using three dashes `---` on a new line.")
         # Gemini prompt
         prompt = f"""
@@ -130,30 +152,39 @@ class MemoryManager:
 
         Output only the structured summaries, separated by dashes.
         """
-        try:
-            client = genai.Client()
-            result = client.models.generate_content(
-                model=_LLM_SMALL,
-                contents=prompt
-                # ,generation_config={"temperature": 0.4} # Skip temp configs for gem-flash
-            )
-            output = result.text.strip()
-            logger.info(f"📦 Gemini summarized chunk output: {output}")
-            print(f"📦 Gemini summarized chunk output: {output}")
-            return [
-                {"tag": self._quick_extract_topic(chunk), "text": chunk.strip()}
-                for chunk in output.split('---') if chunk.strip()
-            ]
-        except Exception as e:
-            logger.warning(f"❌ Gemini chunking failed: {e}")
-            return [{"tag": "general", "text": response.strip()}]
+        retries = 0
+        while retries < 5:
+            try:
+                client = genai.Client(api_key=os.getenv("FlashAPI"))
+                result = client.models.generate_content(
+                    model=_LLM_SMALL,
+                    contents=prompt
+                    # ,generation_config={"temperature": 0.4} # Skip temp configs for gem-flash
+                )
+                output = result.text.strip()
+                logger.info(f"📦 Gemini summarized chunk output: {output}")
+                print(f"📦 Gemini summarized chunk output: {output}")
+                return [
+                    {"tag": self._quick_extract_topic(chunk), "text": chunk.strip()}
+                    for chunk in output.split('---') if chunk.strip()
+                ]
+            except Exception as e:
+                logger.warning(f"❌ Gemini chunking failed: {e}")
+                retries += 1
+                time.sleep(0.5)
+        return [{"tag": "general", "text": response.strip()}]  # fallback
         
     @staticmethod
     def _quick_extract_topic(chunk: str) -> str:
         """Heuristically extract the topic from a chunk (title line or first 3 words)."""
+        # Expecting 'Topic: <something>'
+        match = re.search(r'^Topic:\s*(.+)', chunk, re.IGNORECASE | re.MULTILINE)
+        if match:
+            return match.group(1).strip()
         lines = chunk.strip().splitlines()
         for line in lines:
             if len(line.split()) <= 8 and line.strip().endswith(":"):
                 return line.strip().rstrip(":")
         return " ".join(chunk.split()[:3]).rstrip(":.,")
+
 

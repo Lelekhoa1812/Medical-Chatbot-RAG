@@ -1,9 +1,9 @@
-# AutoGen-Based Medical Chatbot with RAG 🤖🩺
+# Medical Chatbot with RAG 🤖🩺
 
-Welcome to the **AutoGen-RAG Medical Chatbot** project! This project leverages cutting‑edge technologies such as **AutoGen**, **Retrieval-Augmented Generation (RAG)**, and the **Gemini Flash 2.0 API** to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on **FastAPI** and dynamically renders HTML using **MarkdownJS**.
+Welcome to the RAG-based Medical Chatbot project! This project leverages cutting‑edge technologies such as Retrieval-Augmented Generation (RAG), and the Gemini Flash 2.5 API to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on FastAPI and dynamically renders HTML using MarkdownJS.
 
 1. **Backend**:  
-   “FastAPI backend is hosted on Hugging Face API inference (Render and Streamlit as alternative options) with Cross-Origin Resource Sharing (CORS) configured to allow local and production development.”
+   “FastAPI backend is hosted on Hugging Face API inference with Cross-Origin Resource Sharing (CORS) configured to allow local and production development.”
 
 2. **Frontend**:  
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, and http-server, is deployed on Vercel.”
@@ -83,9 +83,12 @@ vercel run dev
 ## 💡 Features
 
 - **Advanced RAG Integration:** Combines retrieval of relevant medical QA pairs with generative response formulation.
-- **Custom Medical Dataset:** Utilizes a specialized dataset with over **256,916 QA entries**.
-- **State-of-the-Art API:** Powered by Gemini Flash 2.0 API for dynamic and precise medical responses.
-- **High-Performance Indexing:** Employs FAISS (with IVFPQ compression) for fast, scalable similarity search.
+- **Smart Short-Term Memory (STM):** Uses in-memory FAISS per-user with top-k relevant chunking, caching on session's LRU.
+- **Gemini-Powered Chunking:** Uses Gemini Flash 2.5 for translating, summarising, and context-aware chunk splitting of chatbot responses.
+- **Context Decay & Prioritization:** Recent and frequently referenced medical topics are prioritized during chunk search.
+- **Deduplication & Caching:** Avoids embedding or storing repeated data; maximizes memory efficiency.
+- **Custom Medical Dataset:** Utilizes a specialized dataset with over 256,916 QA entries.
+- **High-Performance Indexing:** Employs FAISS (cosine similarity) for fast, scalable similarity search.
 - **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
 - **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.
 - **Multilingual Support:** Includes English, Vietnamese, and Mandarin language options for a global audience.
@@ -105,6 +108,30 @@ vercel run dev
 
 <!-- ### UI with Loader Animation
 <img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;"> -->
+
+---
+
+## 📊 Memory Management
+
+* Each user has their own LRU-based short-term memory.
+* Maximum **10 Q\&A turns per user**.
+* **Gemini-chunked responses** are split by topic ("Topic: <...>") and summarised.
+* **FAISS stores up to 30 recent chunks** per user for fast nearest-neighbor search.
+* **Cosine similarity threshold** ensures only relevant topics are injected into the LLM prompt.
+* Chunks include:
+
+  ```json
+  {
+    "tag": "headache meds",
+    "text": "Use paracetamol...",
+    "vec": [embedding_vector],
+    "used": 3,
+    "timestamp": 1720287547.123
+  }
+  ```
+* **Rebuilds FAISS** automatically without re-embedding.
+* **Retry logic (5x)** ensures Gemini chunking robustness.
+* Uses **time-decay scoring** to prioritize recent and reused content.
 
 ---
 
@@ -155,6 +182,6 @@ Feel free to contribute or raise issues if you have any questions or suggestions
 ---
 
 Author: (Liam) Dang Khoa Le    
-Latest Update: 11/03/2025
+Latest Update: 06/07/2025
 
 ---
