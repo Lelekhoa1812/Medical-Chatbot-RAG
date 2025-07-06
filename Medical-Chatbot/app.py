@@ -37,8 +37,8 @@ gemini_flash_api_key = os.getenv("FlashAPI")
 # Validate environment endpoint
 if not all([gemini_flash_api_key, mongo_uri, index_uri]):
     raise ValueError("❌ Missing API keys! Set them in Hugging Face Secrets.")
-logger.info(f"🔎 MongoDB URI: {mongo_uri}")
-logger.info(f"🔎 FAISS Index URI: {index_uri}")
+# logger.info(f"🔎 MongoDB URI: {mongo_uri}")
+# logger.info(f"🔎 FAISS Index URI: {index_uri}")
 
 # ✅ Monitor Resources Before Startup
 import psutil

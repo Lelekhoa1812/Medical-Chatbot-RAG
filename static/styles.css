@@ -213,6 +213,19 @@ body {
     font-size: 1em;
     outline: none;
   }
+  #user-input {
+    width: 100%;
+    min-height: 40px;
+    max-height: 150px;
+    resize: vertical; /* Allow user to drag to resize if you want */
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    overflow-y: auto;
+    line-height: 1.4;
+  }
   .chat-input button {
     padding: 15px;
     background: linear-gradient(270deg, rgb(13, 58, 56), rgb(44, 13, 58));

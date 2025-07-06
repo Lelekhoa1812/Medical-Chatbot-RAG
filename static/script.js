@@ -168,8 +168,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Trigger message sender
+    // 1. By btn click
     const sendBtn = document.getElementById('send-btn');
     sendBtn.addEventListener('click', sendMessage);
+    // 2. By enter key-press
+    document.getElementById("user-input").addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault(); // prevent newline
+          sendMessage(); // your custom send function
+        }
+      });
 });
 
 // Modal Language Selection Functionality
