@@ -1,5 +1,5 @@
 # memory.py
-import re, time, hashlib, asyncio
+import re, time, hashlib, asyncio, os
 from collections import defaultdict, deque
 from typing import List, Dict
 import numpy as np
@@ -14,6 +14,9 @@ EMBED = SentenceTransformer("/app/model_cache", device="cpu").half()
 logger = logging.getLogger("rag-agent")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
 
+api_key = os.getenv("FlashAPI")
+client = genai.Client(api_key=api_key)
+
 class MemoryManager:
     def __init__(self, max_users=1000, history_per_user=10, max_chunks=30):
         self.text_cache   = defaultdict(lambda: deque(maxlen=history_per_user))
@@ -26,7 +29,8 @@ class MemoryManager:
     # ---------- Public API ----------
     def add_exchange(self, user_id: str, query: str, response: str, lang: str = "EN"):
         self._touch_user(user_id)
-        self.text_cache[user_id].append((query.strip(), response.strip()))
+        self.text_cache[user_id].append(((query or "").strip(), (response or "").strip()))
+        if not response: return []
         # Avoid re-chunking identical response
         cache_key = hashlib.md5((query + response).encode()).hexdigest()
         if cache_key in self.chunk_cache:
@@ -106,6 +110,7 @@ class MemoryManager:
           - Summarise
         Returns: [{"tag": ..., "text": ...}, ...]
         """
+        if not response: return []
         # Gemini instruction
         instructions = []
         if lang.upper() != "EN":
@@ -129,8 +134,8 @@ class MemoryManager:
             client = genai.Client()
             result = client.models.generate_content(
                 model=_LLM_SMALL,
-                contents=prompt,
-                generation_config={"temperature": 0.4}
+                contents=prompt
+                # ,generation_config={"temperature": 0.4} # Skip temp configs for gem-flash
             )
             output = result.text.strip()
             logger.info(f"📦 Gemini summarized chunk output: {output}")
