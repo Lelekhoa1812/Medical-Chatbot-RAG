@@ -8,6 +8,8 @@ const API_PREFIX = isLocal
      : "https://BinKhoaLe1812-Medical-Chatbot.hf.space"
 
 
+console.log(marked.parse("### **Important Message**"));
+
 // Global variable for current language (default English)
 let currentLang = "EN";
 
