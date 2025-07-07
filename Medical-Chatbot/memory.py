@@ -78,6 +78,7 @@ class MemoryManager:
                 results.append((score, chunk))
         # Sort result on best scored
         results.sort(key=lambda x: x[0], reverse=True)
+        # logger.info(f"[Memory] RAG Retrieved Topic: {results}") # Inspect vector data
         return [f"### Topic: {c['tag']}\n{c['text']}" for _, c in results]
 
 
@@ -127,7 +128,7 @@ class MemoryManager:
         """
         Calls Gemini to:
           - Translate (if needed)
-          - Chunk by context/topic
+          - Chunk by context/topic (exclude disclaimer section)
           - Summarise
         Returns: [{"tag": ..., "text": ...}, ...]
         """
@@ -162,14 +163,13 @@ class MemoryManager:
                     # ,generation_config={"temperature": 0.4} # Skip temp configs for gem-flash
                 )
                 output = result.text.strip()
-                logger.info(f"📦 Gemini summarized chunk output: {output}")
-                print(f"📦 Gemini summarized chunk output: {output}")
+                logger.info(f"[Memory] 📦 Gemini summarized chunk output: {output}")
                 return [
                     {"tag": self._quick_extract_topic(chunk), "text": chunk.strip()}
                     for chunk in output.split('---') if chunk.strip()
                 ]
             except Exception as e:
-                logger.warning(f"❌ Gemini chunking failed: {e}")
+                logger.warning(f"[Memory] ❌ Gemini chunking failed: {e}")
                 retries += 1
                 time.sleep(0.5)
         return [{"tag": "general", "text": response.strip()}]  # fallback

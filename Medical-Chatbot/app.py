@@ -28,7 +28,6 @@ logger.setLevel(logging.DEBUG)
 
 # Debug Start
 logger.info("🚀 Starting Medical Chatbot API...")
-print("🚀 Starting Medical Chatbot API...")
 
 # ✅ Environment Variables
 mongo_uri = os.getenv("MONGO_URI")
@@ -47,7 +46,7 @@ def check_system_resources():
     cpu = psutil.cpu_percent(interval=1)
     disk = psutil.disk_usage("/")
     # Defines log info messages
-    logger.info(f"🔍 System Resources - RAM: {memory.percent}%, CPU: {cpu}%, Disk: {disk.percent}%")
+    logger.info(f"[System] 🔍 System Resources - RAM: {memory.percent}%, CPU: {cpu}%, Disk: {disk.percent}%")
     if memory.percent > 85:
         logger.warning("⚠️ High RAM usage detected!")
     if cpu > 90:
@@ -85,18 +84,19 @@ app.add_middleware(
 index = None  # Delay FAISS Index loading until first query
 
 # ✅ Load SentenceTransformer Model (Quantized/Halved)
-logger.info("📥 Loading SentenceTransformer Model...")
-print("📥 Loading SentenceTransformer Model...")
+logger.info("[Embedder] 📥 Loading SentenceTransformer Model...")
 MODEL_CACHE_DIR = "/app/model_cache"
 try:
     embedding_model = SentenceTransformer(MODEL_CACHE_DIR, device="cpu")
     embedding_model = embedding_model.half()  # Reduce memory
     logger.info("✅ Model Loaded Successfully.")
-    print("✅ Model Loaded Successfully.")
 except Exception as e:
     logger.error(f"❌ Model Loading Failed: {e}")
     exit(1)
 
+# Cache in-memory vectors (optional — useful for <10k rows)
+SYMPTOM_VECTORS = None
+SYMPTOM_DOCS = None
 
 # ✅ Setup MongoDB Connection
 # QA data
@@ -107,6 +107,9 @@ qa_collection = db["qa_data"]
 iclient = MongoClient(index_uri)
 idb = iclient["MedicalChatbotDB"]
 index_collection = idb["faiss_index_files"]
+# Symptom Diagnosis data
+symptom_client = MongoClient(mongo_uri) 
+symptom_col = symptom_client["MedicalChatbotDB"]["symptom_diagnosis"]
 
 # ✅ Load FAISS Index (Lazy Load)
 import gridfs
@@ -115,31 +118,56 @@ fs = gridfs.GridFS(idb, collection="faiss_index_files")
 def load_faiss_index():
     global index
     if index is None:
-        print("⏳ Loading FAISS index from GridFS...")
+        logger.info("[KB] ⏳ Loading FAISS index from GridFS...")
         existing_file = fs.find_one({"filename": "faiss_index.bin"})
         if existing_file:
             stored_index_bytes = existing_file.read()
             index_bytes_np = np.frombuffer(stored_index_bytes, dtype='uint8')
             index = faiss.deserialize_index(index_bytes_np)
-            print("✅ FAISS Index Loaded")
-            logger.info("✅ FAISS Index Loaded")
+            logger.info("[KB] ✅ FAISS Index Loaded")
         else:
-            print("❌ FAISS index not found in GridFS.")
-            logger.error("❌ FAISS index not found in GridFS.")
+            logger.error("[KB] ❌ FAISS index not found in GridFS.")
     return index
 
 # ✅ Retrieve Medical Info
-def retrieve_medical_info(query):
+def retrieve_medical_info(query, k=5, min_sim=0.6): # Min similarity between query and kb is to be 60%
     global index
-    index = load_faiss_index()  # Load FAISS on demand
-    # N/A question
+    index = load_faiss_index()
     if index is None:
         return ["No medical information available."]
-    # Embed the query and send to QA db to lookup
-    query_embedding = embedding_model.encode([query], convert_to_numpy=True)
-    _, idxs = index.search(query_embedding, k=3)
-    results = [qa_collection.find_one({"i": int(i)}).get("Doctor", "No answer available.") for i in idxs[0]]
-    return results
+    # Embed query
+    query_vec = embedding_model.encode([query], convert_to_numpy=True)
+    D, I = index.search(query_vec, k=k)
+    # Filter by cosine threshold
+    results = []
+    for score, idx in zip(D[0], I[0]):
+        if score < min_sim:
+            continue
+        doc = qa_collection.find_one({"i": int(idx)})
+        if doc:
+            results.append(doc.get("Doctor", "No answer available."))
+    return results if results else ["No relevant medical entries found."]
+
+# ✅ Retrieve Sym-Dia Info (4962 scenario)
+def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.4):
+    global SYMPTOM_VECTORS, SYMPTOM_DOCS
+    # Lazy load
+    if SYMPTOM_VECTORS is None:
+        all_docs = list(symptom_col.find({}, {"embedding": 1, "answer": 1, "question": 1}))
+        SYMPTOM_DOCS = all_docs
+        SYMPTOM_VECTORS = np.array([doc["embedding"] for doc in all_docs], dtype=np.float32)
+    # Embed input
+    qvec = embedding_model.encode(symptom_text, convert_to_numpy=True)
+    qvec = qvec / (np.linalg.norm(qvec) + 1e-9)
+    # Similarity compute
+    sims = SYMPTOM_VECTORS @ qvec  # cosine
+    sorted_idx = np.argsort(sims)[-top_k:][::-1]
+    # Final
+    return [
+        SYMPTOM_DOCS[i]["answer"]
+        for i in sorted_idx
+        if sims[i] >= min_sim
+    ]
 
 # ✅ Gemini Flash API Call
 def gemini_flash_completion(prompt, model, temperature=0.7):
@@ -148,8 +176,7 @@ def gemini_flash_completion(prompt, model, temperature=0.7):
         response = client_genai.models.generate_content(model=model, contents=prompt)
         return response.text
     except Exception as e:
-        logger.error(f"❌ Error calling Gemini API: {e}")
-        print(f"❌ Error calling Gemini API: {e}")
+        logger.error(f"[LLM] ❌ Error calling Gemini API: {e}")
         return "Error generating response from Gemini."
 
 # ✅ Chatbot Class
@@ -160,8 +187,11 @@ class RAGMedicalChatbot:
 
     def chat(self, user_id: str, user_query: str, lang: str = "EN") -> str:
         # 1. Fetch knowledge
+        ## a. KB for generic QA retrieval
         retrieved_info = self.retrieve(user_query)
         knowledge_base = "\n".join(retrieved_info)
+        ## b. Diagnosis RAG from symptom query
+        diagnosis_guides = retrieve_diagnosis_from_symptoms(user_query)  # smart matcher
 
         # 2. Use relevant chunks from short-term memory FAISS index (nearest 3 chunks)
         context = memory.get_relevant_chunks(user_id, user_query, top_k=3)
@@ -173,14 +203,21 @@ class RAGMedicalChatbot:
         # Historical chat retrieval case
         if context:
             parts.append("Relevant context from prior conversation:\n" + "\n".join(context))
-        parts.append(f"Medical knowledge (256,916 medical scenario): {knowledge_base}")
+        # Load up guideline
+        if knowledge_base:
+            parts.append(f"Medical knowledge (256,916 medical scenario): {knowledge_base}")
+        # Symptom-Diagnosis prediction RAG
+        if diagnosis_guides:
+            parts.append("Symptom-based diagnosis guidance:\n" + "\n".join(diagnosis_guides))
         parts.append(f"Question: {user_query}")
         parts.append(f"Language: {lang}")
         prompt = "\n\n".join(parts)
+        logger.info(f"[LLM] Question query in `prompt`: {prompt}") # Debug out checking RAG on kb and history
         response = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
          # Store exchange + chunking
         if user_id:
             memory.add_exchange(user_id, user_query, response, lang=lang)
+        logger.info(f"[LLM] Response on `prompt`: {response.strip()}") # Debug out base response
         return response.strip()
 
 # ✅ Initialize Chatbot
@@ -205,8 +242,7 @@ async def chat_endpoint(req: Request):
 
 # ✅ Run Uvicorn
 if __name__ == "__main__":
-    logger.info("✅ Starting FastAPI Server...")
-    print("✅ Starting FastAPI Server...")
+    logger.info("[System] ✅ Starting FastAPI Server...")
     try:
         uvicorn.run(app, host="0.0.0.0", port=7860, log_level="debug")
     except Exception as e:

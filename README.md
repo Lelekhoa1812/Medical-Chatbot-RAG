@@ -88,6 +88,7 @@ vercel run dev
 - **Context Decay & Prioritization:** Recent and frequently referenced medical topics are prioritized during chunk search.
 - **Deduplication & Caching:** Avoids embedding or storing repeated data; maximizes memory efficiency.
 - **Custom Medical Dataset:** Utilizes a specialized dataset with over 256,916 QA entries.
+- **Symptom to Diagnosis:** Smart similarity retrieval of prognosis from list of available symptoms.
 - **High-Performance Indexing:** Employs FAISS (cosine similarity) for fast, scalable similarity search.
 - **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
 - **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.
@@ -105,9 +106,6 @@ vercel run dev
 <img src="imgsrc/chat-en2.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
 <img src="imgsrc/chat-en3.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
 <img src="imgsrc/chat-en4.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
-
-<!-- ### UI with Loader Animation
-<img src="imgsrc/loaderUI.png" alt="Chatbot New UI with Loader" style="width: 80%; max-width: 1000px;"> -->
 
 ---
 
@@ -132,6 +130,17 @@ vercel run dev
 * **Rebuilds FAISS** automatically without re-embedding.
 * **Retry logic (5x)** ensures Gemini chunking robustness.
 * Uses **time-decay scoring** to prioritize recent and reused content.
+
+---
+
+### 🧠 Knowledge Embedding & Retrieval
+
+* **SentenceTransformer Embedding** (`all-MiniLM-L6-v2`) is used for encoding both user queries and knowledge base entries.
+* **Symptom Diagnosis Loader**: Converts 1-hot encoded symptom data from `symbipredict_2022.csv` into natural language Q\&A pairs.
+* **MongoDB Vector Cache**: All records are embedded and saved with `_id`, symptom list, diagnosis label, and vector.
+* **Similarity Retrieval**: Uses cosine similarity (via FAISS or numpy dot product) to find top-k relevant symptom-based diagnoses.
+* **Strict Thresholds**: Minimum semantic similarity enforced for diagnosis retrieval (≥ 0.35).
+* **Multi-source Support**: Both general QA (`qa_data`) and symptom diagnosis (`symptom_diagnosis`) collections are queried contextually.
 
 ---
 
