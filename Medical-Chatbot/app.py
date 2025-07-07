@@ -9,7 +9,10 @@ from fastapi.responses import JSONResponse
 from pymongo import MongoClient
 from google import genai
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.util import cos_sim
 from memory import MemoryManager
+from translation import translate_query
+
 
 # ✅ Enable Logging for Debugging
 import logging
@@ -129,26 +132,54 @@ def load_faiss_index():
             logger.error("[KB] ❌ FAISS index not found in GridFS.")
     return index
 
-# ✅ Retrieve Medical Info
-def retrieve_medical_info(query, k=5, min_sim=0.6): # Min similarity between query and kb is to be 60%
+# ✅ Retrieve Medical Info (256,916 scenario)
+def retrieve_medical_info(query, k=5, min_sim=0.8): # Min similarity between query and kb is to be 80%
     global index
     index = load_faiss_index()
     if index is None:
-        return ["No medical information available."]
+        return [""]
     # Embed query
     query_vec = embedding_model.encode([query], convert_to_numpy=True)
     D, I = index.search(query_vec, k=k)
     # Filter by cosine threshold
     results = []
+    kept = []
+    kept_vecs = []
+    # Smart dedup on cosine threshold between similar candidates
     for score, idx in zip(D[0], I[0]):
         if score < min_sim:
             continue
+        # List sim docs
         doc = qa_collection.find_one({"i": int(idx)})
-        if doc:
-            results.append(doc.get("Doctor", "No answer available."))
-    return results if results else ["No relevant medical entries found."]
+        if not doc:
+            continue
+        # Only compare answers
+        answer = doc.get("Doctor", "").strip()
+        if not answer:
+            continue
+        # Check semantic redundancy among previously kept results
+        new_vec = embedding_model.encode([answer], convert_to_numpy=True)[0]
+        is_similar = False
+        for i, vec in enumerate(kept_vecs):
+            sim = np.dot(vec, new_vec) / (np.linalg.norm(vec) * np.linalg.norm(new_vec) + 1e-9)
+            if sim >= 0.9:  # High semantic similarity
+                is_similar = True
+                # Keep only better match to original query
+                cur_sim_to_query = np.dot(vec, query_vec[0]) / (np.linalg.norm(vec) * np.linalg.norm(query_vec[0]) + 1e-9)
+                new_sim_to_query = np.dot(new_vec, query_vec[0]) / (np.linalg.norm(new_vec) * np.linalg.norm(query_vec[0]) + 1e-9)
+                if new_sim_to_query > cur_sim_to_query:
+                    kept[i] = answer
+                    kept_vecs[i] = new_vec
+                break
+        # Non-similar candidates
+        if not is_similar:
+            kept.append(answer)
+            kept_vecs.append(new_vec)
+    # Final
+    return kept if kept else [""]
 
-# ✅ Retrieve Sym-Dia Info (4962 scenario)
+
+# ✅ Retrieve Sym-Dia Info (4,962 scenario)
 def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.4):
     global SYMPTOM_VECTORS, SYMPTOM_DOCS
     # Lazy load
@@ -162,12 +193,17 @@ def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.4):
     # Similarity compute
     sims = SYMPTOM_VECTORS @ qvec  # cosine
     sorted_idx = np.argsort(sims)[-top_k:][::-1]
-    # Final
-    return [
-        SYMPTOM_DOCS[i]["answer"]
-        for i in sorted_idx
-        if sims[i] >= min_sim
-    ]
+    seen_diag = set()
+    final = [] # Dedup
+    for i in sorted_idx:
+        sim = sims[i]
+        if sim < min_sim:
+            continue
+        label = SYMPTOM_DOCS[i]["prognosis"]
+        if label not in seen_diag:
+            final.append(SYMPTOM_DOCS[i]["answer"])
+            seen_diag.add(label)
+    return final
 
 # ✅ Gemini Flash API Call
 def gemini_flash_completion(prompt, model, temperature=0.7):
@@ -186,6 +222,10 @@ class RAGMedicalChatbot:
         self.retrieve = retrieve_function
 
     def chat(self, user_id: str, user_query: str, lang: str = "EN") -> str:
+        # 0. Translate query if not EN, this help our RAG system
+        if lang.upper() in {"VI", "ZH"}:
+            user_query = translate_query(user_query, lang.lower())
+
         # 1. Fetch knowledge
         ## a. KB for generic QA retrieval
         retrieved_info = self.retrieve(user_query)
@@ -205,7 +245,7 @@ class RAGMedicalChatbot:
             parts.append("Relevant context from prior conversation:\n" + "\n".join(context))
         # Load up guideline
         if knowledge_base:
-            parts.append(f"Medical knowledge (256,916 medical scenario): {knowledge_base}")
+            parts.append(f"Medical scenario knowledge: {knowledge_base}")
         # Symptom-Diagnosis prediction RAG
         if diagnosis_guides:
             parts.append("Symptom-based diagnosis guidance:\n" + "\n".join(diagnosis_guides))

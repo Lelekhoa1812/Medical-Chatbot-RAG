@@ -1,3 +1,5 @@
+# download_model.py
+### --- A. transformer and embedder ---
 import os
 import shutil
 from huggingface_hub import snapshot_download
@@ -39,3 +41,11 @@ for root, dirs, files in os.walk(MODEL_CACHE_DIR):
     print(f"📁 {root}/")
     for file in files:
         print(f"  📄 {file}")
+
+
+### --- B. translation modules ---
+from transformers import pipeline
+print("⏬ Downloading Vietnamese–English translator...")
+_ = pipeline("translation", model="VietAI/envit5-translation", src_lang="vi", tgt_lang="en")
+print("⏬ Downloading Chinese–English translator...")
+_ = pipeline("translation", model="Helsinki-NLP/opus-mt-zh-en")
