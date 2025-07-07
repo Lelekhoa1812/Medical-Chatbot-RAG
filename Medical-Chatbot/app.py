@@ -184,7 +184,7 @@ def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.4):
     global SYMPTOM_VECTORS, SYMPTOM_DOCS
     # Lazy load
     if SYMPTOM_VECTORS is None:
-        all_docs = list(symptom_col.find({}, {"embedding": 1, "answer": 1, "question": 1}))
+        all_docs = list(symptom_col.find({}, {"embedding": 1, "answer": 1, "question": 1, "prognosis": 1}))
         SYMPTOM_DOCS = all_docs
         SYMPTOM_VECTORS = np.array([doc["embedding"] for doc in all_docs], dtype=np.float32)
     # Embed input
