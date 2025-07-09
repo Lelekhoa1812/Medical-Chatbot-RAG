@@ -226,6 +226,30 @@ body {
     overflow-y: auto;
     line-height: 1.4;
   }
+  /* Upload icon inside chat input */
+  .upload-icon {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+    cursor: pointer;
+    position: relative;
+  }
+  .upload-icon img {
+    width: 28px;
+    height: 28px;
+    opacity: 0.8;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .upload-icon:hover img {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  /* Place upload icon visually aligned with textarea */
+  .chat-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   .chat-input button {
     padding: 15px;
     background: linear-gradient(270deg, rgb(13, 58, 56), rgb(44, 13, 58));
@@ -255,10 +279,16 @@ body {
     color: #00b68f;
   }
   .bot h1, .bot h2, .bot h3, .bot h4, .bot h5, .bot h6 {
-    margin: 12px 0 8px 0;
-    font-weight: 600;
-    color: #005e4d; /* Or any color that fits your design */
+    margin: 10px 0 8px 0;
+    padding-left: 10px;
+    font-weight: bold;
     line-height: 1.4;
+    color: #004d40; /* Teal dark tone or adjust for theme */
+    background-color: #f2f2f2;
+    border-left: 4px solid #00b68f;
+    padding: 6px 10px;
+    border-radius: 4px;
+    word-break: break-word;
   }
   .bot h1 { font-size: 1.6em; }
   .bot h2 { font-size: 1.4em; }
@@ -267,12 +297,37 @@ body {
   .bot h5 { font-size: 1em; }
   .bot h6 { font-size: 0.9em; }
   .bot strong {
-    color: #2a2a2a;
+    color: #1c0000;
     font-weight: bold;
   }
   .bot em {
     font-style: italic;
+    color: #555;
   }
+  .bot blockquote {
+    margin: 10px;
+    padding: 10px;
+    background-color: #fdf6e3;
+    border-left: 4px solid #ffb74d;
+    color: #555;
+    font-style: italic;
+  }
+  .bot ul {
+    padding-left: 25px;
+    margin-bottom: 10px;
+  }  
+  .bot li {
+    margin-bottom: 5px;
+    color: #333;
+  }
+
+  .bot code {
+    background: #eee;
+    font-family: monospace;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #d63384;
+  }  
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

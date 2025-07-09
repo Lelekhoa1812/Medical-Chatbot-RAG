@@ -180,6 +180,42 @@ document.addEventListener('DOMContentLoaded', function() {
           sendMessage(); // your custom send function
         }
       });
+
+    // Handle image upload
+    const uploadInput = document.getElementById('image-upload');
+    uploadInput.addEventListener('change', async function () {
+    const user_id = getUserId();
+    const file = this.files[0];
+    if (!file) return;
+    // Append loader
+    appendMessage('user', "📷 Uploaded an image for diagnosis.", false);
+    const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
+    appendMessage('bot', loaderHTML, true);
+    // Append data
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('user_id', user_id);
+        formData.append('lang', currentLang);
+        // Send over
+        const response = await fetch(`${API_PREFIX}/image`, {
+        method: 'POST',
+        body: formData
+        });
+        // Await for response
+        const data = await response.json();
+        removeLastMessage();
+        const htmlResponse = marked.parse(data.response);
+        appendMessage('bot', htmlResponse, true);
+    } catch (error) {
+        removeLastMessage();
+        appendMessage('bot', "❌ Failed to process image. Please try again later.", false);
+        console.error(error);
+    }
+    // Clear file after upload
+    this.value = '';
+});
+
 });
 
 // Modal Language Selection Functionality
