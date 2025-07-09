@@ -85,12 +85,26 @@
         <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
       </div>
     </div>
+    <!-- Modal for image description -->
+    <div id="image-modal" class="image-modal-overlay hidden">
+      <div class="image-modal-content">
+        <h3>🖼️ Image Uploaded</h3>
+        <!-- 👇 Image Preview -->
+        <img id="uploaded-preview" src="" alt="Uploaded Preview" style="max-width:100%; border-radius:8px; margin: 10px 0;">
+        <p>Please describe what you'd like me to analyze in this image:</p>
+        <textarea id="image-description" placeholder="e.g. Can you check this for signs of pneumonia?"></textarea>
+        <div class="image-modal-actions">
+          <button id="cancel-image-modal">Cancel</button>
+          <button id="submit-image-modal">Submit</button>
+        </div>
+      </div>
+    </div>
     <!-- Text + image upload input -->
     <div class="chat-input">
       <textarea
         id="user-input"
         placeholder="Type your question here..."
-        rows="2"
+        rows="1"
       ></textarea>
       <label id="upload-label" class="upload-icon" title="Upload your medical image for diagnosis">
         <img src="img/upload.png" alt="Upload" />

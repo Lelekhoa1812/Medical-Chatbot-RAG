@@ -93,7 +93,7 @@ function updateLanguage(lang) {
     document.getElementById('nav-about').innerText = translations[lang].about;
 }
 
-// Remove last message (for loader)
+// --- Remove last message ---
 function removeLastMessage() {
     const messagesDiv = document.getElementById('chat-messages');
     if (messagesDiv.lastChild) {
@@ -101,35 +101,47 @@ function removeLastMessage() {
     }
 } 
 
-// Send the message to server-side
-async function sendMessage() {
+// --- Send message over ---
+async function sendMessage(customQuery = null, imageBase64 = null) {
     const user_id = getUserId();
     const input = document.getElementById('user-input');
-    const message = input.value;
+    const message = customQuery || input.value.trim();
     if (!message) return;
-    // Remove welcome screen if exists
-        const welcomeContainer = document.getElementById('welcome-container');
-    if (welcomeContainer) {
-        welcomeContainer.remove();
-    }
+    // Remove welcome screen if shown
+    const welcomeContainer = document.getElementById('welcome-container');
+    if (welcomeContainer) welcomeContainer.remove();
+    // Add user message
     appendMessage('user', message, false);
-    input.value = '';
-    // Insert loader message as bot message
+    if (!customQuery) input.value = '';
+    // Add loader
     const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
     appendMessage('bot', loaderHTML, true);
-
-    // Post the query (and language) to the backend
-    const response = await fetch(`${API_PREFIX}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message, lang: currentLang, user_id })
-    });
-    const data = await response.json();
-    const htmlResponse = marked.parse(data.response);
-    removeLastMessage();
-    appendMessage('bot', htmlResponse, true);
+    // Prepare JSON body
+    const body = {
+        query: message,
+        lang: currentLang,
+        user_id,
+        ...(imageBase64 ? { image_base64: imageBase64 } : {})
+    };
+    // Send over backend
+    try {
+        const response = await fetch(`${API_PREFIX}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        removeLastMessage();
+        const htmlResponse = marked.parse(data.response);
+        appendMessage('bot', htmlResponse, true);
+    } catch (err) {
+        removeLastMessage();
+        appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
+        console.error(err);
+    }
 }
 
+// --- Add msg over ---
 function appendMessage(role, text, isHTML) {
     const messagesDiv = document.getElementById('chat-messages');
     const messageDiv = document.createElement('div');
@@ -144,7 +156,7 @@ function appendMessage(role, text, isHTML) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Dropdown language selector functionality
+// --- Dropdown Lang Selector ---
 document.addEventListener('DOMContentLoaded', function() {
     const dropdownBtn = document.querySelector('.dropdown-btn');
     const dropdownMenu = document.querySelector('.dropdown-menu');
@@ -153,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
     });
 
-    // When a language option is selected from the dropdown
+    // --- Dropdown Lang Selection ---
     document.querySelectorAll('.dropdown-menu li').forEach(item => {
         item.addEventListener('click', function(event) {
             event.stopPropagation();
@@ -163,13 +175,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updateLanguage(selectedLang);
         });
     });
-
     // Close the dropdown if clicking outside
-    document.addEventListener('click', function() {
-        dropdownMenu.style.display = 'none';
-    });
+    document.addEventListener('click', function() {dropdownMenu.style.display = 'none';});
 
-    // Trigger message sender
+    // --- Trigger message sender ---
     // 1. By btn click
     const sendBtn = document.getElementById('send-btn');
     sendBtn.addEventListener('click', sendMessage);
@@ -179,47 +188,9 @@ document.addEventListener('DOMContentLoaded', function() {
           event.preventDefault(); // prevent newline
           sendMessage(); // your custom send function
         }
-      });
-
-    // Handle image upload
-    const uploadInput = document.getElementById('image-upload');
-    uploadInput.addEventListener('change', async function () {
-    const user_id = getUserId();
-    const file = this.files[0];
-    if (!file) return;
-    // Append loader
-    appendMessage('user', "📷 Uploaded an image for diagnosis.", false);
-    const loaderHTML = `<div class="loader-container"><div class="loader"></div><div class="loader-text">${translations[currentLang].loaderMessage}</div></div>`;
-    appendMessage('bot', loaderHTML, true);
-    // Append data
-    try {
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('user_id', user_id);
-        formData.append('lang', currentLang);
-        // Send over
-        const response = await fetch(`${API_PREFIX}/image`, {
-        method: 'POST',
-        body: formData
-        });
-        // Await for response
-        const data = await response.json();
-        removeLastMessage();
-        const htmlResponse = marked.parse(data.response);
-        appendMessage('bot', htmlResponse, true);
-    } catch (error) {
-        removeLastMessage();
-        appendMessage('bot', "❌ Failed to process image. Please try again later.", false);
-        console.error(error);
-    }
-    // Clear file after upload
-    this.value = '';
-});
-
-});
-
-// Modal Language Selection Functionality
-document.addEventListener('DOMContentLoaded', function() {
+    });
+    
+    // --- Language modal ---
     const modal = document.getElementById('language-modal');
     const modalButtons = modal.querySelectorAll('button');
     // When any modal button is clicked:
@@ -232,5 +203,56 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide the modal
             modal.style.display = 'none';
         });
+    });
+
+    // --- Image Upload Flow ---
+    const uploadInput = document.getElementById('image-upload');
+    // Show img preview on desc modal
+    uploadInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        // Init
+        const modal = document.getElementById('image-modal');
+        const preview = document.getElementById('uploaded-preview');
+        const reader = new FileReader();
+        // Loader
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          modal.classList.remove('hidden'); // Show modal
+        };
+        reader.readAsDataURL(file); // Convert image to base64 for preview
+      });
+    let uploadedImageFile = null;
+    // Init
+    document.getElementById('image-upload').addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        uploadedImageFile = file;
+        document.getElementById('image-modal').classList.remove('hidden');
+        this.value = '';
+    });
+    // Cancel modal
+    document.getElementById('cancel-image-modal').addEventListener('click', () => {
+        uploadedImageFile = null;
+        document.getElementById('image-description').value = '';
+        document.getElementById('image-modal').classList.add('hidden');
+    });
+    // Submit over
+    document.getElementById('submit-image-modal').addEventListener('click', () => {
+        const description = document.getElementById('image-description').value.trim();
+        if (!uploadedImageFile || !description) {
+            alert("Please upload an image and provide a description.");
+            return;
+        }
+        // File reader
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            const base64 = e.target.result.split(',')[1];
+            await sendMessage(description, base64);
+            uploadedImageFile = null;
+            document.getElementById('image-description').value = '';
+            document.getElementById('image-modal').classList.add('hidden');
+        };
+        reader.readAsDataURL(uploadedImageFile);
     });
 });
