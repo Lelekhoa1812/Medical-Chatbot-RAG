@@ -1,9 +1,9 @@
 # Medical Chatbot with RAG 🤖🩺
 
-Welcome to the RAG-based Medical Chatbot project! This project leverages cutting‑edge technologies such as Retrieval-Augmented Generation (RAG), and the Gemini Flash 2.5 API to deliver an intelligent medical chatbot. It uses a custom medical dataset from Hugging Face (with over 256,916 QA entries) and employs FAISS for efficient similarity search. The server runs on FastAPI and dynamically renders HTML using MarkdownJS.
+Welcome to the RAG-based Medical Chatbot project! This project leverages cutting‑edge technologies such as Retrieval-Augmented Generation (RAG), Gemini Flash 2.5 (Backbone reasoning LLM), and MedGemma (VLM) to deliver an intelligent medical chatbot. It uses a custom medical dataset (over 256,916 QA scenarios), diagnosis retrieval agent (over 4,962 symptom scenarios), and employs FAISS for efficient similarity search. The server runs on FastAPI and dynamically renders HTML using MarkdownJS.
 
 1. **Backend**:  
-   “FastAPI backend is hosted on Hugging Face API inference with Cross-Origin Resource Sharing (CORS) configured to allow local and production development.”
+   “FastAPI backend is hosted on Hugging Face API inference with Cross-Origin Resource Sharing (CORS) configured to allow local and production development. Fusing LLM (Gemini 2.5), VLM (MedGemma), NLPs, RAG (FAISS).”
 
 2. **Frontend**:  
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, and http-server, is deployed on Vercel.”
@@ -81,14 +81,14 @@ vercel run dev
 ---
 
 ## 💡 Features
-
+- **LLM and VLM:** Dynamic fusing of Reasoning LLM model backbone (Gemini 2.5 Pro) and VLM image diagnosis (MedGemma from Gemma3 model family).
 - **Advanced RAG Integration:** Combines retrieval of relevant medical QA pairs with generative response formulation.
 - **Smart Short-Term Memory (STM):** Uses in-memory FAISS per-user with top-k relevant chunking, caching on session's LRU.
-- **Gemini-Powered Chunking:** Uses Gemini Flash 2.5 for translating, summarising, and context-aware chunk splitting of chatbot responses.
+- **Gemini-Powered Chunking:** Uses Gemini Flash 2.5 Lite for translating, summarising, and context-aware chunk splitting of chatbot responses.
 - **Context Decay & Prioritization:** Recent and frequently referenced medical topics are prioritized during chunk search.
 - **Deduplication & Caching:** Avoids embedding or storing repeated data; maximizes memory efficiency.
 - **Custom Medical Dataset:** Utilizes a specialized dataset with over 256,916 QA entries.
-- **Symptom to Diagnosis:** Smart similarity retrieval of prognosis from list of available symptoms.
+- **Symptom to Diagnosis:** Smart similarity retrieval of prognosis from list of available symptoms, 4.9k scenario-diagnosis was used.
 - **High-Performance Indexing:** Employs FAISS (cosine similarity) for fast, scalable similarity search.
 - **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
 - **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.

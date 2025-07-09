@@ -12,7 +12,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from memory import MemoryManager
 from translation import translate_query
-
+from vlm import process_medical_image
 
 # ✅ Enable Logging for Debugging
 import logging
@@ -221,7 +221,7 @@ class RAGMedicalChatbot:
         self.model_name = model_name
         self.retrieve = retrieve_function
 
-    def chat(self, user_id: str, user_query: str, lang: str = "EN") -> str:
+    def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "") -> str:
         # 0. Translate query if not EN, this help our RAG system
         if lang.upper() in {"VI", "ZH"}:
             user_query = translate_query(user_query, lang.lower())
@@ -240,6 +240,13 @@ class RAGMedicalChatbot:
         parts = ["You are a medical chatbot, designed to answer medical questions."]
         parts.append("Please format your answer using MarkDown.")
         parts.append("**Bold for titles**, *italic for emphasis*, and clear headings.")
+        # Append image diagnosis from VLM
+        if image_diagnosis:
+            parts.append(
+                "User medical image is diagnosed by VLM agent:\n"
+                f"{image_diagnosis}\n\n"
+                "➡️ Please incorporate the above findings in your response if medically relevant.\n\n"
+            )
         # Historical chat retrieval case
         if context:
             parts.append("Relevant context from prior conversation:\n" + "\n".join(context))
@@ -270,11 +277,22 @@ async def chat_endpoint(req: Request):
     user_id = body.get("user_id", "anonymous")
     query   = body.get("query", "").strip()
     lang    = body.get("lang", "EN")
-    # Error
-    if not query:
-        return JSONResponse({"response": "No query provided."})
+    image_base64 = body.get("image_base64", None)
+    # LLM Only
+    if not query and not image_base64:
+        logger.info("[BOT] LLM scenario.")
     start = time.time()
-    answer = chatbot.chat(user_id, query, lang)
+    # If image is present → diagnose first
+    image_diagnosis = ""
+    # Img size safe processor
+    if image_base64 and len(image_base64.encode("utf-8")) > 5_000_000:
+        return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
+    # LLM+VLM
+    if image_base64:
+        logger.info("[BOT] VLM+LLM scenario.")
+        prompt = query or "Describe and investigate any clinical findings from this medical image."
+        image_diagnosis = process_medical_image(image_base64, prompt, lang)
+    answer = chatbot.chat(user_id, query, lang, image_diagnosis)
     elapsed = time.time() - start
     # Final
     return JSONResponse({"response": f"{answer}\n\n(Response time: {elapsed:.2f}s)"})
