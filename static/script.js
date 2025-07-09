@@ -101,12 +101,23 @@ function removeLastMessage() {
     }
 } 
 
+// Stack over
+let pendingImageBase64 = null;
+let pendingImageDesc = null;
+
 // --- Send message over ---
 async function sendMessage(customQuery = null, imageBase64 = null) {
     const user_id = getUserId();
     const input = document.getElementById('user-input');
     const message = customQuery || input.value.trim();
-    if (!message) return;
+    if (!message) {
+        if (!pendingImageDesc) {
+            alert("Empty Message!")
+        }
+        else {
+            message = pendingImageDesc;
+        }
+    } 
     // Remove welcome screen if shown
     const welcomeContainer = document.getElementById('welcome-container');
     if (welcomeContainer) welcomeContainer.remove();
@@ -121,7 +132,8 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         query: message,
         lang: currentLang,
         user_id,
-        ...(imageBase64 ? { image_base64: imageBase64 } : {})
+        ...(pendingImageBase64 ? { image_base64: pendingImageBase64 } : {}),
+        img_desc: pendingImageDesc,
     };
     // Send over backend
     try {
@@ -131,7 +143,13 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             body: JSON.stringify(body)
         });
         const data = await response.json();
+        // Remove message and img previewer
         removeLastMessage();
+        pendingImageBase64 = null;
+        pendingImageDesc = null;
+        const previewEl = document.getElementById('upload-preview-container');
+        if (previewEl) previewEl.remove();
+        // Parse MarkDown with styler
         const htmlResponse = marked.parse(data.response);
         appendMessage('bot', htmlResponse, true);
     } catch (err) {
@@ -141,20 +159,34 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
     }
 }
 
-// --- Add msg over ---
+// --- Render msg over ---
 function appendMessage(role, text, isHTML) {
     const messagesDiv = document.getElementById('chat-messages');
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message');
+    // Prefixing
     const prefix = role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
+    // MarkDown -> HTML
+    let content = '';
     if (isHTML) {
-        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
+        content = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
     } else {
-        messageDiv.innerHTML = `<strong class="${role}">${prefix}:</strong> ${text}`;
+        content = `<strong class="${role}">${prefix}:</strong> ${text}`;
     }
+    // If this is a user message and pendingImageBase64 is set, include image preview
+    if (role === 'user' && pendingImageBase64) {
+        content += `
+            <div class="chat-preview-image-block">
+                <img src="data:image/jpeg;base64,${pendingImageBase64}" alt="User Image" />
+                <p class="image-desc">${pendingImageDesc}</p>
+            </div>`;
+    }
+    // Append components
+    messageDiv.innerHTML = content;
     messagesDiv.appendChild(messageDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
+
 
 // --- Dropdown Lang Selector ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -181,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Trigger message sender ---
     // 1. By btn click
     const sendBtn = document.getElementById('send-btn');
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', () => sendMessage());
     // 2. By enter key-press
     document.getElementById("user-input").addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey) {
@@ -239,20 +271,36 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // Submit over
     document.getElementById('submit-image-modal').addEventListener('click', () => {
-        const description = document.getElementById('image-description').value.trim();
-        if (!uploadedImageFile || !description) {
-            alert("Please upload an image and provide a description.");
-            return;
-        }
-        // File reader
+        const desc = document.getElementById('image-description').value.trim() || 
+                     "Describe and investigate any clinical findings from this medical image.";
+        const file = uploadedImageFile;
+        if (!file) return;
+        // Read img
         const reader = new FileReader();
-        reader.onload = async function (e) {
-            const base64 = e.target.result.split(',')[1];
-            await sendMessage(description, base64);
+        reader.onload = function (e) {
+            pendingImageBase64 = e.target.result.split(',')[1];
+            pendingImageDesc = desc;
+            // Add preview container just above the input box
+            const previewHTML = `
+              <div id="upload-preview-container">
+                <div class="image-preview-block">
+                  <img src="${e.target.result}" alt="Preview" />
+                  <p>${desc}</p>
+                  <button id="remove-preview">✖</button>
+                </div>
+              </div>`;
+            document.querySelector('.chat-input').insertAdjacentHTML('afterbegin', previewHTML);
+            // Cleanup
+            document.getElementById('image-modal').classList.add('hidden');
             uploadedImageFile = null;
             document.getElementById('image-description').value = '';
-            document.getElementById('image-modal').classList.add('hidden');
+            // Handle preview removal
+            document.getElementById('remove-preview').addEventListener('click', () => {
+                document.getElementById('upload-preview-container').remove();
+                pendingImageBase64 = null;
+                pendingImageDesc = null;
+            });
         };
-        reader.readAsDataURL(uploadedImageFile);
-    });
+        reader.readAsDataURL(file);
+    });    
 });

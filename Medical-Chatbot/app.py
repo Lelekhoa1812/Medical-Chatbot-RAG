@@ -275,23 +275,26 @@ chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash-preview-04-17", retriev
 async def chat_endpoint(req: Request):
     body = await req.json()
     user_id = body.get("user_id", "anonymous")
-    query   = body.get("query", "").strip()
+    query_raw = body.get("query")
+    query = query_raw.strip() if isinstance(query_raw, str) else ""
     lang    = body.get("lang", "EN")
     image_base64 = body.get("image_base64", None)
+    img_desc = body.get("img_desc", "Describe and investigate any clinical findings from this medical image.")
     # LLM Only
-    if not query and not image_base64:
+    if not image_base64:
         logger.info("[BOT] LLM scenario.")
     start = time.time()
     # If image is present → diagnose first
     image_diagnosis = ""
     # Img size safe processor
-    if image_base64 and len(image_base64.encode("utf-8")) > 5_000_000:
+    safe_load = len(image_base64.encode("utf-8"))
+    if image_base64 and safe_load > 5_000_000:
         return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
     # LLM+VLM
     if image_base64:
         logger.info("[BOT] VLM+LLM scenario.")
-        prompt = query or "Describe and investigate any clinical findings from this medical image."
-        image_diagnosis = process_medical_image(image_base64, prompt, lang)
+        logger.info(f"[VLM] Process medical image size: {safe_load}, desc: {img_desc}, {lang}.")
+        image_diagnosis = process_medical_image(image_base64, img_desc, lang)
     answer = chatbot.chat(user_id, query, lang, image_diagnosis)
     elapsed = time.time() - start
     # Final

@@ -460,4 +460,57 @@ body {
     visibility: hidden;
   }
   
+  /* Previewer */
+  #upload-preview-container {
+    margin-bottom: 10px;
+  }
+  .image-preview-block {
+    display: flex;
+    align-items: flex-start;
+    background: #f3f3f3;
+    border-radius: 8px;
+    padding: 10px;
+    gap: 10px;
+  }
+  .image-preview-block img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+  .image-preview-block p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #333;
+    flex: 1;
+  }
+  .image-preview-block button {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    color: #999;
+    cursor: pointer;
+  }
+  .image-preview-block button:hover {
+    color: red;
+  }
+  /* On chat previewer */
+  .chat-preview-image-block {
+    margin-top: 10px;
+    text-align: center;
+  }
+  .chat-preview-image-block img {
+    width: 150px;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+  }
+  .chat-preview-image-block .image-desc {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: #555;
+  }
   
