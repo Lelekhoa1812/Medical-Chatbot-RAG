@@ -1,5 +1,5 @@
 # requirements.txt
-# **Agents**
+# **LLMs**
 google-genai
 huggingface_hub
 # **RAG**
@@ -12,6 +12,9 @@ sentencepiece
 # **Environment**
 python-dotenv       # Not used in Streamlit deployment
 pymongo
+# **VLMs**
+transformers
+pillow
 # **Deployment**
 uvicorn
 fastapi

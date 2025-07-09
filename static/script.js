@@ -1,4 +1,4 @@
-// Render app API prefix
+// script.js
 // Decide the API endpoint based on local dev or production
 const isLocal = window.location.hostname === "localhost";
 const API_PREFIX = isLocal

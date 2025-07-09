@@ -260,7 +260,6 @@ body {
     transition: background-color 0.3s ease, transform 0.3s ease;
   }
   .chat-input button:hover {
-    background: linear-gradient(270deg, rgb(144, 100, 18), rgb(52, 18, 8)); 
     transform: scale(1.1);
   }
   .message {
@@ -450,9 +449,6 @@ body {
     cursor: pointer;
     background-color: rgb(18, 129, 144);
     color: white;
-  }
-  .image-modal-actions button:hover {
-    background-color: rgb(144, 100, 18);
   }
   .hidden {
     display: none !important;
