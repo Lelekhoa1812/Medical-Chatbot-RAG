@@ -13,7 +13,8 @@ sentencepiece
 python-dotenv       # Not used in Streamlit deployment
 pymongo
 # **VLMs**
-transformers
+# transformers
+gradio_client
 pillow
 # **Deployment**
 uvicorn

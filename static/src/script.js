@@ -18,6 +18,7 @@ const translations = {
     "EN": {
     header: "Medical Chatbot Doctor",
     tooltip: "Hello, how can I help you today?",
+    upload_tooltip: "Upload medical image diagnosis.",
     welcomeText: "Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.",
     acknowledgement: "Acknowledgement",
     author: "Author: (Liam) Dang Khoa Le",
@@ -33,6 +34,7 @@ const translations = {
     "VI": {
     header: "Bác Sĩ Chatbot",
     tooltip: "Xin chào, tôi có thể giúp gì cho bạn?",
+    upload_tooltip: "Tải hình ảnh y tế chẩn đoán.",
     welcomeText: "Chào bạn! Tôi là trợ lý sức khỏe tận tâm của bạn, sẵn sàng hỗ trợ mọi thắc mắc về sức khỏe và phúc lợi của bạn. Hãy thoải mái đặt câu hỏi nhé!",
     acknowledgement: "Thông tin",
     author: "Tác giả: Lê Đăng Khoa",
@@ -48,6 +50,7 @@ const translations = {
     "ZH": {
     header: "医疗聊天机器人医生",
     tooltip: "您好，我今天能为您提供什么帮助？",
+    upload_tooltip: "上传您的医学图像以供诊断.",
     welcomeText: "您好！我是您专属的健康助手，随时为您解答关于健康与福祉的问题。请随时向我提问。",
     acknowledgement: "鸣谢",
     author: "作者：黎登科",
@@ -78,6 +81,7 @@ function updateLanguage(lang) {
     // Update nav header and tooltip
     document.getElementById('nav-header').innerText = translations[lang].header;
     document.getElementById('tooltip').innerText = translations[lang].tooltip;
+    document.getElementById('upload-tooltip').innerText = translations[lang].upload_tooltip;
     // Update chat header
     document.getElementById('chat-header').innerText = translations[lang].header;
     // Update welcome screen texts

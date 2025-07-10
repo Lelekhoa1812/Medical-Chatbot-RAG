@@ -75,6 +75,31 @@ body {
     border: 1px solid #888;
     width: 80%; /* Could be more or less, depending on screen size */
   }
+  /* Upload tooltip */
+  .upload-icon {
+    position: relative;
+    display: inline-block;
+  }
+  .upload-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 120%;
+    left: 0%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    transition: opacity 0.3s ease;
+    z-index: 10;
+  }
+  .upload-icon:hover .upload-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }  
   /* Navbar Links & Language Dropdown */
   .navbar .links {
     display: flex;
@@ -396,117 +421,3 @@ body {
   #language-modal button:hover {
     background: linear-gradient(270deg, rgb(144, 100, 18), rgb(52, 18, 8)); 
   }
-  /* Image desc modal */
-  .image-modal-overlay {
-    display: flex;
-    position: fixed;
-    z-index: 999;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.6);
-    justify-content: center;
-    align-items: center;
-  }
-  .image-modal-content {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 0 20px rgba(0,0,0,0.2);
-  }
-  .image-modal-content h3, 
-  .image-modal-content p {
-    text-align: center;
-    margin: 10px 0;
-    color: #333;
-  }
-  .image-modal-content textarea {
-    width: 100%;
-    height: 100px;
-    margin-top: 10px;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 0.95rem;
-    border: 1px solid #ccc;
-  }
-  .image-modal-content img {
-    transition: transform 0.2s ease;
-  }
-  .image-modal-content img:hover {
-    transform: scale(1.02);
-  }  
-  .image-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  .image-modal-actions button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    background-color: rgb(18, 129, 144);
-    color: white;
-  }
-  .hidden {
-    display: none !important;
-    opacity: 0;
-    visibility: hidden;
-  }
-  
-  /* Previewer */
-  #upload-preview-container {
-    margin-bottom: 10px;
-  }
-  .image-preview-block {
-    display: flex;
-    align-items: flex-start;
-    background: #f3f3f3;
-    border-radius: 8px;
-    padding: 10px;
-    gap: 10px;
-  }
-  .image-preview-block img {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 6px;
-  }
-  .image-preview-block p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #333;
-    flex: 1;
-  }
-  .image-preview-block button {
-    background: transparent;
-    border: none;
-    font-size: 1rem;
-    color: #999;
-    cursor: pointer;
-  }
-  .image-preview-block button:hover {
-    color: red;
-  }
-  /* On chat previewer */
-  .chat-preview-image-block {
-    margin-top: 10px;
-    text-align: center;
-  }
-  .chat-preview-image-block img {
-    width: 150px;
-    max-height: 150px;
-    object-fit: cover;
-    border-radius: 8px;
-    display: block;
-    margin: 0 auto;
-  }
-  .chat-preview-image-block .image-desc {
-    margin-top: 6px;
-    font-size: 0.85rem;
-    font-style: italic;
-    color: #555;
-  }
-  

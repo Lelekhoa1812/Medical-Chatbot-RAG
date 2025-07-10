@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Set Hugging Face cache directory to persist model downloads
 ENV HF_HOME="/home/user/.cache/huggingface"
 ENV SENTENCE_TRANSFORMERS_HOME="/home/user/.cache/huggingface/sentence-transformers"
+ENV MEDGEMMA_HOME="/home/user/.cache/huggingface/sentence-transformers"
 
 # Create cache directories and ensure permissions
 RUN mkdir -p /app/model_cache /home/user/.cache/huggingface/sentence-transformers && \

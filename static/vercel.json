@@ -1,5 +1,13 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)\\.(js|css|html)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
 }

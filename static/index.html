@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <title>Medical Chatbot</title>
-  <link rel="website icon" type="png" href="/img/logo.png">
-  <link rel="stylesheet" href="styles.css?v=2">
-  <link rel="stylesheet" href="credential.css">
+  <link rel="website icon" type="png" href="/public/img/logo.png">
+  <link rel="stylesheet" href="/src/styles.css">
+  <link rel="stylesheet" href="/src/credential.css">
+  <link rel="stylesheet" href="/src/imgmodal.css">
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -31,7 +32,7 @@
       <ul class="links">
         <li><a id="nav-account">Account</a></li>
         <li><a id="nav-subscription" href="subscription.html">Subscription</a></li>
-        <li><a id="nav-about" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot">About</a></li>
+        <li><a id="nav-about" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG">About</a></li>
         <!-- Dropdown Language Selector -->
         <li class="dropdown">
           <button class="dropdown-btn">EN &#x25BC;</button>
@@ -78,17 +79,17 @@
     <div class="chat-messages" id="chat-messages">
       <!-- Welcome Screen (visible initially) -->
       <div id="welcome-container">
-        <img src="/img/logo.png" alt="Welcome Logo">
+        <img src="/public/img/logo.png" alt="Welcome Logo">
         <p id="welcome-text">Hi! I’m your dedicated health assistant, here to support you with all your wellness questions. Feel free to ask me any question about your health and well-being.</p>
         <h1 id="acknowledgement">Acknowledgement</h1>
         <p id="author">Author: (Liam) Dang Khoa Le</p>
-        <a id="license" href="https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE">License: Apache 2.0 License</a>
+        <a id="license" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG/blob/main/LICENSE">License: Apache 2.0 License</a>
       </div>
     </div>
     <!-- Modal for image description -->
     <div id="image-modal" class="image-modal-overlay hidden">
       <div class="image-modal-content">
-        <h3>🖼️ Image Uploaded</h3>
+        <h4>🖼️ Image Uploaded</h4>
         <!-- 👇 Image Preview -->
         <img id="uploaded-preview" src="" alt="Uploaded Preview" style="max-width:100%; border-radius:8px; margin: 10px 0;">
         <p>Please describe what you'd like me to analyze in this image:</p>
@@ -106,8 +107,9 @@
         placeholder="Type your question here..."
         rows="1"
       ></textarea>
-      <label id="upload-label" class="upload-icon" title="Upload your medical image for diagnosis">
-        <img src="img/upload.png" alt="Upload" />
+      <label id="upload-label" class="upload-icon">
+        <img id="upload-img" src="/public/img/upload.png" alt="Upload" />
+        <div id="upload-tooltip" class="upload-tooltip">Upload medical image diagnosis.</div>
         <input type="file" id="image-upload" accept="image/*" hidden />
       </label>
       <button id="send-btn">Send</button>
@@ -116,7 +118,7 @@
   <!-- Include Marked.js for markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- Main scripts -->
-  <script type="module" src="./script.js?v=2"></script>
-  <script type="module" src="./credential.js"></script>
+  <script type="module" src="/src/script.js?v=2.4.0"></script>
+  <script type="module" src="/src/credential.js"></script>
 </body>
 </html>

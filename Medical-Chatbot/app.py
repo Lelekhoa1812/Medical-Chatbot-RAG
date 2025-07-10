@@ -280,18 +280,17 @@ async def chat_endpoint(req: Request):
     lang    = body.get("lang", "EN")
     image_base64 = body.get("image_base64", None)
     img_desc = body.get("img_desc", "Describe and investigate any clinical findings from this medical image.")
+    start = time.time()
+    image_diagnosis = ""
     # LLM Only
     if not image_base64:
         logger.info("[BOT] LLM scenario.")
-    start = time.time()
-    # If image is present → diagnose first
-    image_diagnosis = ""
-    # Img size safe processor
-    safe_load = len(image_base64.encode("utf-8"))
-    if image_base64 and safe_load > 5_000_000:
-        return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
     # LLM+VLM
-    if image_base64:
+    else:
+        # If image is present → diagnose first
+        safe_load = len(image_base64.encode("utf-8"))
+        if safe_load > 5_000_000: # Img size safe processor
+            return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
         logger.info("[BOT] VLM+LLM scenario.")
         logger.info(f"[VLM] Process medical image size: {safe_load}, desc: {img_desc}, {lang}.")
         image_diagnosis = process_medical_image(image_base64, img_desc, lang)

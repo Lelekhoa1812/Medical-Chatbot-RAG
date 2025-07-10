@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Medical Chatbot</title>
+  <link rel="website icon" type="png" href="/public/img/logo.png">
+  <link rel="stylesheet" href="/src/styles.css?v=2.3.9">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html" class="logo">
+        <img src="/img/logo.png" alt="logo">
+        <!-- Tooltip container using cloud.gif -->
+        <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
+        <h1 id="nav-header">Medical Chatbot Doctor</h1>
+      </a>
+      <ul class="links">
+        <li><a id="nav-account">Account</a></li>
+        <li><a id="nav-subscription" href="index.html">Home</a></li>
+        <li><a id="nav-about" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG">About</a></li>
+        <!-- Dropdown Language Selector -->
+        <li class="dropdown">
+          <button class="dropdown-btn">EN &#x25BC;</button>
+          <ul class="dropdown-menu">
+            <li data-lang="VI">Vietnamese</li>
+            <li data-lang="EN">English</li>
+            <li data-lang="ZH">Mandarin</li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
+  <div class="chat-container">
+    <h1>OOPS! Everything is free for now, you can navigate back to home page ^^</h1>
+  </div>
+  <!-- Include Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Main scripts -->
+  <script type="module" src="/src/script.js?v=2.3.9"></script>
+  <script type="module" src="/src/credential.js?v=2.3.9"></script>
+</body>
+</html>
