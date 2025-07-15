@@ -133,7 +133,7 @@ def load_faiss_index():
     return index
 
 # ✅ Retrieve Medical Info (256,916 scenario)
-def retrieve_medical_info(query, k=5, min_sim=0.8): # Min similarity between query and kb is to be 80%
+def retrieve_medical_info(query, k=5, min_sim=0.9): # Min similarity between query and kb is to be 80%
     global index
     index = load_faiss_index()
     if index is None:
@@ -180,7 +180,7 @@ def retrieve_medical_info(query, k=5, min_sim=0.8): # Min similarity between que
 
 
 # ✅ Retrieve Sym-Dia Info (4,962 scenario)
-def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.4):
+def retrieve_diagnosis_from_symptoms(symptom_text, top_k=5, min_sim=0.5):
     global SYMPTOM_VECTORS, SYMPTOM_DOCS
     # Lazy load
     if SYMPTOM_VECTORS is None:
@@ -243,21 +243,21 @@ class RAGMedicalChatbot:
         # Append image diagnosis from VLM
         if image_diagnosis:
             parts.append(
-                "User medical image is diagnosed by VLM agent:\n"
+                "A user medical image is diagnosed by our VLM agent:\n"
                 f"{image_diagnosis}\n\n"
                 "➡️ Please incorporate the above findings in your response if medically relevant.\n\n"
             )
         # Historical chat retrieval case
         if context:
-            parts.append("Relevant context from prior conversation:\n" + "\n".join(context))
+            parts.append("Relevant chat history context from prior conversation:\n" + "\n".join(context))
         # Load up guideline
         if knowledge_base:
-            parts.append(f"Medical scenario knowledge: {knowledge_base}")
+            parts.append(f"Example Q&A medical scenario knowledge-base: {knowledge_base}")
         # Symptom-Diagnosis prediction RAG
         if diagnosis_guides:
-            parts.append("Symptom-based diagnosis guidance:\n" + "\n".join(diagnosis_guides))
-        parts.append(f"Question: {user_query}")
-        parts.append(f"Language: {lang}")
+            parts.append("Symptom-based diagnosis guidance (if applicable):\n" + "\n".join(diagnosis_guides))
+        parts.append(f"User's question: {user_query}")
+        parts.append(f"Language to generate answer: {lang}")
         prompt = "\n\n".join(parts)
         logger.info(f"[LLM] Question query in `prompt`: {prompt}") # Debug out checking RAG on kb and history
         response = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)

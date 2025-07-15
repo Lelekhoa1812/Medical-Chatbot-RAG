@@ -135,16 +135,17 @@ class MemoryManager:
         if not response: return []
         # Gemini instruction
         instructions = []
-        if lang.upper() != "EN":
-            instructions.append("- Translate the response to English.")
+        # if lang.upper() != "EN":
+        #     instructions.append("- Translate the response to English.")
         instructions.append("- Break the translated (or original) text into semantically distinct parts, grouped by medical topic or symptom.")
         instructions.append("- For each part, generate a clear, concise summary. The summary may vary in length depending on the complexity of the topic — do not omit key clinical instructions.")
         instructions.append("- At the start of each part, write `Topic: <one line description>`.")
         instructions.append("- Separate each part using three dashes `---` on a new line.")
+        # if lang.upper() != "EN":
+        #     instructions.append(f"Below is the user-provided medical response written in `{lang}`")
         # Gemini prompt
         prompt = f"""
         You are a medical assistant helping organize and condense a clinical response.
-        Below is the user-provided medical response written in `{lang}`:
         ------------------------
         {response}
         ------------------------
