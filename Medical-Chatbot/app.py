@@ -268,7 +268,7 @@ class RAGMedicalChatbot:
         return response.strip()
 
 # ✅ Initialize Chatbot
-chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash-preview-04-17", retrieve_function=retrieve_medical_info)
+chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash", retrieve_function=retrieve_medical_info)
 
 # ✅ Chat Endpoint
 @app.post("/chat")
