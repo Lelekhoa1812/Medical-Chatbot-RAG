@@ -176,7 +176,7 @@ For more detailed instructions and further documentation, please refer to:
 
 ## 🧩 Flowchart
 
-<img src="Application Flow Chart.png" alt="Flowchart" style="width: 80%; max-width: 1000px;">
+<img src="med-flow/flow.png" alt="Flowchart" style="width: 80%; max-width: 1000px;">
 
 ---
 
