@@ -314,7 +314,7 @@ body {
     border-radius: 4px !important;
     word-break: break-word !important;
   }
-  
+  /* Dynamic font size from MD conversion */
   .bot h1 { font-size: 1.6em !important; }
   .bot h2 { font-size: 1.4em !important; }
   .bot h3 { font-size: 1.2em !important; }
@@ -322,17 +322,27 @@ body {
   .bot h5 { font-size: 1em !important; }
   .bot h6 { font-size: 0.9em !important; }
   
-  /* Nested formatting support */
+  /* Nested formatting support - More specific selectors */
   .bot h1 strong, .bot h2 strong, .bot h3 strong,
   .bot h4 strong, .bot h5 strong, .bot h6 strong {
     color: #1c0000 !important;
     font-weight: bold !important;
+    display: inline !important;
   }
   
   .bot h1 em, .bot h2 em, .bot h3 em,
   .bot h4 em, .bot h5 em, .bot h6 em {
     font-style: italic !important;
     color: #555 !important;
+    display: inline !important;
+  }
+  
+  /* Force override for all nested elements */
+  .bot h1 *, .bot h2 *, .bot h3 *, .bot h4 *, .bot h5 *, .bot h6 * {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }  
   
   .bot strong {
@@ -368,8 +378,18 @@ body {
     color: #d63384;
   }
   
+  /* Additional specificity for higher heading specifically */
+  .bot h3 strong, h4 strong {
+    color: #1c0000 !important;
+    font-weight: bold !important;
+    display: inline !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 
-
+  /* Annimation panels */
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

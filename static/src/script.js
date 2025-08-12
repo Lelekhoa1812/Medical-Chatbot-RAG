@@ -183,7 +183,7 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         
         // Debug: Log the parsed HTML to see what's generated
         console.log('🔍 Parsed HTML:', htmlResponse);
-        console.log('🔍 Original response:', data.response);
+        // console.log('🔍 Original response:', data.response);
         
         appendMessage('bot', htmlResponse, true);
     } catch (err) {
