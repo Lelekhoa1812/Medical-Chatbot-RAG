@@ -251,7 +251,7 @@ class RAGMedicalChatbot:
         
         # Append contextual chunks from hybrid approach
         if contextual_chunks:
-            parts.append("Relevant context from conversation history:\n" + "\n".join(contextual_chunks))
+            parts.append("Relevant context from conversation history:\n" + contextual_chunks)
         # Load up guideline (RAG over medical knowledge base)
         if knowledge_base:
             parts.append(f"Example Q&A medical scenario knowledge-base: {knowledge_base}")

@@ -133,7 +133,7 @@ class MemoryManager:
         # Add RAG chunks
         if rag_chunks:
             rag_text = "\n".join(rag_chunks)
-            context_parts.append(f"Semantically relevant medical information:\n{rag_text}")
+            context_parts.append(f"Semantically relevant historical medical information:\n{rag_text}")
         
         # Build summarization prompt
         summarization_prompt = f"""
