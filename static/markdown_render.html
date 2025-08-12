@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Markdown Fix Verification</title>
+  <link rel="stylesheet" href="/src/styles.css">
+  <style>
+    .test-container {
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-case {
+      margin: 15px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .input {
+      background: #f5f5f5;
+      padding: 8px;
+      font-family: monospace;
+      margin: 5px 0;
+      border-radius: 3px;
+    }
+    .output {
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 3px;
+      border-left: 3px solid #00b68f;
+    }
+    .status {
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    .success { color: #28a745; }
+    .error { color: #dc3545; }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>✅ Markdown Fix Verification</h1>
+    <p>Testing the simplified approach without custom renderer</p>
+    
+    <div class="test-case">
+      <h3>Test 1: Simple Heading</h3>
+      <div class="input">### Simple Heading</div>
+      <div class="output bot" id="test1"></div>
+      <div class="status" id="status1"></div>
+    </div>
+    
+    <div class="test-case">
+      <h3>Test 2: Bold Text</h3>
+      <div class="input">**Bold Text**</div>
+      <div class="output bot" id="test2"></div>
+      <div class="status" id="status2"></div>
+    </div>
+    
+    <div class="test-case">
+      <h3>Test 3: Nested Formatting (Problem Case)</h3>
+      <div class="input">### **Immediate Actions**</div>
+      <div class="output bot" id="test3"></div>
+      <div class="status" id="status3"></div>
+    </div>
+    
+    <div class="test-case">
+      <h3>Test 4: Mixed Formatting</h3>
+      <div class="input">### **Bold** and *italic* heading</div>
+      <div class="output bot" id="test4"></div>
+      <div class="status" id="status4"></div>
+    </div>
+    
+    <div class="test-case">
+      <h3>Test 5: Medical Example</h3>
+      <div class="input">### **Treatment Plan**\n\n* **Medication**: Ibuprofen 400mg\n* **Rest**: Avoid strenuous activity</div>
+      <div class="output bot" id="test5"></div>
+      <div class="status" id="status5"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <script>
+    // Configure Marked.js
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      headerIds: false,
+      mangle: false
+    });
+    
+    // Test cases
+    const tests = [
+      { 
+        id: 'test1', 
+        markdown: '### Simple Heading',
+        expected: 'h3'
+      },
+      { 
+        id: 'test2', 
+        markdown: '**Bold Text**',
+        expected: 'strong'
+      },
+      { 
+        id: 'test3', 
+        markdown: '### **Immediate Actions**',
+        expected: 'h3 strong'
+      },
+      { 
+        id: 'test4', 
+        markdown: '### **Bold** and *italic* heading',
+        expected: 'h3 strong em'
+      },
+      { 
+        id: 'test5', 
+        markdown: '### **Treatment Plan**\n\n* **Medication**: Ibuprofen 400mg\n* **Rest**: Avoid strenuous activity',
+        expected: 'h3 strong ul li strong'
+      }
+    ];
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🧪 Starting Markdown verification tests...');
+      
+      tests.forEach(test => {
+        try {
+          const element = document.getElementById(test.id);
+          const statusElement = document.getElementById('status' + test.id.slice(-1));
+          
+          if (element) {
+            // Parse markdown
+            const html = marked.parse(test.markdown);
+            element.innerHTML = html;
+            
+            // Check if expected elements are present
+            const hasExpectedElements = test.expected.split(' ').every(tag => {
+              return element.querySelector(tag) !== null;
+            });
+            
+            if (hasExpectedElements) {
+              statusElement.textContent = '✅ PASSED - Elements rendered correctly';
+              statusElement.className = 'status success';
+              console.log(`✅ ${test.id}: PASSED`);
+            } else {
+              statusElement.textContent = '❌ FAILED - Missing expected elements';
+              statusElement.className = 'status error';
+              console.log(`❌ ${test.id}: FAILED`);
+            }
+          }
+        } catch (error) {
+          const statusElement = document.getElementById('status' + test.id.slice(-1));
+          statusElement.textContent = `❌ ERROR: ${error.message}`;
+          statusElement.className = 'status error';
+          console.error(`❌ ${test.id}: ERROR - ${error.message}`);
+        }
+      });
+      
+      console.log('🏁 Markdown verification tests completed!');
+    });
+  </script>
+</body>
+</html>

@@ -45,7 +45,7 @@ class MemoryManager:
                 continue  # skip duplicate
             vec = self._embed(chunk["text"])
             self.chunk_index[user_id].add(np.array([vec]))
-            # Store each chunk’s vector once and reuse it
+            # Store each chunk's vector once and reuse it
             chunk_with_vec = {
                 **chunk,
                 "vec": vec,
@@ -81,10 +81,121 @@ class MemoryManager:
         # logger.info(f"[Memory] RAG Retrieved Topic: {results}") # Inspect vector data
         return [f"### Topic: {c['tag']}\n{c['text']}" for _, c in results]
 
+    def get_recent_chat_history(self, user_id: str, num_turns: int = 3) -> List[Dict]:
+        """
+        Get the most recent chat history with both user questions and bot responses.
+        Returns: [{"user": "question", "bot": "response", "timestamp": time}, ...]
+        """
+        if user_id not in self.text_cache:
+            return []
+        # Get the most recent chat history
+        recent_history = list(self.text_cache[user_id])[-num_turns:]
+        formatted_history = []
+        # Format the history
+        for query, response in recent_history:
+            formatted_history.append({
+                "user": query,
+                "bot": response,
+                "timestamp": time.time()  # We could store actual timestamps if needed
+            })
+        
+        return formatted_history
 
     def get_context(self, user_id: str, num_turns: int = 3) -> str:
         history = list(self.text_cache.get(user_id, []))[-num_turns:]
         return "\n".join(f"User: {q}\nBot: {r}" for q, r in history)
+
+    def get_contextual_chunks(self, user_id: str, current_query: str, lang: str = "EN") -> List[str]:
+        """
+        Use Gemini Flash Lite to intelligently select relevant context from both recent history and RAG chunks.
+        This ensures conversational continuity while maintaining semantic relevance.
+        """
+        # Get both types of context
+        recent_history = self.get_recent_chat_history(user_id, num_turns=3)
+        rag_chunks = self.get_relevant_chunks(user_id, current_query, top_k=3)
+        
+        if not recent_history and not rag_chunks:
+            return []
+        
+        # Prepare context for Gemini to analyze
+        context_parts = []
+        
+        # Add recent chat history
+        if recent_history:
+            history_text = "\n".join([
+                f"User: {item['user']}\nBot: {item['bot']}"
+                for item in recent_history
+            ])
+            context_parts.append(f"Recent conversation history:\n{history_text}")
+        
+        # Add RAG chunks
+        if rag_chunks:
+            context_parts.append(f"Semantically relevant chunks:\n" + "\n".join(rag_chunks))
+        
+        # Build contextual awareness prompt
+        contextual_prompt = f"""
+        You are a medical assistant analyzing conversation context to provide relevant information.
+        
+        Current user query: "{current_query}"
+        
+        Available context information:
+        {chr(10).join(context_parts)}
+        
+        Task: Analyze the current query and determine which pieces of context are most relevant.
+        
+        Consider:
+        1. Is the user asking for clarification about something mentioned before?
+        2. Is the user referencing a previous diagnosis or recommendation?
+        3. Are there any follow-up questions that build on previous responses?
+        4. Which chunks provide the most relevant medical information for the current query?
+        
+        Output: Return only the most relevant context chunks that should be included in the response.
+        Format each chunk with a brief explanation of why it's relevant.
+        If no context is relevant, return "No relevant context found."
+        
+        Language context: {lang}
+        """
+        
+        try:
+            # Use Gemini Flash Lite for contextual analysis
+            client = genai.Client(api_key=os.getenv("FlashAPI"))
+            result = client.models.generate_content(
+                model=_LLM_SMALL,
+                contents=contextual_prompt
+            )
+            contextual_response = result.text.strip()
+            
+            # Parse the response to extract relevant chunks
+            if "No relevant context found" in contextual_response:
+                return []
+            
+            # Extract relevant chunks from Gemini's analysis
+            relevant_chunks = []
+            lines = contextual_response.strip().split('\n')
+            current_chunk = ""
+            
+            for line in lines:
+                if line.strip().startswith(('Chunk:', 'Context:', 'Relevant:')):
+                    if current_chunk.strip():
+                        relevant_chunks.append(current_chunk.strip())
+                    current_chunk = line
+                else:
+                    current_chunk += "\n" + line
+            
+            if current_chunk.strip():
+                relevant_chunks.append(current_chunk.strip())
+            
+            logger.info(f"[Contextual] Gemini selected {len(relevant_chunks)} relevant chunks")
+            return relevant_chunks
+            
+        except Exception as e:
+            logger.warning(f"[Contextual] Gemini contextual analysis failed: {e}")
+            # Fallback: return RAG chunks if available, otherwise recent history
+            if rag_chunks:
+                return rag_chunks
+            elif recent_history:
+                return [f"Recent context: {item['user']} → {item['bot']}" for item in recent_history[-2:]]
+            return []
 
     def reset(self, user_id: str):
         self._drop_user(user_id)
@@ -108,7 +219,7 @@ class MemoryManager:
         """Trim chunk list + rebuild FAISS index for user."""
         self.chunk_meta[user_id] = self.chunk_meta[user_id][-keep_last:]
         index = self._new_index()
-        # Store each chunk’s vector once and reuse it.
+        # Store each chunk's vector once and reuse it.
         for chunk in self.chunk_meta[user_id]:
             index.add(np.array([chunk["vec"]]))
         self.chunk_index[user_id] = index

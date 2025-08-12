@@ -320,6 +320,20 @@ body {
   .bot h4 { font-size: 1.1em; }
   .bot h5 { font-size: 1em; }
   .bot h6 { font-size: 0.9em; }
+  
+  /* Ensure nested formatting works in all scenarios */
+  .bot h1 strong, .bot h2 strong, .bot h3 strong,
+  .bot h4 strong, .bot h5 strong, .bot h6 strong {
+    color: #1c0000 !important;
+    font-weight: bold !important;
+  }
+  
+  .bot h1 em, .bot h2 em, .bot h3 em,
+  .bot h4 em, .bot h5 em, .bot h6 em {
+    font-style: italic !important;
+    color: #555 !important;
+  }  
+  
   .bot strong {
     color: #1c0000;
     font-weight: bold;
@@ -351,7 +365,21 @@ body {
     padding: 2px 4px;
     border-radius: 4px;
     color: #d63384;
-  }  
+  }
+  
+  /* Enhanced markdown formatting for nested elements */
+  .bot h1, .bot h2, .bot h3, .bot h4, .bot h5, .bot h6 {
+    margin: 10px 0 8px 0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    word-break: break-word;
+    background-color: #f2f2f2;
+    border-left: 4px solid #00b68f;
+    color: #004d40;
+    font-weight: bold;
+    line-height: 1.4;
+  }
+
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

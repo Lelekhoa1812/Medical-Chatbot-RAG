@@ -233,24 +233,26 @@ class RAGMedicalChatbot:
         ## b. Diagnosis RAG from symptom query
         diagnosis_guides = retrieve_diagnosis_from_symptoms(user_query)  # smart matcher
 
-        # 2. Use relevant chunks from short-term memory FAISS index (nearest 3 chunks)
-        context = memory.get_relevant_chunks(user_id, user_query, top_k=3)
+        # 2. Hybrid Context Retrieval: RAG + Recent History + Intelligent Selection
+        contextual_chunks = memory.get_contextual_chunks(user_id, user_query, lang)
 
         # 3. Build prompt parts
         parts = ["You are a medical chatbot, designed to answer medical questions."]
         parts.append("Please format your answer using MarkDown.")
         parts.append("**Bold for titles**, *italic for emphasis*, and clear headings.")
-        # Append image diagnosis from VLM
+        
+        # 4. Append image diagnosis from VLM
         if image_diagnosis:
             parts.append(
                 "A user medical image is diagnosed by our VLM agent:\n"
                 f"{image_diagnosis}\n\n"
                 "➡️ Please incorporate the above findings in your response if medically relevant.\n\n"
             )
-        # Historical chat retrieval case
-        if context:
-            parts.append("Relevant chat history context from prior conversation:\n" + "\n".join(context))
-        # Load up guideline
+        
+        # Append contextual chunks from hybrid approach
+        if contextual_chunks:
+            parts.append("Relevant context from conversation history:\n" + "\n".join(contextual_chunks))
+        # Load up guideline (RAG over medical knowledge base)
         if knowledge_base:
             parts.append(f"Example Q&A medical scenario knowledge-base: {knowledge_base}")
         # Symptom-Diagnosis prediction RAG

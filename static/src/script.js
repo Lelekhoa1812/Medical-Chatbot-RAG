@@ -8,7 +8,18 @@ const API_PREFIX = isLocal
      : "https://BinKhoaLe1812-Medical-Chatbot.hf.space"
 
 
-console.log(marked.parse("### **Important Message**"));
+// Test markdown rendering
+console.log("Testing markdown rendering...");
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+    headerIds: false,
+    mangle: false
+});
+console.log("Simple heading:", marked.parse("### Simple Heading"));
+console.log("Bold text:", marked.parse("**Bold Text**"));
+console.log("Nested formatting:", marked.parse("### **Bold Heading**"));
+console.log("Mixed formatting:", marked.parse("### **Bold** and *italic* heading"));
 
 // Global variable for current language (default English)
 let currentLang = "EN";
@@ -153,7 +164,17 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         pendingImageDesc = null;
         const previewEl = document.getElementById('upload-preview-container');
         if (previewEl) previewEl.remove();
-        // Parse MarkDown with styler
+        // Configure Marked.js to handle nested formatting properly
+        // Using standard Marked.js parsing with enhanced CSS for styling
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
+        
+        // Parse markdown and let CSS handle the styling
+        // This approach avoids conflicts with Marked.js internals
         const htmlResponse = marked.parse(data.response);
         appendMessage('bot', htmlResponse, true);
     } catch (err) {

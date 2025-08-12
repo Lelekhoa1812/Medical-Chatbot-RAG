@@ -92,6 +92,7 @@ vercel run dev
 - **High-Performance Indexing:** Employs FAISS (cosine similarity) for fast, scalable similarity search.
 - **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
 - **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.
+- **Chat-history continuity:** Sytem dynamically fusing semantic search over historical QA and recent chat sessions with SLM verifier to ensure converstational continuity. [READ MORE](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/Medical-Chatbot/chat-history.md).
 - **Multilingual Support:** Includes English, Vietnamese, and Mandarin language options for a global audience. Leveraging NLP lightweight models like `envit5-translation` and `opus-mt-zh-en`.
 
 ---
