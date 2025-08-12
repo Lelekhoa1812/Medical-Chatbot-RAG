@@ -105,21 +105,24 @@ class MemoryManager:
         history = list(self.text_cache.get(user_id, []))[-num_turns:]
         return "\n".join(f"User: {q}\nBot: {r}" for q, r in history)
 
-    def get_contextual_chunks(self, user_id: str, current_query: str, lang: str = "EN") -> List[str]:
+    def get_contextual_chunks(self, user_id: str, current_query: str, lang: str = "EN") -> str:
         """
-        Use Gemini Flash Lite to intelligently select relevant context from both recent history and RAG chunks.
-        This ensures conversational continuity while maintaining semantic relevance.
+        Use Gemini Flash Lite to create a summarization of relevant context from both recent history and RAG chunks.
+        This ensures conversational continuity while providing a concise summary for the main LLM.
         """
         # Get both types of context
         recent_history = self.get_recent_chat_history(user_id, num_turns=3)
         rag_chunks = self.get_relevant_chunks(user_id, current_query, top_k=3)
         
+        logger.info(f"[Contextual] Retrieved {len(recent_history)} recent history items")
+        logger.info(f"[Contextual] Retrieved {len(rag_chunks)} RAG chunks")
+        
+        # Return empty string if no context is found
         if not recent_history and not rag_chunks:
-            return []
-        
-        # Prepare context for Gemini to analyze
+            logger.info(f"[Contextual] No context found, returning empty string")
+            return ""
+        # Prepare context for Gemini to summarize
         context_parts = []
-        
         # Add recent chat history
         if recent_history:
             history_text = "\n".join([
@@ -127,75 +130,69 @@ class MemoryManager:
                 for item in recent_history
             ])
             context_parts.append(f"Recent conversation history:\n{history_text}")
-        
         # Add RAG chunks
         if rag_chunks:
-            context_parts.append(f"Semantically relevant chunks:\n" + "\n".join(rag_chunks))
+            rag_text = "\n".join(rag_chunks)
+            context_parts.append(f"Semantically relevant medical information:\n{rag_text}")
         
-        # Build contextual awareness prompt
-        contextual_prompt = f"""
-        You are a medical assistant analyzing conversation context to provide relevant information.
+        # Build summarization prompt
+        summarization_prompt = f"""
+        You are a medical assistant creating a concise summary of conversation context for continuity.
         
         Current user query: "{current_query}"
         
         Available context information:
         {chr(10).join(context_parts)}
         
-        Task: Analyze the current query and determine which pieces of context are most relevant.
+        Task: Create a brief, coherent summary that captures the key points from the conversation history and relevant medical information that are important for understanding the current query.
         
-        Consider:
-        1. Is the user asking for clarification about something mentioned before?
-        2. Is the user referencing a previous diagnosis or recommendation?
-        3. Are there any follow-up questions that build on previous responses?
-        4. Which chunks provide the most relevant medical information for the current query?
+        Guidelines:
+        1. Focus on medical symptoms, diagnoses, treatments, or recommendations mentioned
+        2. Include any patient concerns or questions that are still relevant
+        3. Highlight any follow-up needs or pending clarifications
+        4. Keep the summary concise but comprehensive enough for context
+        5. Maintain conversational flow and continuity
         
-        Output: Return only the most relevant context chunks that should be included in the response.
-        Format each chunk with a brief explanation of why it's relevant.
-        If no context is relevant, return "No relevant context found."
+        Output: Provide a single, well-structured summary paragraph that can be used as context for the main LLM to provide a coherent response.
+        If no relevant context exists, return "No relevant context found."
         
         Language context: {lang}
         """
         
+        logger.debug(f"[Contextual] Full prompt: {summarization_prompt}")
+        # Loop through the prompt and log the length of each part
         try:
-            # Use Gemini Flash Lite for contextual analysis
+            # Use Gemini Flash Lite for summarization
             client = genai.Client(api_key=os.getenv("FlashAPI"))
             result = client.models.generate_content(
                 model=_LLM_SMALL,
-                contents=contextual_prompt
+                contents=summarization_prompt
             )
-            contextual_response = result.text.strip()
+            summary = result.text.strip()
+            if "No relevant context found" in summary:
+                logger.info(f"[Contextual] Gemini indicated no relevant context found")
+                return ""
             
-            # Parse the response to extract relevant chunks
-            if "No relevant context found" in contextual_response:
-                return []
-            
-            # Extract relevant chunks from Gemini's analysis
-            relevant_chunks = []
-            lines = contextual_response.strip().split('\n')
-            current_chunk = ""
-            
-            for line in lines:
-                if line.strip().startswith(('Chunk:', 'Context:', 'Relevant:')):
-                    if current_chunk.strip():
-                        relevant_chunks.append(current_chunk.strip())
-                    current_chunk = line
-                else:
-                    current_chunk += "\n" + line
-            
-            if current_chunk.strip():
-                relevant_chunks.append(current_chunk.strip())
-            
-            logger.info(f"[Contextual] Gemini selected {len(relevant_chunks)} relevant chunks")
-            return relevant_chunks
+            logger.info(f"[Contextual] Gemini created summary: {summary[:100]}...")
+            return summary
             
         except Exception as e:
-            logger.warning(f"[Contextual] Gemini contextual analysis failed: {e}")
-            # Fallback: return RAG chunks if available, otherwise recent history
+            logger.warning(f"[Contextual] Gemini summarization failed: {e}")
+            logger.info(f"[Contextual] Using fallback summarization method")
+            # Fallback: create a simple summary
+            fallback_summary = []
+            # Fallback: add recent history
+            if recent_history:
+                recent_summary = f"Recent conversation: User asked about {recent_history[-1]['user'][:50]}... and received a response about {recent_history[-1]['bot'][:50]}..."
+                fallback_summary.append(recent_summary)
+                logger.info(f"[Contextual] Fallback: Added recent history summary")
+            # Fallback: add RAG chunks
             if rag_chunks:
-                return rag_chunks
-            elif recent_history:
-                return [f"Recent context: {item['user']} → {item['bot']}" for item in recent_history[-2:]]
-            return []
+                rag_summary = f"Relevant medical information: {len(rag_chunks)} chunks found covering various medical topics."
+                fallback_summary.append(rag_summary)
+                logger.info(f"[Contextual] Fallback: Added RAG chunks summary")
+            final_fallback = " ".join(fallback_summary) if fallback_summary else ""
+            return final_fallback
 
     def reset(self, user_id: str):
         self._drop_user(user_id)

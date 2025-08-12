@@ -176,6 +176,15 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         // Parse markdown and let CSS handle the styling
         // This approach avoids conflicts with Marked.js internals
         const htmlResponse = marked.parse(data.response);
+        
+        // Debug: Log the parsed HTML to see what's generated
+        console.log('🔍 Parsed HTML:', htmlResponse);
+        console.log('🔍 Original response:', data.response);
+        
+        // Debug: Log the parsed HTML to see what's generated
+        console.log('🔍 Parsed HTML:', htmlResponse);
+        console.log('🔍 Original response:', data.response);
+        
         appendMessage('bot', htmlResponse, true);
     } catch (err) {
         removeLastMessage();
@@ -206,6 +215,12 @@ function appendMessage(role, text, isHTML) {
                 <p class="image-desc">${pendingImageDesc}</p>
             </div>`;
     }
+    // Debug: Log the content being inserted
+    if (role === 'bot') {
+        console.log('🔍 Bot message content:', content);
+        console.log('🔍 Message div element:', messageDiv);
+    }
+    
     // Append components
     messageDiv.innerHTML = content;
     messagesDiv.appendChild(messageDiv);

@@ -302,26 +302,27 @@ body {
     background-color: #fafafa;
     color: #00b68f;
   }
+  /* Clean, consolidated heading styles for bot messages */
   .bot h1, .bot h2, .bot h3, .bot h4, .bot h5, .bot h6 {
-    margin: 10px 0 8px 0;
-    padding-left: 10px;
-    font-weight: bold;
-    line-height: 1.4;
-    color: #004d40; /* Teal dark tone or adjust for theme */
-    background-color: #f2f2f2;
-    border-left: 4px solid #00b68f;
-    padding: 6px 10px;
-    border-radius: 4px;
-    word-break: break-word;
+    margin: 10px 0 8px 0 !important;
+    padding: 6px 10px !important;
+    font-weight: bold !important;
+    line-height: 1.4 !important;
+    color: #004d40 !important;
+    background-color: #f2f2f2 !important;
+    border-left: 4px solid #00b68f !important;
+    border-radius: 4px !important;
+    word-break: break-word !important;
   }
-  .bot h1 { font-size: 1.6em; }
-  .bot h2 { font-size: 1.4em; }
-  .bot h3 { font-size: 1.2em; }
-  .bot h4 { font-size: 1.1em; }
-  .bot h5 { font-size: 1em; }
-  .bot h6 { font-size: 0.9em; }
   
-  /* Ensure nested formatting works in all scenarios */
+  .bot h1 { font-size: 1.6em !important; }
+  .bot h2 { font-size: 1.4em !important; }
+  .bot h3 { font-size: 1.2em !important; }
+  .bot h4 { font-size: 1.1em !important; }
+  .bot h5 { font-size: 1em !important; }
+  .bot h6 { font-size: 0.9em !important; }
+  
+  /* Nested formatting support */
   .bot h1 strong, .bot h2 strong, .bot h3 strong,
   .bot h4 strong, .bot h5 strong, .bot h6 strong {
     color: #1c0000 !important;
@@ -367,18 +368,7 @@ body {
     color: #d63384;
   }
   
-  /* Enhanced markdown formatting for nested elements */
-  .bot h1, .bot h2, .bot h3, .bot h4, .bot h5, .bot h6 {
-    margin: 10px 0 8px 0;
-    padding: 6px 10px;
-    border-radius: 4px;
-    word-break: break-word;
-    background-color: #f2f2f2;
-    border-left: 4px solid #00b68f;
-    color: #004d40;
-    font-weight: bold;
-    line-height: 1.4;
-  }
+
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
