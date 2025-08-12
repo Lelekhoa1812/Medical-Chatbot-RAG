@@ -379,9 +379,18 @@ body {
   }
   
   /* Additional specificity for higher heading specifically */
-  .bot h3 strong, h4 strong {
+  .bot h3 strong, h4 strong, h5 strong {
     color: #1c0000 !important;
     font-weight: bold !important;
+    display: inline !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .bot h3 em, h4 em, h5 em {
+    color: #555 !important;
+    font-style: italic !important;
     display: inline !important;
     background: transparent !important;
     border: none !important;
