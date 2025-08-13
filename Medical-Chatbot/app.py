@@ -246,7 +246,7 @@ class RAGMedicalChatbot:
             parts.append(
                 "A user medical image is diagnosed by our VLM agent:\n"
                 f"{image_diagnosis}\n\n"
-                "➡️ Please incorporate the above findings in your response if medically relevant.\n\n"
+                "Please incorporate the above findings in your response if medically relevant.\n\n"
             )
         
         # Append contextual chunks from hybrid approach

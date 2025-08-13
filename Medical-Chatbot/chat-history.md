@@ -1,161 +1,231 @@
-# 🔄 Hybrid Context Retrieval System
+# 🔄 Enhanced Memory System: STM + LTM + Hybrid Context Retrieval
 
 ## Overview
 
-The Medical Chatbot now implements a **hybrid context retrieval system** that combines **semantic search (RAG)** with **recent chat history** to provide more intelligent and contextually aware responses. This addresses the limitation of pure RAG systems that can miss conversational context like "What's the diagnosis again?" or "Can you clarify that?"
+The Medical Chatbot now implements an **advanced memory system** with **Short-Term Memory (STM)** and **Long-Term Memory (LTM)** that intelligently manages conversation context, semantic knowledge, and conversational continuity. This system goes beyond simple RAG to provide truly intelligent, contextually aware responses that remember and build upon previous interactions.
 
 ## 🏗️ Architecture
 
-### Before (Pure RAG)
+### Memory Hierarchy
 ```
-User Query → Semantic Search → FAISS Index → Relevant Chunks → LLM Response
-```
-
-### After (Hybrid Approach)
-```
-User Query → Hybrid Context Retrieval → Intelligent Context Selection → LLM Response
+User Query → Enhanced Memory System → Intelligent Context Selection → LLM Response
                 ↓
-        ┌─────────────────┬─────────────────┐
-        │   RAG Search    │ Recent History  │
-        │ (Semantic)      │ (Conversational)│
-        └─────────────────┴─────────────────┘
+        ┌─────────────────┬─────────────────┬─────────────────┐
+        │   STM (5 items) │   LTM (60 items)│   RAG Search    │
+        │ (Recent Summaries)│ (Semantic Store)│ (Knowledge Base)│
+        └─────────────────┴─────────────────┴─────────────────┘
                 ↓
         Gemini Flash Lite Contextual Analysis
                 ↓
-        Selected Relevant Context
+        Summarized Context + Semantic Knowledge
 ```
+
+### Memory Types
+
+#### 1. **Short-Term Memory (STM)**
+- **Capacity:** 5 recent conversation summaries
+- **Content:** Chunked and summarized LLM responses with enriched topics
+- **Features:** Semantic deduplication, intelligent merging, topic enrichment
+- **Purpose:** Maintain conversational continuity and immediate context
+
+#### 2. **Long-Term Memory (LTM)**
+- **Capacity:** 60 semantic chunks (~20 conversational rounds)
+- **Content:** FAISS-indexed medical knowledge chunks
+- **Features:** Semantic similarity search, usage tracking, smart eviction
+- **Purpose:** Provide deep medical knowledge and historical context
+
+#### 3. **RAG Knowledge Base**
+- **Content:** External medical knowledge and guidelines
+- **Features:** Real-time retrieval, semantic matching
+- **Purpose:** Supplement with current medical information
 
 ## 🔧 Key Components
 
-### 1. Memory Manager (`memory.py`)
+### 1. Enhanced Memory Manager (`memory.py`)
 
-#### New Method: `get_recent_chat_history()`
+#### STM Management
 ```python
-def get_recent_chat_history(self, user_id: str, num_turns: int = 3) -> List[Dict]:
+def get_recent_chat_history(self, user_id: str, num_turns: int = 5) -> List[Dict]:
     """
-    Get the most recent chat history with both user questions and bot responses.
-    Returns: [{"user": "question", "bot": "response", "timestamp": time}, ...]
+    Get the most recent STM summaries (not raw Q/A).
+    Returns: [{"user": "", "bot": "Topic: ...\n<summary>", "timestamp": time}, ...]
+    """
+```
+
+**STM Features:**
+- **Capacity:** 5 recent conversation summaries
+- **Content:** Chunked and summarized LLM responses with enriched topics
+- **Deduplication:** Semantic similarity-based merging (≥0.92 identical, ≥0.75 merge)
+- **Topic Enrichment:** Uses user question context to generate detailed topics
+
+#### LTM Management
+```python
+def get_relevant_chunks(self, user_id: str, query: str, top_k: int = 3, min_sim: float = 0.30) -> List[str]:
+    """Return texts of chunks whose cosine similarity ≥ min_sim."""
+```
+
+**LTM Features:**
+- **Capacity:** 60 semantic chunks (~20 conversational rounds)
+- **Indexing:** FAISS-based semantic search
+- **Smart Eviction:** Usage-based decay and recency scoring
+- **Merging:** Intelligent deduplication and content fusion
+
+#### Enhanced Chunking
+```python
+def chunk_response(self, response: str, lang: str, question: str = "") -> List[Dict]:
+    """
+    Enhanced chunking with question context for richer topics.
+    Returns: [{"tag": "detailed_topic", "text": "summary"}, ...]
+    """
+```
+
+**Chunking Features:**
+- **Question Context:** Incorporates user's latest question for topic generation
+- **Rich Topics:** Detailed topics (10-20 words) capturing context, condition, and action
+- **Medical Focus:** Excludes disclaimers, includes exact medication names/doses
+- **Semantic Grouping:** Groups by medical topic, symptom, assessment, plan, or instruction
+
+### 2. Intelligent Context Retrieval
+
+#### Contextual Summarization
+```python
+def get_contextual_chunks(self, user_id: str, current_query: str, lang: str = "EN") -> str:
+    """
+    Creates a single, coherent summary from STM + LTM + RAG.
+    Returns: A single summary string for the main LLM.
     """
 ```
 
 **Features:**
-- Stores last 3 conversations by default
-- Maintains chronological order
-- Includes both user questions and bot responses
-- Accessible for conversational continuity
-
-#### Existing Method: `get_relevant_chunks()`
-- Semantic search using FAISS
-- Cosine similarity-based retrieval
-- Smart deduplication and scoring
-
-### 2. Chatbot Class (`app.py`)
-
-#### New Method: `_get_contextual_chunks()`
-```python
-def _get_contextual_chunks(self, user_id: str, current_query: str, 
-                          recent_history: List[Dict], rag_chunks: List[str], 
-                          lang: str) -> List[str]:
-```
-
-**Purpose:**
-- Analyzes current query against available context
-- Uses Gemini Flash Lite for intelligent context selection
-- Combines RAG results with recent history
-- Ensures conversational continuity
+- **Unified Summary:** Combines STM (5 turns) + LTM (semantic) + RAG (knowledge)
+- **Gemini Analysis:** Uses Gemini Flash Lite for intelligent context selection
+- **Conversational Flow:** Maintains continuity while providing medical relevance
+- **Fallback Strategy:** Graceful degradation if analysis fails
 
 ## 🚀 How It Works
 
-### Step 1: Context Collection
+### Step 1: Enhanced Memory Processing
 ```python
-# Get both types of context
-rag_context = memory.get_relevant_chunks(user_id, user_query, top_k=3)
-recent_history = memory.get_recent_chat_history(user_id, num_turns=3)
+# Process new exchange through STM and LTM
+chunks = memory.chunk_response(response, lang, question=query)
+for chunk in chunks:
+    memory._upsert_stm(user_id, chunk, lang)  # STM with dedupe/merge
+memory._upsert_ltm(user_id, chunks, lang)     # LTM with semantic storage
 ```
 
-### Step 2: Contextual Analysis
-The system sends both context sources to Gemini Flash Lite with this prompt:
+### Step 2: Context Retrieval
+```python
+# Get STM summaries (5 recent turns)
+recent_history = memory.get_recent_chat_history(user_id, num_turns=5)
+
+# Get LTM semantic chunks
+rag_chunks = memory.get_relevant_chunks(user_id, current_query, top_k=3)
+
+# Get external RAG knowledge
+external_rag = retrieve_medical_info(current_query)
+```
+
+### Step 3: Intelligent Context Summarization
+The system sends all context sources to Gemini Flash Lite for unified summarization:
 
 ```
-You are a medical assistant analyzing conversation context to provide relevant information.
+You are a medical assistant creating a concise summary of conversation context for continuity.
 
 Current user query: "{current_query}"
 
 Available context information:
-{recent_history + rag_chunks}
+Recent conversation history:
+{recent_history}
 
-Task: Analyze the current query and determine which pieces of context are most relevant.
+Semantically relevant historical medical information:
+{rag_chunks}
 
-Consider:
-1. Is the user asking for clarification about something mentioned before?
-2. Is the user referencing a previous diagnosis or recommendation?
-3. Are there any follow-up questions that build on previous responses?
-4. Which chunks provide the most relevant medical information for the current query?
+Task: Create a brief, coherent summary that captures the key points from the conversation history and relevant medical information that are important for understanding the current query.
 
-Output: Return only the most relevant context chunks that should be included in the response.
+Guidelines:
+1. Focus on medical symptoms, diagnoses, treatments, or recommendations mentioned
+2. Include any patient concerns or questions that are still relevant
+3. Highlight any follow-up needs or pending clarifications
+4. Keep the summary concise but comprehensive enough for context
+5. Maintain conversational flow and continuity
+
+Output: Provide a single, well-structured summary paragraph that can be used as context for the main LLM to provide a coherent response.
 ```
 
-### Step 3: Intelligent Selection
-Gemini Flash Lite analyzes the query and selects relevant context from:
-- **Recent conversations** (for continuity)
-- **Semantic chunks** (for topic relevance)
-- **Combined insights** (for comprehensive understanding)
-
-### Step 4: Context Integration
-Selected context is integrated into the main LLM prompt, ensuring the response is both:
-- **Semantically relevant** (from RAG)
-- **Conversationally continuous** (from recent history)
+### Step 4: Unified Context Integration
+The single, coherent summary is integrated into the main LLM prompt, providing:
+- **Conversational continuity** (from STM summaries)
+- **Medical knowledge** (from LTM semantic chunks)
+- **Current information** (from external RAG)
+- **Unified narrative** (single summary instead of multiple chunks)
 
 ## 📊 Benefits
 
-### 1. **Conversational Continuity**
-- Handles follow-up questions naturally
-- Maintains context across multiple exchanges
-- Understands references to previous responses
+### 1. **Advanced Memory Management**
+- **STM:** Maintains 5 recent conversation summaries with intelligent deduplication
+- **LTM:** Stores 60 semantic chunks (~20 rounds) with FAISS indexing
+- **Smart Merging:** Combines similar content while preserving unique details
+- **Topic Enrichment:** Detailed topics using user question context
 
-### 2. **Intelligent Context Selection**
-- No more irrelevant context injection
-- Gemini Flash Lite decides what's truly relevant
-- Balances semantic relevance with conversational flow
+### 2. **Intelligent Context Summarization**
+- **Unified Summary:** Single coherent narrative instead of multiple chunks
+- **Gemini Analysis:** AI-powered context selection and summarization
+- **Medical Focus:** Prioritizes symptoms, diagnoses, treatments, and recommendations
+- **Conversational Flow:** Maintains natural dialogue continuity
 
-### 3. **Fallback Mechanisms**
-- If contextual analysis fails, falls back to RAG
-- If RAG fails, falls back to recent history
-- Ensures system reliability
+### 3. **Enhanced Chunking & Topics**
+- **Question Context:** Incorporates user's latest question for richer topics
+- **Detailed Topics:** 10-20 word descriptions capturing context, condition, and action
+- **Medical Precision:** Includes exact medication names, doses, and clinical instructions
+- **Semantic Grouping:** Organizes by medical topic, symptom, assessment, plan, or instruction
 
-### 4. **Performance Optimization**
-- Uses lightweight Gemini Flash Lite for context analysis
-- Maintains existing RAG performance
-- Minimal additional latency
+### 4. **Robust Fallback Strategy**
+- **Primary:** Gemini Flash Lite contextual summarization
+- **Secondary:** LTM semantic search with usage-based scoring
+- **Tertiary:** STM recent summaries
+- **Final:** External RAG knowledge base
+
+### 5. **Performance & Scalability**
+- **Efficient Storage:** Semantic deduplication reduces memory footprint
+- **Fast Retrieval:** FAISS indexing for sub-millisecond LTM search
+- **Smart Eviction:** Usage-based decay and recency scoring
+- **Minimal Latency:** Optimized for real-time medical consultations
 
 ## 🧪 Example Scenarios
 
-### Scenario 1: Follow-up Question
+### Scenario 1: STM Deduplication & Merging
 ```
-User: "I have a headache"
-Bot: "This could be a tension headache. Try rest and hydration."
+User: "I have chest pain"
+Bot: "This could be angina. Symptoms include pressure, tightness, and shortness of breath."
 
-User: "What medication should I take?"
-Bot: "For tension headaches, try acetaminophen or ibuprofen..."
+User: "What about chest pain with shortness of breath?"
+Bot: "Chest pain with shortness of breath is concerning for angina or heart attack..."
 
-User: "Can you clarify the dosage again?"
-Bot: "For ibuprofen: 200-400mg every 4-6 hours, max 1200mg/day..."
+User: "Tell me more about the symptoms"
+Bot: "Angina symptoms include chest pressure, tightness, shortness of breath, and may radiate to arms..."
 ```
-**Result:** System retrieves ibuprofen dosage from recent conversation, not just semantic search.
+**Result:** STM merges similar responses, creating a comprehensive summary: "Patient has chest pain symptoms consistent with angina, including pressure, tightness, shortness of breath, and potential radiation to arms. This represents a concerning cardiac presentation requiring immediate evaluation."
 
-### Scenario 2: Reference to Previous Diagnosis
+### Scenario 2: LTM Semantic Retrieval
 ```
-User: "What was the diagnosis you mentioned?"
-Bot: "I previously diagnosed this as a tension headache based on your symptoms..."
+User: "What medications should I avoid with my condition?"
+Bot: "Based on your previous discussion about hypertension and the medications mentioned..."
 ```
-**Result:** System understands the reference and retrieves previous diagnosis.
+**Result:** LTM retrieves relevant medical information about hypertension medications and contraindications from previous conversations, even if not in recent STM.
 
-### Scenario 3: Clarification Request
+### Scenario 3: Enhanced Topic Generation
 ```
-User: "I didn't understand the part about prevention"
-Bot: "Let me clarify the prevention steps I mentioned earlier..."
+User: "I'm having trouble sleeping"
+Bot: "Topic: Sleep disturbance evaluation and management for adult patient with insomnia symptoms"
 ```
-**Result:** System identifies the clarification request and retrieves relevant previous response.
+**Result:** The topic incorporates the user's question context to create a detailed, medical-specific description instead of just "Sleep problems."
+
+### Scenario 4: Unified Context Summarization
+```
+User: "Can you repeat the treatment plan?"
+Bot: "Based on our conversation about your hypertension and sleep issues, your treatment plan includes..."
+```
+**Result:** The system creates a unified summary combining STM (recent sleep discussion), LTM (hypertension history), and RAG (current treatment guidelines) into a single coherent narrative.
 
 ## ⚙️ Configuration
 
@@ -164,100 +234,149 @@ Bot: "Let me clarify the prevention steps I mentioned earlier..."
 FlashAPI=your_gemini_api_key  # For both main LLM and contextual analysis
 ```
 
-### Memory Settings
+### Enhanced Memory Settings
 ```python
 memory = MemoryManager(
     max_users=1000,           # Maximum users in memory
-    history_per_user=10,      # Chat history per user
-    max_chunks=30             # Maximum chunks per user
+    history_per_user=5,       # STM capacity (5 recent summaries)
+    max_chunks=60             # LTM capacity (~20 conversational rounds)
 )
 ```
 
-### Context Parameters
+### Memory Parameters
 ```python
-# Recent history retrieval
-recent_history = memory.get_recent_chat_history(user_id, num_turns=3)
+# STM retrieval (5 recent turns)
+recent_history = memory.get_recent_chat_history(user_id, num_turns=5)
 
-# RAG retrieval
+# LTM semantic search
 rag_chunks = memory.get_relevant_chunks(user_id, query, top_k=3, min_sim=0.30)
 
-# Contextual analysis
-contextual_chunks = self._get_contextual_chunks(
-    user_id, current_query, recent_history, rag_chunks, lang
-)
+# Unified context summarization
+contextual_summary = memory.get_contextual_chunks(user_id, current_query, lang)
+```
+
+### Similarity Thresholds
+```python
+# STM deduplication thresholds
+IDENTICAL_THRESHOLD = 0.92    # Replace older with newer
+MERGE_THRESHOLD = 0.75        # Merge similar content
+
+# LTM semantic search
+MIN_SIMILARITY = 0.30         # Minimum similarity for retrieval
+TOP_K = 3                     # Number of chunks to retrieve
 ```
 
 ## 🔍 Monitoring & Debugging
 
-### Logging
-The system provides comprehensive logging:
+### Enhanced Logging
+The system provides comprehensive logging for all memory operations:
 ```python
-logger.info(f"[Contextual] Gemini selected {len(relevant_chunks)} relevant chunks")
-logger.warning(f"[Contextual] Gemini contextual analysis failed: {e}")
+# STM operations
+logger.info(f"[Contextual] Retrieved {len(recent_history)} recent history items")
+logger.info(f"[Contextual] Retrieved {len(rag_chunks)} RAG chunks")
+
+# Chunking operations
+logger.info(f"[Memory] 📦 Gemini summarized chunk output: {output}")
+logger.warning(f"[Memory] ❌ Gemini chunking failed: {e}")
+
+# Contextual summarization
+logger.info(f"[Contextual] Gemini created summary: {summary[:100]}...")
+logger.warning(f"[Contextual] Gemini summarization failed: {e}")
 ```
 
 ### Performance Metrics
-- Context retrieval time
-- Number of relevant chunks selected
-- Fallback usage statistics
+- **STM Operations:** Deduplication rate, merge frequency, topic enrichment quality
+- **LTM Operations:** FAISS search latency, semantic similarity scores, eviction patterns
+- **Context Summarization:** Gemini response time, summary quality, fallback usage
+- **Memory Usage:** Storage efficiency, retrieval hit rates, cache performance
 
 ## 🚨 Error Handling
 
-### Fallback Strategy
-1. **Primary:** Gemini Flash Lite contextual analysis
-2. **Secondary:** RAG semantic search
-3. **Tertiary:** Recent chat history
-4. **Final:** No context (minimal response)
+### Enhanced Fallback Strategy
+1. **Primary:** Gemini Flash Lite contextual summarization
+2. **Secondary:** LTM semantic search with usage-based scoring
+3. **Tertiary:** STM recent summaries
+4. **Final:** External RAG knowledge base
+5. **Emergency:** No context (minimal response)
 
-### Error Scenarios
-- Gemini API failure → Fall back to RAG
-- RAG failure → Fall back to recent history
-- Memory corruption → Reset user session
+### Error Scenarios & Recovery
+- **Gemini API failure** → Fall back to LTM semantic search
+- **LTM corruption** → Rebuild FAISS index from remaining chunks
+- **STM corruption** → Reset to empty STM, continue with LTM
+- **Memory corruption** → Reset user session, clear all memory
+- **Chunking failure** → Store raw response as fallback chunk
 
 ## 🔮 Future Enhancements
 
-### 1. **Context Scoring**
-- Implement confidence scores for context relevance
-- Weight recent history vs. semantic chunks
-- Dynamic threshold adjustment
+### 1. **Persistent Memory Storage**
+- **Database Integration:** Store LTM in PostgreSQL/SQLite with FAISS index persistence
+- **Session Recovery:** Resume conversations after system restarts
+- **Memory Export:** Allow users to export their conversation history
+- **Cross-device Sync:** Synchronize memory across different devices
 
-### 2. **Multi-turn Context**
-- Extend beyond 3 recent turns
-- Implement conversation threading
-- Handle multiple conversation topics
+### 2. **Advanced Memory Features**
+- **Fact Store:** Dedicated storage for critical medical facts (allergies, chronic conditions, medications)
+- **Memory Compression:** Summarize older STM entries into LTM when STM overflows
+- **Contextual Tags:** Add metadata tags (encounter type, modality, urgency) to bias retrieval
+- **Memory Analytics:** Track memory usage patterns and optimize storage strategies
 
-### 3. **Context Compression**
-- Summarize long conversation histories
-- Implement context pruning strategies
-- Optimize memory usage
+### 3. **Intelligent Memory Management**
+- **Adaptive Thresholds:** Dynamically adjust similarity thresholds based on conversation context
+- **Memory Prioritization:** Protect critical medical information from eviction
+- **Usage-based Retention:** Keep frequently accessed information longer
+- **Semantic Clustering:** Group related memories for better organization
 
-### 4. **Language-specific Context**
-- Enhance context analysis for different languages
-- Implement language-aware context selection
-- Cultural context considerations
+### 4. **Enhanced Medical Context**
+- **Clinical Decision Support:** Integrate with medical guidelines and protocols
+- **Risk Assessment:** Track and alert on potential medical risks across conversations
+- **Medication Reconciliation:** Maintain accurate medication lists across sessions
+- **Follow-up Scheduling:** Track recommended follow-ups and reminders
+
+### 5. **Multi-modal Memory**
+- **Image Memory:** Store and retrieve medical images with descriptions
+- **Voice Memory:** Convert voice interactions to text for memory storage
+- **Document Memory:** Process and store medical documents and reports
+- **Temporal Memory:** Track changes in symptoms and conditions over time
 
 ## 📝 Testing
 
-Run the test script to verify functionality:
+### Memory System Testing
 ```bash
 cd Medical-Chatbot
-python test_hybrid_context.py
+python test_memory_system.py
 ```
 
-This will demonstrate:
-- Memory management
-- Context retrieval
-- Hybrid approach simulation
-- Expected behavior examples
+### Test Scenarios
+1. **STM Deduplication Test:** Verify similar responses are merged correctly
+2. **LTM Semantic Search Test:** Test FAISS retrieval with various queries
+3. **Context Summarization Test:** Validate unified summary generation
+4. **Topic Enrichment Test:** Check detailed topic generation with question context
+5. **Memory Capacity Test:** Verify STM (5 items) and LTM (60 items) limits
+6. **Fallback Strategy Test:** Test system behavior when Gemini API fails
+
+### Expected Behaviors
+- **STM:** Similar responses merge, unique details preserved
+- **LTM:** Semantic search returns relevant chunks with usage tracking
+- **Topics:** Detailed, medical-specific descriptions (10-20 words)
+- **Summaries:** Coherent narratives combining STM + LTM + RAG
+- **Performance:** Sub-second retrieval times for all operations
 
 ## 🎯 Summary
 
-The hybrid context retrieval system transforms the Medical Chatbot from a simple RAG system to an intelligent, contextually aware assistant that:
+The enhanced memory system transforms the Medical Chatbot into a sophisticated, memory-aware medical assistant that:
 
-✅ **Maintains conversational continuity**  
-✅ **Provides semantically relevant responses**  
-✅ **Handles follow-up questions naturally**  
-✅ **Uses AI for intelligent context selection**  
-✅ **Maintains performance and reliability**  
+✅ **Maintains Short-Term Memory (STM)** with 5 recent conversation summaries and intelligent deduplication  
+✅ **Provides Long-Term Memory (LTM)** with 60 semantic chunks and FAISS-based retrieval  
+✅ **Generates Enhanced Topics** using question context for detailed, medical-specific descriptions  
+✅ **Creates Unified Summaries** combining STM + LTM + RAG into coherent narratives  
+✅ **Implements Smart Merging** that preserves unique details while eliminating redundancy  
+✅ **Ensures Conversational Continuity** across extended medical consultations  
+✅ **Optimizes Performance** with sub-second retrieval and efficient memory management  
 
-This system addresses real-world conversational patterns that pure RAG systems miss, making the chatbot more human-like and useful in extended medical consultations.
+This advanced memory system addresses the limitations of simple RAG systems by providing:
+- **Intelligent context management** that remembers and builds upon previous interactions
+- **Medical precision** with detailed topics and exact clinical information
+- **Scalable architecture** that can handle extended conversations without performance degradation
+- **Robust fallback strategies** ensuring system reliability in all scenarios
+
+The result is a medical chatbot that truly understands conversation context, remembers patient history, and provides increasingly relevant and personalized medical guidance over time.

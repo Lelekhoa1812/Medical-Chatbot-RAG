@@ -18,10 +18,14 @@ api_key = os.getenv("FlashAPI")
 client = genai.Client(api_key=api_key)
 
 class MemoryManager:
-    def __init__(self, max_users=1000, history_per_user=10, max_chunks=30):
+    def __init__(self, max_users=1000, history_per_user=20, max_chunks=60):
+        # STM: recent conversation summaries (topic + summary), up to 5 entries
+        self.stm_summaries = defaultdict(lambda: deque(maxlen=history_per_user))  # deque of {topic,text,vec,timestamp,used}
+        # Legacy raw cache (kept for compatibility if needed)
         self.text_cache   = defaultdict(lambda: deque(maxlen=history_per_user))
+        # LTM: semantic chunk store (approx 3 chunks x 20 rounds)
         self.chunk_index  = defaultdict(self._new_index)     # user_id -> faiss index
-        self.chunk_meta   = defaultdict(list)                #   ''   -> list[{text,tag}]
+        self.chunk_meta   = defaultdict(list)                #  ''  -> list[{text,tag,vec,timestamp,used}]
         self.user_queue   = deque(maxlen=max_users)          # LRU of users
         self.max_chunks   = max_chunks                       # hard cap per user
         self.chunk_cache  = {}                               # hash(query+resp) -> [chunks]
@@ -29,6 +33,7 @@ class MemoryManager:
     # ---------- Public API ----------
     def add_exchange(self, user_id: str, query: str, response: str, lang: str = "EN"):
         self._touch_user(user_id)
+        # Keep raw record (optional)
         self.text_cache[user_id].append(((query or "").strip(), (response or "").strip()))
         if not response: return []
         # Avoid re-chunking identical response
@@ -36,26 +41,14 @@ class MemoryManager:
         if cache_key in self.chunk_cache:
             chunks = self.chunk_cache[cache_key]
         else:
-            chunks = self.chunk_response(response, lang)
+            chunks = self.chunk_response(response, lang, question=query)
             self.chunk_cache[cache_key] = chunks
-        text_set = set(c["text"] for c in self.chunk_meta[user_id]) # Set list of metadata for deduplication
-        # Store chunks → faiss
+        # Update STM with merging/deduplication
         for chunk in chunks:
-            if chunk["text"] in text_set:
-                continue  # skip duplicate
-            vec = self._embed(chunk["text"])
-            self.chunk_index[user_id].add(np.array([vec]))
-            # Store each chunk's vector once and reuse it
-            chunk_with_vec = {
-                **chunk,
-                "vec": vec,
-                "timestamp": time.time(),  # store creation time
-                "used": 0                  # track usage
-            }
-            self.chunk_meta[user_id].append(chunk_with_vec)
-        # Trim to max_chunks to keep latency O(1)
-        if len(self.chunk_meta[user_id]) > self.max_chunks:
-            self._rebuild_index(user_id, keep_last=self.max_chunks)
+            self._upsert_stm(user_id, chunk, lang)
+        # Update LTM with merging/deduplication
+        self._upsert_ltm(user_id, chunks, lang)
+        return chunks
 
     def get_relevant_chunks(self, user_id: str, query: str, top_k: int = 3, min_sim: float = 0.30) -> List[str]:
         """Return texts of chunks whose cosine similarity ≥ min_sim."""
@@ -70,7 +63,7 @@ class MemoryManager:
             if idx < len(self.chunk_meta[user_id]) and sim >= min_sim:
                 chunk = self.chunk_meta[user_id][idx]
                 chunk["used"] += 1  # increment usage
-                # Decay function (you can tweak)
+                # Decay function
                 age_sec = time.time() - chunk["timestamp"]
                 decay = 1.0 / (1.0 + age_sec / 300)  # 5-min half-life
                 score = sim * decay * (1 + 0.1 * chunk["used"])
@@ -81,29 +74,27 @@ class MemoryManager:
         # logger.info(f"[Memory] RAG Retrieved Topic: {results}") # Inspect vector data
         return [f"### Topic: {c['tag']}\n{c['text']}" for _, c in results]
 
-    def get_recent_chat_history(self, user_id: str, num_turns: int = 3) -> List[Dict]:
+    def get_recent_chat_history(self, user_id: str, num_turns: int = 5) -> List[Dict]:
         """
-        Get the most recent chat history with both user questions and bot responses.
-        Returns: [{"user": "question", "bot": "response", "timestamp": time}, ...]
+        Get the most recent short-term memory summaries.
+        Returns: a list of entries containing only the summarized bot context.
         """
-        if user_id not in self.text_cache:
+        if user_id not in self.stm_summaries:
             return []
-        # Get the most recent chat history
-        recent_history = list(self.text_cache[user_id])[-num_turns:]
-        formatted_history = []
-        # Format the history
-        for query, response in recent_history:
-            formatted_history.append({
-                "user": query,
-                "bot": response,
-                "timestamp": time.time()  # We could store actual timestamps if needed
+        recent = list(self.stm_summaries[user_id])[-num_turns:]
+        formatted = []
+        for entry in recent:
+            formatted.append({
+                "user": "",
+                "bot": f"Topic: {entry['topic']}\n{entry['text']}",
+                "timestamp": entry.get("timestamp", time.time())
             })
-        
-        return formatted_history
+        return formatted
 
-    def get_context(self, user_id: str, num_turns: int = 3) -> str:
-        history = list(self.text_cache.get(user_id, []))[-num_turns:]
-        return "\n".join(f"User: {q}\nBot: {r}" for q, r in history)
+    def get_context(self, user_id: str, num_turns: int = 5) -> str:
+        # Prefer STM summaries
+        history = self.get_recent_chat_history(user_id, num_turns=num_turns)
+        return "\n".join(h["bot"] for h in history)
 
     def get_contextual_chunks(self, user_id: str, current_query: str, lang: str = "EN") -> str:
         """
@@ -111,7 +102,7 @@ class MemoryManager:
         This ensures conversational continuity while providing a concise summary for the main LLM.
         """
         # Get both types of context
-        recent_history = self.get_recent_chat_history(user_id, num_turns=3)
+        recent_history = self.get_recent_chat_history(user_id, num_turns=5)
         rag_chunks = self.get_relevant_chunks(user_id, current_query, top_k=3)
         
         logger.info(f"[Contextual] Retrieved {len(recent_history)} recent history items")
@@ -232,7 +223,7 @@ class MemoryManager:
         # L2 normalise for cosine on IndexFlatIP
         return vec / (np.linalg.norm(vec) + 1e-9)
 
-    def chunk_response(self, response: str, lang: str) -> List[Dict]:
+    def chunk_response(self, response: str, lang: str, question: str = "") -> List[Dict]:
         """
         Calls Gemini to:
           - Translate (if needed)
@@ -245,15 +236,17 @@ class MemoryManager:
         instructions = []
         # if lang.upper() != "EN":
         #     instructions.append("- Translate the response to English.")
-        instructions.append("- Break the translated (or original) text into semantically distinct parts, grouped by medical topic or symptom.")
-        instructions.append("- For each part, generate a clear, concise summary. The summary may vary in length depending on the complexity of the topic — do not omit key clinical instructions.")
-        instructions.append("- At the start of each part, write `Topic: <one line description>`.")
+        instructions.append("- Break the translated (or original) text into semantically distinct parts, grouped by medical topic, symptom, assessment, plan, or instruction (exclude disclaimer section).")
+        instructions.append("- For each part, generate a clear, concise summary. The summary may vary in length depending on the complexity of the topic — do not omit key clinical instructions and exact medication names/doses if present.")
+        instructions.append("- At the start of each part, write `Topic: <concise but specific sentence (10-20 words) capturing patient context, condition, and action>`.")
         instructions.append("- Separate each part using three dashes `---` on a new line.")
         # if lang.upper() != "EN":
         #     instructions.append(f"Below is the user-provided medical response written in `{lang}`")
         # Gemini prompt
         prompt = f"""
         You are a medical assistant helping organize and condense a clinical response.
+        If helpful, use the user's latest question for context to craft specific topics.
+        User's latest question (context): {question}
         ------------------------
         {response}
         ------------------------
@@ -295,5 +288,139 @@ class MemoryManager:
             if len(line.split()) <= 8 and line.strip().endswith(":"):
                 return line.strip().rstrip(":")
         return " ".join(chunk.split()[:3]).rstrip(":.,")
+
+    # ---------- New merging/dedup logic ----------
+    def _upsert_stm(self, user_id: str, chunk: Dict, lang: str):
+        """Insert or merge a summarized chunk into STM with semantic dedup/merge.
+        Identical: replace the older with new. Partially similar: merge extra details from older into newer.
+        """
+        topic = self._enrich_topic(chunk.get("tag", ""), chunk.get("text", ""))
+        text  = chunk.get("text", "").strip()
+        vec   = self._embed(text)
+        now   = time.time()
+        entry = {"topic": topic, "text": text, "vec": vec, "timestamp": now, "used": 0}
+        stm = self.stm_summaries[user_id]
+        if not stm:
+            stm.append(entry)
+            return
+        # find best match
+        best_idx = -1
+        best_sim = -1.0
+        for i, e in enumerate(stm):
+            sim = float(np.dot(vec, e["vec"]))
+            if sim > best_sim:
+                best_sim = sim
+                best_idx = i
+        if best_sim >= 0.92:  # nearly identical
+            # replace older with current
+            stm.rotate(-best_idx)
+            stm.popleft()
+            stm.rotate(best_idx)
+            stm.append(entry)
+        elif best_sim >= 0.75:  # partially similar → merge
+            base = stm[best_idx]
+            merged_text = self._merge_texts(new_text=text, old_text=base["text"])  # add bits from old not in new
+            merged_topic = base["topic"] if len(base["topic"]) > len(topic) else topic
+            merged_vec = self._embed(merged_text)
+            merged_entry = {"topic": merged_topic, "text": merged_text, "vec": merged_vec, "timestamp": now, "used": base.get("used", 0)}
+            stm.rotate(-best_idx)
+            stm.popleft()
+            stm.rotate(best_idx)
+            stm.append(merged_entry)
+        else:
+            stm.append(entry)
+
+    def _upsert_ltm(self, user_id: str, chunks: List[Dict], lang: str):
+        """Insert or merge chunks into LTM with semantic dedup/merge, then rebuild index.
+        Keeps only the most recent self.max_chunks entries.
+        """
+        current_list = self.chunk_meta[user_id]
+        for chunk in chunks:
+            text = chunk.get("text", "").strip()
+            if not text:
+                continue
+            vec = self._embed(text)
+            topic = self._enrich_topic(chunk.get("tag", ""), text)
+            now = time.time()
+            new_entry = {"tag": topic, "text": text, "vec": vec, "timestamp": now, "used": 0}
+            if not current_list:
+                current_list.append(new_entry)
+                continue
+            # find best similar entry
+            best_idx = -1
+            best_sim = -1.0
+            for i, e in enumerate(current_list):
+                sim = float(np.dot(vec, e["vec"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_idx = i
+            if best_sim >= 0.92:
+                # replace older with new
+                current_list[best_idx] = new_entry
+            elif best_sim >= 0.75:
+                # merge details
+                base = current_list[best_idx]
+                merged_text = self._merge_texts(new_text=text, old_text=base["text"])  # add unique sentences from old
+                merged_topic = base["tag"] if len(base["tag"]) > len(topic) else topic
+                merged_vec = self._embed(merged_text)
+                current_list[best_idx] = {"tag": merged_topic, "text": merged_text, "vec": merged_vec, "timestamp": now, "used": base.get("used", 0)}
+            else:
+                current_list.append(new_entry)
+        # Trim and rebuild index
+        if len(current_list) > self.max_chunks:
+            current_list[:] = current_list[-self.max_chunks:]
+        self._rebuild_index(user_id, keep_last=self.max_chunks)
+
+    @staticmethod
+    def _split_sentences(text: str) -> List[str]:
+        # naive sentence splitter by ., !, ?
+        parts = re.split(r"(?<=[\.!?])\s+", text.strip())
+        return [p.strip() for p in parts if p.strip()]
+
+    def _merge_texts(self, new_text: str, old_text: str) -> str:
+        """Append sentences from old_text that are not already contained in new_text (by fuzzy match)."""
+        new_sents = self._split_sentences(new_text)
+        old_sents = self._split_sentences(old_text)
+        new_set = set(s.lower() for s in new_sents)
+        merged = list(new_sents)
+        for s in old_sents:
+            s_norm = s.lower()
+            # consider present if significant overlap with any existing sentence
+            if s_norm in new_set:
+                continue
+            # simple containment check
+            if any(self._overlap_ratio(s_norm, t.lower()) > 0.8 for t in merged):
+                continue
+            merged.append(s)
+        return " ".join(merged)
+
+    @staticmethod
+    def _overlap_ratio(a: str, b: str) -> float:
+        """Compute token overlap ratio between two sentences."""
+        ta = set(re.findall(r"\w+", a))
+        tb = set(re.findall(r"\w+", b))
+        if not ta or not tb:
+            return 0.0
+        inter = len(ta & tb)
+        union = len(ta | tb)
+        return inter / union
+
+    @staticmethod
+    def _enrich_topic(topic: str, text: str) -> str:
+        """Make topic more descriptive if it's too short by using the first sentence of the text.
+        Does not call LLM to keep latency low.
+        """
+        topic = (topic or "").strip()
+        if len(topic.split()) < 5 or len(topic) < 20:
+            sents = re.split(r"(?<=[\.!?])\s+", text.strip())
+            if sents:
+                first = sents[0]
+                # cap to ~16 words
+                words = first.split()
+                if len(words) > 16:
+                    first = " ".join(words[:16])
+                # ensure capitalized
+                return first.strip().rstrip(':')
+        return topic
 
 
