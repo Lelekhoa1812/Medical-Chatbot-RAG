@@ -25,6 +25,26 @@ class SafetyGuard:
         self.model = "meta/llama-guard-4-12b"
         self.timeout_s = 30
 
+    @staticmethod
+    def _chunk_text(text: str, chunk_size: int = 2800, overlap: int = 200) -> List[str]:
+        """Chunk long text to keep request payloads small enough for the guard.
+        Uses character-based approximation with small overlap.
+        """
+        if not text:
+            return [""]
+        n = len(text)
+        if n <= chunk_size:
+            return [text]
+        chunks: List[str] = []
+        start = 0
+        while start < n:
+            end = min(start + chunk_size, n)
+            chunks.append(text[start:end])
+            if end == n:
+                break
+            start = max(0, end - overlap)
+        return chunks
+
     def _call_guard(self, messages: List[Dict], max_tokens: int = 512) -> str:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -35,8 +55,10 @@ class SafetyGuard:
         payload_chat = {
             "model": self.model,
             "messages": messages,
-            "temperature": 0.0,
+            "temperature": 0.2,
+            "top_p": 0.7,
             "max_tokens": max_tokens,
+            "stream": False,
         }
         # Alternative schema (some NVIDIA deployments require message content objects)
         alt_messages = []
@@ -48,8 +70,10 @@ class SafetyGuard:
         payload_alt = {
             "model": self.model,
             "messages": alt_messages,
-            "temperature": 0.0,
+            "temperature": 0.2,
+            "top_p": 0.7,
             "max_tokens": max_tokens,
+            "stream": False,
         }
         # Attempt primary, then fallback
         for payload in (payload_chat, payload_alt):
@@ -97,38 +121,34 @@ class SafetyGuard:
         return False, t[:180]
 
     def check_user_query(self, user_query: str) -> Tuple[bool, str]:
-        """Validate the user query is safe to process."""
-        system = (
-            "You are a safety classifier. Analyze the USER message for safety policy violations "
-            "(violence, self-harm, child sexual content, explicit sexual content, hate, abuse, "
-            "illegal activities, medical harm, personal data leakage).\n"
-            "Respond with exactly 'SAFE' if compliant, or 'UNSAFE: <brief reason>'."
-        )
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user_query or ""},
-        ]
-        reply = self._call_guard(messages, max_tokens=64)
-        return self._parse_guard_reply(reply)
+        """Validate the user query is safe to process (provider-style single user message)."""
+        text = user_query or ""
+        # If too long, validate each chunk; any UNSAFE makes overall UNSAFE
+        for part in self._chunk_text(text):
+            messages = [{"role": "user", "content": part}]
+            reply = self._call_guard(messages, max_tokens=64)
+            ok, reason = self._parse_guard_reply(reply)
+            if not ok:
+                return False, reason
+        return True, ""
 
     def check_model_answer(self, user_query: str, model_answer: str) -> Tuple[bool, str]:
-        """Validate the model's answer is safe in the context of the user question."""
-        system = (
-            "You are a safety classifier. Given a user question and an assistant answer, "
-            "determine if the ASSISTANT answer violates safety policy (e.g., dangerous "
-            "medical instructions, illegal guidance, explicit sexual content, hate, abuse, "
-            "privacy violations).\n"
-            "If safe, answer 'SAFE'. If not, answer 'UNSAFE: <brief reason>'."
-        )
-        content = (
-            f"USER: {user_query or ''}\n\nASSISTANT: {model_answer or ''}"
-        )
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": content},
-        ]
-        reply = self._call_guard(messages, max_tokens=96)
-        return self._parse_guard_reply(reply)
+        """Validate the model's answer is safe using provider's example schema (user + assistant turns)."""
+        uq = user_query or ""
+        ans = model_answer or ""
+        # Chunk assistant answer; if user query is huge, use first chunk of it as context
+        user_parts = self._chunk_text(uq, chunk_size=2000)
+        user_context = user_parts[0] if user_parts else ""
+        for ans_part in self._chunk_text(ans):
+            messages = [
+                {"role": "user", "content": user_context},
+                {"role": "assistant", "content": ans_part},
+            ]
+            reply = self._call_guard(messages, max_tokens=96)
+            ok, reason = self._parse_guard_reply(reply)
+            if not ok:
+                return False, reason
+        return True, ""
 
 
 # Global instance (optional convenience)

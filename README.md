@@ -32,7 +32,7 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 ## 🧠 Technical Highlights
 - FastAPI modular services (api, models, memory, search, utils)
 - FAISS vector retrieval; MongoDB for KB and index artifacts
-- NVIDIA Llama for concise summarization and query relevance extraction
+- Llama for concise summarization and query relevance extraction
 - Llama Guard for policy compliance on inputs and outputs
 - Robust logging, retries, and graceful degradation in network‑bound paths
 
