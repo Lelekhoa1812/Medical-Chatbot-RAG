@@ -7,7 +7,7 @@ from .config import gemini_flash_api_key
 from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
-from search import search_multilingual_medical
+from search import search_multilingual_medical, search_videos
 from models import summarizer
 from models import process_search_query
 from models.guard import safety_guard
@@ -38,7 +38,7 @@ class RAGMedicalChatbot:
         self.gemini_client = GeminiClient()
         self.memory = MemoryManager()
     
-    def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "", search_mode: bool = False) -> str:
+    def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "", search_mode: bool = False, video_mode: bool = False) -> str:
         """Main chat method with RAG and search capabilities"""
         
         # 0. Translate query if not EN, this help our RAG system
@@ -86,6 +86,20 @@ class RAGMedicalChatbot:
                 logger.error(f"[SEARCH] Search failed: {e}")
                 search_context = ""
                 url_mapping = {}
+
+        # 2.1. Video mode - search for medical videos
+        video_results = []
+        if video_mode:
+            logger.info(f"[VIDEO] Starting video search mode for query: {user_query}")
+            try:
+                video_results = search_videos(user_query, num_results=3, target_language=lang)
+                if video_results:
+                    logger.info(f"[VIDEO] Retrieved {len(video_results)} video resources")
+                else:
+                    logger.warning("[VIDEO] No video results found")
+            except Exception as e:
+                logger.error(f"[VIDEO] Video search failed: {e}")
+                video_results = []
 
         # 3. Build prompt parts
         parts = ["You are a medical chatbot, designed to answer medical questions."]
@@ -135,7 +149,15 @@ class RAGMedicalChatbot:
         if user_id:
             self.memory.add_exchange(user_id, user_query, response, lang=lang)
         logger.info(f"[LLM] Response on `prompt`: {response.strip()}") # Debug out base response
-        return response.strip()
+        
+        # Return response with video data if available
+        if video_results:
+            return {
+                'text': response.strip(),
+                'videos': video_results
+            }
+        else:
+            return response.strip()
     
     def _process_citations(self, response: str, url_mapping: Dict[int, str]) -> str:
         """Replace citation tags with actual URLs, handling both single and multiple references"""

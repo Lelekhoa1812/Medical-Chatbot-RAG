@@ -104,3 +104,13 @@ def search_multilingual_medical(query: str, num_results: int = 10, target_langua
     except Exception as e:
         logger.error(f"Multilingual medical search failed: {e}")
         return "", {}
+
+# Video search function
+def search_videos(query: str, num_results: int = 2, target_language: str = None) -> List[Dict]:
+    """Search for medical videos across multiple platforms"""
+    try:
+        coordinator = get_search_coordinator()
+        return coordinator.video_search(query, num_results, target_language)
+    except Exception as e:
+        logger.error(f"Video search failed: {e}")
+        return []

@@ -30,6 +30,7 @@ async def chat_endpoint(req: Request):
     query = query_raw.strip() if isinstance(query_raw, str) else ""
     lang = body.get("lang", "EN")
     search_mode = body.get("search", False)
+    video_mode = body.get("video", False)
     image_base64 = body.get("image_base64", None)
     img_desc = body.get("img_desc", "Describe and investigate any clinical findings from this medical image.")
     
@@ -43,6 +44,7 @@ async def chat_endpoint(req: Request):
         "query": query,
         "lang": lang,
         "search_mode": search_mode,
+        "video_mode": video_mode,
         "image_base64": image_base64,
         "img_desc": img_desc,
         "status": "pending",
@@ -84,15 +86,23 @@ async def chat_endpoint(req: Request):
         image_diagnosis = process_medical_image(image_base64, img_desc, lang)
     
     try:
-        answer = chatbot.chat(user_id, query, lang, image_diagnosis, search_mode)
+        answer = chatbot.chat(user_id, query, lang, image_diagnosis, search_mode, video_mode)
         elapsed = time.time() - start
+        
+        # Handle response format (might be string or dict with videos)
+        if isinstance(answer, dict):
+            response_text = answer.get('text', '')
+            video_data = answer.get('videos', [])
+        else:
+            response_text = answer
+            video_data = []
         
         # Store completed response
         completed_response = {
             "request_id": request_id,
             "user_id": user_id,
             "query": query,
-            "response": f"{answer}\n\n(Response time: {elapsed:.2f}s)",
+            "response": f"{response_text}\n\n(Response time: {elapsed:.2f}s)",
             "status": "completed",
             "created_at": pending_request["created_at"],
             "completed_at": datetime.utcnow(),
@@ -115,10 +125,16 @@ async def chat_endpoint(req: Request):
             logger.error(f"[REQUEST] Failed to store completed response: {e}")
         
         # Final response
-        return JSONResponse({
+        response_data = {
             "response": completed_response["response"],
             "request_id": request_id
-        })
+        }
+        
+        # Include video data if available
+        if video_data:
+            response_data["videos"] = video_data
+        
+        return JSONResponse(response_data)
         
     except Exception as e:
         logger.error(f"[REQUEST] Error processing request {request_id}: {e}")

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .engines.duckduckgo import DuckDuckGoEngine
 from .engines.medical import MedicalSearchEngine
 from .engines.multilingual import MultilingualMedicalEngine
+from .engines.video import VideoSearchEngine
 from .extractors.content import ContentExtractor
 from .processors.medical import MedicalSearchProcessor
 from .processors.language import LanguageProcessor
@@ -22,6 +23,7 @@ class SearchCoordinator:
         self.duckduckgo_engine = DuckDuckGoEngine()
         self.medical_engine = MedicalSearchEngine()
         self.multilingual_engine = MultilingualMedicalEngine()
+        self.video_engine = VideoSearchEngine()
         
         # Initialize processors
         self.content_extractor = ContentExtractor()
@@ -201,3 +203,25 @@ class SearchCoordinator:
         
         logger.info(f"Multilingual medical search completed: {len(url_mapping)} sources")
         return summary, url_mapping
+    
+    def video_search(self, query: str, num_results: int = 3, target_language: str = None) -> List[Dict]:
+        """Search for medical videos across multiple platforms"""
+        logger.info(f"Video search for: {query} (target: {target_language})")
+        
+        # Detect language if not provided
+        if not target_language:
+            target_language = self.language_processor.detect_language(query)
+        
+        # Map language codes
+        lang_mapping = {
+            'EN': 'en',
+            'VI': 'vi', 
+            'ZH': 'zh'
+        }
+        search_language = lang_mapping.get(target_language, 'en')
+        
+        # Search for videos
+        video_results = self.video_engine.search(query, num_results, search_language)
+        
+        logger.info(f"Video search completed: {len(video_results)} videos found")
+        return video_results
