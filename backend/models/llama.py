@@ -13,7 +13,8 @@ class NVIDIALLamaClient:
         if not self.api_key:
             raise ValueError("NVIDIA_URI environment variable not set")
         
-        self.base_url = "https://api.nvcf.nvidia.com/v2/nvcf/chat/completions"
+        # Correct NVIDIA Integrate API base
+        self.base_url = "https://integrate.api.nvidia.com/v1"
         self.model = "meta/llama-3.1-8b-instruct"
         
     def generate_keywords(self, user_query: str) -> List[str]:
@@ -75,7 +76,7 @@ Keywords:"""
                 }
                 
                 response = requests.post(
-                    self.base_url,
+                    f"{self.base_url}/chat/completions",
                     headers=headers,
                     json=payload,
                     timeout=30

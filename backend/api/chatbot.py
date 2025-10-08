@@ -10,6 +10,7 @@ from utils import translate_query, process_medical_image
 from search import search_web
 from models import summarizer
 from models import process_search_query
+from models.guard import safety_guard
 
 logger = logging.getLogger("medical-chatbot")
 
@@ -43,6 +44,12 @@ class RAGMedicalChatbot:
         # 0. Translate query if not EN, this help our RAG system
         if lang.upper() in {"VI", "ZH"}:
             user_query = translate_query(user_query, lang.lower())
+
+        # 0.1 Safety check on user query
+        is_safe_user, reason_user = safety_guard.check_user_query(user_query or "")
+        if not is_safe_user:
+            logger.warning(f"[SAFETY] Blocked unsafe user query: {reason_user}")
+            return "⚠️ Unable to process this request safely. Please rephrase your question."
 
         # 1. Fetch knowledge
         ## a. KB for generic QA retrieval
@@ -129,6 +136,12 @@ class RAGMedicalChatbot:
         if search_mode and url_mapping:
             response = self._process_citations(response, url_mapping)
         
+        # 7. Safety check on model answer
+        is_safe_ans, reason_ans = safety_guard.check_model_answer(user_query, response or "")
+        if not is_safe_ans:
+            logger.warning(f"[SAFETY] Withholding unsafe model answer: {reason_ans}")
+            response = "⚠️ I cannot share that information. Let's discuss this topic at a high level or try a different question."
+
          # Store exchange + chunking
         if user_id:
             self.memory.add_exchange(user_id, user_query, response, lang=lang)
