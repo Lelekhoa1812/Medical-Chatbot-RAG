@@ -12,7 +12,18 @@ from tqdm import tqdm
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # ✅ Load SymbiPredict
-df = pd.read_csv("symbipredict_2022.csv")
+import os
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, "symbipredict_2022.csv")
+
+# Check if CSV file exists
+if not os.path.exists(csv_path):
+    raise FileNotFoundError(f"CSV file not found at: {csv_path}")
+
+print(f"Loading CSV from: {csv_path}")
+df = pd.read_csv(csv_path)
+print(f"✅ CSV loaded successfully. Shape: {df.shape}")
 
 # ✅ Connect to MongoDB
 mongo_uri = "..."

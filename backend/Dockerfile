@@ -14,6 +14,15 @@ COPY . .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Verify CSV file is present and accessible
+RUN ls -la /app/utils/symbipredict_2022.csv || echo "CSV file not found"
+
+# Test CSV loading in Docker environment
+RUN python /app/test_docker_csv.py
+
+# Clean up test file
+RUN rm /app/test_docker_csv.py
+
 # Set Hugging Face cache directory to persist model downloads
 ENV HF_HOME="/home/user/.cache/huggingface"
 ENV SENTENCE_TRANSFORMERS_HOME="/home/user/.cache/huggingface/sentence-transformers"
