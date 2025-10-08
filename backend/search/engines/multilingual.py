@@ -25,12 +25,33 @@ class MultilingualMedicalEngine:
         # Comprehensive medical sources by language
         self.medical_sources = {
             'en': {
+                # Major Medical Institutions
                 'mayo_clinic': {
                     'base_url': 'https://www.mayoclinic.org',
                     'search_url': 'https://www.mayoclinic.org/search/search-results',
                     'domains': ['mayoclinic.org'],
                     'selectors': ['a[href*="/diseases-conditions/"]', 'a[href*="/symptoms/"]', '.search-result a']
                 },
+                'cleveland_clinic': {
+                    'base_url': 'https://my.clevelandclinic.org',
+                    'search_url': 'https://my.clevelandclinic.org/search',
+                    'domains': ['clevelandclinic.org'],
+                    'selectors': ['a[href*="/health/"]', 'a[href*="/diseases/"]', '.search-result a']
+                },
+                'johns_hopkins': {
+                    'base_url': 'https://www.hopkinsmedicine.org',
+                    'search_url': 'https://www.hopkinsmedicine.org/search',
+                    'domains': ['hopkinsmedicine.org'],
+                    'selectors': ['a[href*="/health/"]', 'a[href*="/conditions/"]', '.search-result a']
+                },
+                'harvard_health': {
+                    'base_url': 'https://www.health.harvard.edu',
+                    'search_url': 'https://www.health.harvard.edu/search',
+                    'domains': ['health.harvard.edu'],
+                    'selectors': ['a[href*="/diseases-and-conditions/"]', 'a[href*="/staying-healthy/"]', '.search-result a']
+                },
+                
+                # Government Health Agencies
                 'webmd': {
                     'base_url': 'https://www.webmd.com',
                     'search_url': 'https://www.webmd.com/search/search_results/default.aspx',
@@ -60,9 +81,88 @@ class MultilingualMedicalEngine:
                     'search_url': 'https://www.cdc.gov/search/index.html',
                     'domains': ['cdc.gov'],
                     'selectors': ['a[href*="/health/"]', '.search-result a']
+                },
+                'who': {
+                    'base_url': 'https://www.who.int',
+                    'search_url': 'https://www.who.int/search',
+                    'domains': ['who.int'],
+                    'selectors': ['a[href*="/health-topics/"]', 'a[href*="/news/"]', '.search-result a']
+                },
+                
+                # Medical Databases and Research
+                'pubmed': {
+                    'base_url': 'https://pubmed.ncbi.nlm.nih.gov',
+                    'search_url': 'https://pubmed.ncbi.nlm.nih.gov',
+                    'domains': ['pubmed.ncbi.nlm.nih.gov'],
+                    'selectors': ['a[href*="/"]', '.docsum-title a', '.search-result a']
+                },
+                'uptodate': {
+                    'base_url': 'https://www.uptodate.com',
+                    'search_url': 'https://www.uptodate.com/search',
+                    'domains': ['uptodate.com'],
+                    'selectors': ['a[href*="/contents/"]', '.search-result a']
+                },
+                'medscape': {
+                    'base_url': 'https://www.medscape.com',
+                    'search_url': 'https://www.medscape.com/search',
+                    'domains': ['medscape.com'],
+                    'selectors': ['a[href*="/viewarticle/"]', 'a[href*="/resource/"]', '.search-result a']
+                },
+                'merck_manuals': {
+                    'base_url': 'https://www.merckmanuals.com',
+                    'search_url': 'https://www.merckmanuals.com/search',
+                    'domains': ['merckmanuals.com'],
+                    'selectors': ['a[href*="/home/"]', 'a[href*="/professional/"]', '.search-result a']
+                },
+                
+                # Specialized Medical Resources
+                'drugs_com': {
+                    'base_url': 'https://www.drugs.com',
+                    'search_url': 'https://www.drugs.com/search.php',
+                    'domains': ['drugs.com'],
+                    'selectors': ['a[href*="/drug/"]', 'a[href*="/condition/"]', '.search-result a']
+                },
+                'rxlist': {
+                    'base_url': 'https://www.rxlist.com',
+                    'search_url': 'https://www.rxlist.com/search',
+                    'domains': ['rxlist.com'],
+                    'selectors': ['a[href*="/drug/"]', 'a[href*="/conditions/"]', '.search-result a']
+                },
+                'familydoctor': {
+                    'base_url': 'https://familydoctor.org',
+                    'search_url': 'https://familydoctor.org/search',
+                    'domains': ['familydoctor.org'],
+                    'selectors': ['a[href*="/condition/"]', 'a[href*="/symptom/"]', '.search-result a']
+                },
+                'kidshealth': {
+                    'base_url': 'https://kidshealth.org',
+                    'search_url': 'https://kidshealth.org/search',
+                    'domains': ['kidshealth.org'],
+                    'selectors': ['a[href*="/en/parents/"]', 'a[href*="/en/teens/"]', '.search-result a']
+                },
+                
+                # International Sources
+                'nhs': {
+                    'base_url': 'https://www.nhs.uk',
+                    'search_url': 'https://www.nhs.uk/search',
+                    'domains': ['nhs.uk'],
+                    'selectors': ['a[href*="/conditions/"]', 'a[href*="/medicines/"]', '.search-result a']
+                },
+                'bmj': {
+                    'base_url': 'https://www.bmj.com',
+                    'search_url': 'https://www.bmj.com/search',
+                    'domains': ['bmj.com'],
+                    'selectors': ['a[href*="/content/"]', 'a[href*="/collection/"]', '.search-result a']
+                },
+                'lancet': {
+                    'base_url': 'https://www.thelancet.com',
+                    'search_url': 'https://www.thelancet.com/search',
+                    'domains': ['thelancet.com'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/series/"]', '.search-result a']
                 }
             },
             'vi': {
+                # Major Vietnamese Health Platforms
                 'hello_bacsi': {
                     'base_url': 'https://hellobacsi.com',
                     'search_url': 'https://hellobacsi.com/tim-kiem',
@@ -75,6 +175,20 @@ class MultilingualMedicalEngine:
                     'domains': ['alobacsi.com'],
                     'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
                 },
+                'youmed': {
+                    'base_url': 'https://youmed.vn',
+                    'search_url': 'https://youmed.vn/tim-kiem',
+                    'domains': ['youmed.vn'],
+                    'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                'bookingcare': {
+                    'base_url': 'https://bookingcare.vn',
+                    'search_url': 'https://bookingcare.vn/tim-kiem',
+                    'domains': ['bookingcare.vn'],
+                    'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                
+                # Major Vietnamese Hospitals
                 'vinmec': {
                     'base_url': 'https://www.vinmec.com',
                     'search_url': 'https://www.vinmec.com/vi/tim-kiem',
@@ -93,6 +207,20 @@ class MultilingualMedicalEngine:
                     'domains': ['medlatec.vn'],
                     'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
                 },
+                'fvhospital': {
+                    'base_url': 'https://fvhospital.com',
+                    'search_url': 'https://fvhospital.com/tim-kiem',
+                    'domains': ['fvhospital.com'],
+                    'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                'benhvien108': {
+                    'base_url': 'https://benhvien108.vn',
+                    'search_url': 'https://benhvien108.vn/tim-kiem',
+                    'domains': ['benhvien108.vn'],
+                    'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                
+                # Government and Official Sources
                 'suckhoe_doisong': {
                     'base_url': 'https://suckhoedoisong.vn',
                     'search_url': 'https://suckhoedoisong.vn/tim-kiem',
@@ -104,9 +232,44 @@ class MultilingualMedicalEngine:
                     'search_url': 'https://viendinhduong.vn/tim-kiem',
                     'domains': ['viendinhduong.vn'],
                     'selectors': ['a[href*="/dinh-duong/"]', 'a[href*="/suc-khoe/"]', '.search-result a']
+                },
+                'moh_vn': {
+                    'base_url': 'https://moh.gov.vn',
+                    'search_url': 'https://moh.gov.vn/tim-kiem',
+                    'domains': ['moh.gov.vn'],
+                    'selectors': ['a[href*="/suc-khoe/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                
+                # Pharmacy and Drug Information
+                'longchau': {
+                    'base_url': 'https://nhathuoclongchau.com',
+                    'search_url': 'https://nhathuoclongchau.com/tim-kiem',
+                    'domains': ['nhathuoclongchau.com'],
+                    'selectors': ['a[href*="/thuoc/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                'pharmacity': {
+                    'base_url': 'https://pharmacity.vn',
+                    'search_url': 'https://pharmacity.vn/tim-kiem',
+                    'domains': ['pharmacity.vn'],
+                    'selectors': ['a[href*="/thuoc/"]', 'a[href*="/benh/"]', '.search-result a']
+                },
+                
+                # Specialized Health Information
+                'vnvc': {
+                    'base_url': 'https://vnvc.vn',
+                    'search_url': 'https://vnvc.vn/tim-kiem',
+                    'domains': ['vnvc.vn'],
+                    'selectors': ['a[href*="/vac-xin/"]', 'a[href*="/suc-khoe/"]', '.search-result a']
+                },
+                'dinh_duong_me_be': {
+                    'base_url': 'https://dinhduongmebe.vn',
+                    'search_url': 'https://dinhduongmebe.vn/tim-kiem',
+                    'domains': ['dinhduongmebe.vn'],
+                    'selectors': ['a[href*="/dinh-duong/"]', 'a[href*="/suc-khoe/"]', '.search-result a']
                 }
             },
             'zh': {
+                # Major Chinese Health Platforms
                 'haodf': {
                     'base_url': 'https://www.haodf.com',
                     'search_url': 'https://www.haodf.com/search',
@@ -141,6 +304,68 @@ class MultilingualMedicalEngine:
                     'base_url': 'https://www.familydoctor.com.cn',
                     'search_url': 'https://www.familydoctor.com.cn/search',
                     'domains': ['familydoctor.com.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                
+                # Chinese Medical Institutions
+                'pumch': {
+                    'base_url': 'https://www.pumch.cn',
+                    'search_url': 'https://www.pumch.cn/search',
+                    'domains': ['pumch.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                'xiehe': {
+                    'base_url': 'https://www.xiehe.com',
+                    'search_url': 'https://www.xiehe.com/search',
+                    'domains': ['xiehe.com'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                'ruijin': {
+                    'base_url': 'https://www.rjh.com.cn',
+                    'search_url': 'https://www.rjh.com.cn/search',
+                    'domains': ['rjh.com.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                
+                # Chinese Government Health Sources
+                'nhc': {
+                    'base_url': 'https://www.nhc.gov.cn',
+                    'search_url': 'https://www.nhc.gov.cn/search',
+                    'domains': ['nhc.gov.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                'cdc_china': {
+                    'base_url': 'https://www.chinacdc.cn',
+                    'search_url': 'https://www.chinacdc.cn/search',
+                    'domains': ['chinacdc.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                
+                # Chinese Medical Databases
+                'cnki': {
+                    'base_url': 'https://www.cnki.net',
+                    'search_url': 'https://www.cnki.net/search',
+                    'domains': ['cnki.net'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                'wanfang': {
+                    'base_url': 'https://www.wanfangdata.com.cn',
+                    'search_url': 'https://www.wanfangdata.com.cn/search',
+                    'domains': ['wanfangdata.com.cn'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                
+                # Chinese Medical Journals
+                'cmj': {
+                    'base_url': 'https://www.cmj.org',
+                    'search_url': 'https://www.cmj.org/search',
+                    'domains': ['cmj.org'],
+                    'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
+                },
+                'cma': {
+                    'base_url': 'https://www.cma.org.cn',
+                    'search_url': 'https://www.cma.org.cn/search',
+                    'domains': ['cma.org.cn'],
                     'selectors': ['a[href*="/article/"]', 'a[href*="/jibing/"]', '.search-result a']
                 }
             }
@@ -281,6 +506,34 @@ class MultilingualMedicalEngine:
                     'source': 'webmd_fallback',
                     'language': 'en',
                     'domain': 'webmd.com'
+                },
+                {
+                    'url': 'https://www.healthline.com/health',
+                    'title': f'Healthline: {query}',
+                    'source': 'healthline_fallback',
+                    'language': 'en',
+                    'domain': 'healthline.com'
+                },
+                {
+                    'url': 'https://medlineplus.gov/healthtopics.html',
+                    'title': f'MedlinePlus: {query}',
+                    'source': 'medlineplus_fallback',
+                    'language': 'en',
+                    'domain': 'medlineplus.gov'
+                },
+                {
+                    'url': 'https://www.cdc.gov',
+                    'title': f'CDC: {query}',
+                    'source': 'cdc_fallback',
+                    'language': 'en',
+                    'domain': 'cdc.gov'
+                },
+                {
+                    'url': 'https://www.who.int/health-topics',
+                    'title': f'WHO: {query}',
+                    'source': 'who_fallback',
+                    'language': 'en',
+                    'domain': 'who.int'
                 }
             ],
             'vi': [
@@ -297,6 +550,27 @@ class MultilingualMedicalEngine:
                     'source': 'vinmec_fallback',
                     'language': 'vi',
                     'domain': 'vinmec.com'
+                },
+                {
+                    'url': 'https://alobacsi.com/suc-khoe',
+                    'title': f'Alo Bacsi: {query}',
+                    'source': 'alo_bacsi_fallback',
+                    'language': 'vi',
+                    'domain': 'alobacsi.com'
+                },
+                {
+                    'url': 'https://suckhoedoisong.vn/suc-khoe',
+                    'title': f'Sức Khỏe & Đời Sống: {query}',
+                    'source': 'suckhoe_doisong_fallback',
+                    'language': 'vi',
+                    'domain': 'suckhoedoisong.vn'
+                },
+                {
+                    'url': 'https://viendinhduong.vn/dinh-duong',
+                    'title': f'Viện Dinh Dưỡng: {query}',
+                    'source': 'vien_dinh_duong_fallback',
+                    'language': 'vi',
+                    'domain': 'viendinhduong.vn'
                 }
             ],
             'zh': [
@@ -313,6 +587,27 @@ class MultilingualMedicalEngine:
                     'source': 'dxy_fallback',
                     'language': 'zh',
                     'domain': 'dxy.cn'
+                },
+                {
+                    'url': 'https://www.chunyuyisheng.com/article',
+                    'title': f'春雨医生: {query}',
+                    'source': 'chunyuyisheng_fallback',
+                    'language': 'zh',
+                    'domain': 'chunyuyisheng.com'
+                },
+                {
+                    'url': 'https://www.xywy.com/jibing',
+                    'title': f'寻医问药: {query}',
+                    'source': 'xywy_fallback',
+                    'language': 'zh',
+                    'domain': 'xywy.com'
+                },
+                {
+                    'url': 'https://www.nhc.gov.cn',
+                    'title': f'国家卫健委: {query}',
+                    'source': 'nhc_fallback',
+                    'language': 'zh',
+                    'domain': 'nhc.gov.cn'
                 }
             ]
         }
