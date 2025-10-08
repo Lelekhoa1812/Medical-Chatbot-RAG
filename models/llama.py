@@ -42,7 +42,7 @@ Keywords:"""
         """Use Llama to summarize documents and return summary with URL mapping"""
         try:
             # Import summarizer here to avoid circular imports
-            from summarizer import summarizer
+            from models.summarizer import summarizer
             
             # Use the summarizer for document summarization
             combined_summary, url_mapping = summarizer.summarize_documents(documents, user_query)

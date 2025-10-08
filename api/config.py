@@ -9,9 +9,10 @@ mongo_uri = os.getenv("MONGO_URI")
 index_uri = os.getenv("INDEX_URI")
 gemini_flash_api_key = os.getenv("FlashAPI")
 
-# Validate environment endpoint
-if not all([gemini_flash_api_key, mongo_uri, index_uri]):
-    raise ValueError("❌ Missing API keys! Set them in Hugging Face Secrets.")
+# Validate environment endpoint (only when actually running the app)
+def validate_environment():
+    if not all([gemini_flash_api_key, mongo_uri, index_uri]):
+        raise ValueError("❌ Missing API keys! Set them in Hugging Face Secrets.")
 
 # ✅ Logging Configuration
 def setup_logging():

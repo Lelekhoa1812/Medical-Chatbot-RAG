@@ -7,7 +7,7 @@ import faiss
 from sentence_transformers import SentenceTransformer
 from google import genai  # must be configured in app.py and imported globally
 import logging
-from summarizer import summarizer
+from models.summarizer import summarizer
 
 _LLM_SMALL = "gemini-2.5-flash-lite-preview-06-17"
 # Load embedding model
