@@ -544,7 +544,7 @@ body {
     .header-content {
       flex-direction: column;
       gap: 12px;
-      text-align: center;
+    text-align: center;
     }
     
     .header-title {
@@ -802,12 +802,54 @@ body {
     box-shadow: var(--shadow-medium);
   }
   
-  .mode-btn:hover:not(.active) {
+  .mode-btn.inactive {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+    opacity: 0.6;
+  }
+  
+  .mode-btn:hover {
     background: var(--bg-card-hover);
     color: var(--text-primary);
     border-color: var(--text-accent);
     transform: translateY(-1px);
     box-shadow: var(--shadow-medium);
+    opacity: 1;
+  }
+  
+  .mode-btn.active:hover {
+    background: var(--gradient-accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-heavy);
+  }
+  
+  /* Special styling when both modes are active */
+  .input-modes.both-active .mode-btn.active {
+    background: var(--gradient-success);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: translateY(-1px) scale(1); }
+    50% { transform: translateY(-2px) scale(1.02); }
+  }
+  
+  /* Inactive state styling */
+  .mode-btn.inactive {
+    position: relative;
+  }
+  
+  .mode-btn.inactive::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 20px;
+    background: var(--text-secondary);
+    transform: translate(-50%, -50%) rotate(45deg);
+    opacity: 0.5;
   }
   
   .mode-btn i {
@@ -1275,4 +1317,4 @@ body {
   max-width: 300px;
   word-break: break-all;
   margin-bottom: 5px;
-}
+  }

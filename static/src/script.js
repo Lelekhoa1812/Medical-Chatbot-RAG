@@ -27,8 +27,9 @@ let currentLang = "EN";
 // Global variable for current theme (default light)
 let currentTheme = "light";
 
-// Global variable for current input mode (default search)
-let currentMode = "search";
+// Global variables for independent mode states
+let searchModeActive = false;
+let uploadModeActive = false;
 
 // Translation strings
 const translations = {
@@ -134,25 +135,56 @@ function toggleTheme() {
     }
 }
 
-// Function to set input mode
-function setInputMode(mode) {
-    currentMode = mode;
-    const modeButtons = document.querySelectorAll('.mode-btn');
+// Function to toggle input mode independently
+function toggleInputMode(mode) {
+    const modeButton = document.getElementById(`${mode}-mode-btn`);
     const uploadLabel = document.getElementById('upload-label');
     
-    // Update active button
-    modeButtons.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.mode === mode) {
-            btn.classList.add('active');
+    if (mode === 'search') {
+        searchModeActive = !searchModeActive;
+        modeButton.classList.toggle('active', searchModeActive);
+        modeButton.classList.toggle('inactive', !searchModeActive);
+    } else if (mode === 'upload') {
+        uploadModeActive = !uploadModeActive;
+        modeButton.classList.toggle('active', uploadModeActive);
+        modeButton.classList.toggle('inactive', !uploadModeActive);
+        
+        // Show/hide upload icon based on upload mode
+        if (uploadModeActive) {
+            uploadLabel.style.display = 'flex';
+        } else {
+            uploadLabel.style.display = 'none';
         }
-    });
+    }
     
-    // Show/hide upload icon based on mode
-    if (mode === 'upload') {
-        uploadLabel.style.display = 'flex';
-    } else {
-        uploadLabel.style.display = 'none';
+    // Update UI feedback
+    updateModeFeedback();
+}
+
+// Function to update mode feedback
+function updateModeFeedback() {
+    const searchBtn = document.getElementById('search-mode-btn');
+    const uploadBtn = document.getElementById('upload-mode-btn');
+    const inputModes = document.querySelector('.input-modes');
+    
+    // Update button states
+    searchBtn.classList.toggle('active', searchModeActive);
+    searchBtn.classList.toggle('inactive', !searchModeActive);
+    uploadBtn.classList.toggle('active', uploadModeActive);
+    uploadBtn.classList.toggle('inactive', !uploadModeActive);
+    
+    // Add special class when both modes are active
+    inputModes.classList.toggle('both-active', searchModeActive && uploadModeActive);
+    
+    // Show notification about current mode state
+    if (searchModeActive && uploadModeActive) {
+        showNotification('Both Search and Upload modes are active', 'info', 3000);
+    } else if (!searchModeActive && !uploadModeActive) {
+        showNotification('No modes selected - text input only', 'warning', 3000);
+    } else if (searchModeActive) {
+        showNotification('Search mode active', 'success', 2000);
+    } else if (uploadModeActive) {
+        showNotification('Upload mode active', 'success', 2000);
     }
 }
 
@@ -497,13 +529,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Input mode functionality
-    const modeButtons = document.querySelectorAll('.mode-btn');
-    modeButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            setInputMode(this.dataset.mode);
+    // Input mode functionality - independent toggles
+    const searchModeBtn = document.getElementById('search-mode-btn');
+    const uploadModeBtn = document.getElementById('upload-mode-btn');
+    
+    if (searchModeBtn) {
+        searchModeBtn.addEventListener('click', function() {
+            toggleInputMode('search');
         });
-    });
+    }
+    
+    if (uploadModeBtn) {
+        uploadModeBtn.addEventListener('click', function() {
+            toggleInputMode('upload');
+        });
+    }
     
     const dropdownBtn = document.querySelector('.dropdown-btn');
     const dropdownMenu = document.querySelector('.dropdown-menu');
