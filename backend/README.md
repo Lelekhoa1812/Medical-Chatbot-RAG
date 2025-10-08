@@ -12,54 +12,29 @@ short_description: MedicalChatbot, FAISS, Gemini, MongoDB vDB, LRU
 
 # Medical Chatbot Backend
 
-## Project Structure
-
-The backend is organized into logical modules for better maintainability:
-
-### 📁 **api/**
-- **app.py** - Main FastAPI application with endpoints
-- **__init__.py** - API package initialization
-
-### 📁 **models/**
-- **llama.py** - NVIDIA Llama model integration for search processing
-- **summarizer.py** - Text summarization using NVIDIA Llama
-- **download_model.py** - Model download utilities
-- **warmup.py** - Model warmup scripts
-
-### 📁 **memory/**
-- **memory_updated.py** - Enhanced memory management with NVIDIA Llama summarization
-- **memory.py** - Legacy memory implementation
-
-### 📁 **search/**
-- **search.py** - Web search and content extraction functionality
-
-### 📁 **utils/**
-- **translation.py** - Multi-language translation utilities
-- **vlm.py** - Vision Language Model for medical image processing
-- **diagnosis.py** - Symptom-based diagnosis utilities
-- **connect_mongo.py** - MongoDB connection utilities
-- **clear_mongo.py** - Database cleanup utilities
-- **migrate.py** - Database migration scripts
+## At-a-glance
+Production-grade medical RAG with safe-guarding, query-focused web search, memory compression, and precise source citations.
 
 ## Key Features
 
-### 🔍 **Search Integration**
-- Web search with up to 10 resources
-- NVIDIA Llama model for keyword generation and document summarization
-- Citation system with URL mapping
-- Smart content filtering and validation
+### 🔍 Web Search Agent (Query-Focused)
+- Aggregates up to 10+ sources (DuckDuckGo) and expands a few same‑domain links per result
+- Crawls large pages, chunks with overlap, and uses Llama to extract only query‑relevant facts per chunk
+- Merges per‑source distilled snippets; maps citations to URLs for the UI
 
-### 🧠 **Enhanced Memory Management**
-- NVIDIA Llama-powered summarization for all text processing
-- Optimized chunking and context retrieval
-- Smart deduplication and merging
-- Conversation continuity with concise summaries
+### 🧠 Memory + Retrieval
+- Conversation memory compressed via Llama (concise, no fluff)
+- FAISS retrieval with dedup; optional reranker on guideline‑like texts
+- Context builder blends recent memory + RAG into a tight summary for the main LLM
 
-### 📝 **Summarization System**
-- **Text Cleaning**: Removes conversational fillers and normalizes text
-- **Key Phrase Extraction**: Identifies medical terms and concepts
-- **Concise Summaries**: Preserves key ideas without fluff
-- **NVIDIA Llama Integration**: All summarization uses NVIDIA model instead of Gemini
+### 🛡️ Safety Guard
+- Llama Guard (meta/llama-guard-4-12b) validates both user input and model output
+- Unsafe requests are blocked; unsafe answers are replaced with a safe fallback
+
+### 📝 Summarization
+- Text cleaning + key‑phrase priming
+- Query‑focused summarizer returns ONLY relevant medical facts
+- Used across memory, search chunking, and document synthesis
 
 ## Usage
 
@@ -73,10 +48,11 @@ python api/app.py
 ```
 
 ### Environment Variables
-- `NVIDIA_URI` - NVIDIA API key for Llama model
+- `NVIDIA_URI` - API key for Llama model
 - `FlashAPI` - Gemini API key
 - `MONGO_URI` - MongoDB connection string
 - `INDEX_URI` - FAISS index database URI
+- `NVIDIA_RERANK_ENDPOINT` (optional) - reranker endpoint
 
 ## API Endpoints
 
@@ -106,14 +82,14 @@ Main chat endpoint with search mode support.
 ## Search Mode Features
 
 When `search: true`:
-1. **Web Search**: Fetches up to 10 relevant medical resources
-2. **Llama Processing**: Generates keywords and summarizes content
-3. **Citation System**: Replaces `<#ID>` tags with actual URLs
-4. **UI Integration**: Frontend displays magnifier icons for source links
+1. Fetch up to 10 results and expand a few intrasite links per result
+2. Chunk each page; Llama extracts only query‑relevant facts per chunk
+3. Combine per‑doc summaries; instruct main LLM to cite with `<#ID>`
+4. Backend replaces `<#ID>` with `<URL>`; frontend renders magnifier icons
 
 ## Summarization Features
 
-All summarization tasks use NVIDIA Llama model:
+All summarization tasks use Llama model:
 - **get_contextual_chunks**: Summarizes conversation history and RAG chunks
 - **chunk_response**: Chunks and summarizes bot responses
 - **summarize_documents**: Summarizes web search results
@@ -124,9 +100,16 @@ All summarization tasks use NVIDIA Llama model:
 3. **Summarize**: Create concise, focused summaries
 4. **Validate**: Ensure quality and relevance
 
+## Folders (overview)
+- `api/` FastAPI app, routes, chatbot orchestration
+- `models/` Llama, Llama Guard, summarizer, warmup
+- `memory/` Memory manager and FAISS interfaces
+- `search/` Web search + extraction + chunking
+- `utils/` Translation, VLM, data utilities
+
 ## Dependencies
 
 See `requirements.txt` for complete list. Key additions:
 - `requests` - Web search functionality
 - `beautifulsoup4` - HTML content extraction
-- NVIDIA API integration for Llama model
+- API integration for Llama and Llama Guard
