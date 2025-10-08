@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from .config import mongo_uri, index_uri, MODEL_CACHE_DIR, EMBEDDING_MODEL_DEVICE
 import logging
 
-logger = logging.getLogger("medical-chatbot")
+logger = logging.getLogger("database-bot")
 
 class DatabaseManager:
     def __init__(self):

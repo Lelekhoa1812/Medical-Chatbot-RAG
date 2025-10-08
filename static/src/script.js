@@ -139,7 +139,7 @@ function clearChatHistory() {
         // Restore welcome screen
         const welcomeHTML = `
             <div id="welcome-container">
-                <img src="/public/img/logo.png" alt="Welcome Logo">
+                <img src="/img/logo.png" alt="Welcome Logo">
                 <p id="welcome-text">${translations[currentLang].welcomeText}</p>
                 <h1 id="acknowledgement">${translations[currentLang].acknowledgement}</h1>
                 <p id="author">${translations[currentLang].author}</p>
@@ -219,27 +219,36 @@ function getUserId() {
 // Function to update all UI strings based on selected language
 function updateLanguage(lang) {
     currentLang = lang;
-    // Update nav header and tooltip
-    document.getElementById('nav-header').innerText = translations[lang].header;
-    document.getElementById('tooltip').innerText = translations[lang].tooltip;
-    document.getElementById('upload-tooltip').innerText = translations[lang].upload_tooltip;
-    // Update chat header
-    document.getElementById('chat-header').innerText = translations[lang].header;
-    // Update welcome screen texts
-    document.getElementById('welcome-text').innerText = translations[lang].welcomeText;
-    document.getElementById('acknowledgement').innerText = translations[lang].acknowledgement;
-    document.getElementById('author').innerText = translations[lang].author;
-    document.getElementById('license').innerText = translations[lang].license;
-    // Update chat input placeholder
-    document.getElementById('user-input').placeholder = translations[lang].chatInputPlaceholder;
+    const t = translations[lang];
+    // Update nav header and tooltip (guarded)
+    const navHeader = document.getElementById('nav-header');
+    if (navHeader) navHeader.innerText = t.header;
+    const tooltip = document.getElementById('tooltip');
+    if (tooltip) tooltip.innerText = t.tooltip;
+    const uploadTooltip = document.getElementById('upload-tooltip');
+    if (uploadTooltip) uploadTooltip.innerText = t.upload_tooltip;
+    // Update chat header title text (target the inner title element)
+    const headerTitle = document.querySelector('.header-title');
+    if (headerTitle) headerTitle.innerText = t.header;
+    // Update welcome screen texts (guarded)
+    const welcomeText = document.getElementById('welcome-text');
+    if (welcomeText) welcomeText.innerText = t.welcomeText;
+    const acknowledgement = document.getElementById('acknowledgement');
+    if (acknowledgement) acknowledgement.innerText = t.acknowledgement;
+    const author = document.getElementById('author');
+    if (author) author.innerText = t.author;
+    const license = document.getElementById('license');
+    if (license) license.innerText = t.license;
+    // Update chat input placeholder (guarded)
+    const userInput = document.getElementById('user-input');
+    if (userInput) userInput.placeholder = t.chatInputPlaceholder;
     // Update nav links (both desktop and mobile)
     const accountLinks = document.querySelectorAll('#nav-account, #nav-account-mobile');
     const subscriptionLinks = document.querySelectorAll('#nav-subscription, #nav-subscription-mobile');
     const aboutLinks = document.querySelectorAll('#nav-about, #nav-about-mobile');
-    
-    accountLinks.forEach(link => link.innerText = translations[lang].account);
-    subscriptionLinks.forEach(link => link.innerText = translations[lang].subscription);
-    aboutLinks.forEach(link => link.innerText = translations[lang].about);
+    accountLinks.forEach(link => link.innerText = t.account);
+    subscriptionLinks.forEach(link => link.innerText = t.subscription);
+    aboutLinks.forEach(link => link.innerText = t.about);
 }
 
 // Function to toggle theme

@@ -27,7 +27,8 @@
   --bg-card: #1e293b;
   --bg-card-hover: #334155;
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
+  /* Increase contrast for secondary text in dark mode */
+  --text-secondary: #cbd5e1;
   --text-accent: #60a5fa;
   --text-accent-hover: #3b82f6;
   --border-color: #334155;
@@ -1045,6 +1046,58 @@ body {
     position: relative;
     word-wrap: break-word;
     line-height: 1.5;
+  }
+
+  /* Readability for markdown/content within bubbles */
+  .message-bubble h1,
+  .message-bubble h2,
+  .message-bubble h3,
+  .message-bubble h4,
+  .message-bubble h5,
+  .message-bubble h6,
+  .message-bubble p,
+  .message-bubble li,
+  .message-bubble blockquote,
+  .message-bubble table,
+  .message-bubble th,
+  .message-bubble td {
+    color: var(--text-primary);
+  }
+
+  .message-bubble a {
+    color: var(--text-accent);
+    text-decoration: underline;
+  }
+
+  .message-bubble code {
+    color: var(--text-primary);
+    background: var(--bg-card-hover);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  [data-theme="dark"] .message-bubble blockquote {
+    border-left: 4px solid var(--text-accent);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Ensure high readability for all text nodes inside bot bubbles in dark mode */
+  [data-theme="dark"] .message .bot .message-bubble,
+  [data-theme="dark"] .message .bot .message-bubble p,
+  [data-theme="dark"] .message .bot .message-bubble li,
+  [data-theme="dark"] .message .bot .message-bubble td,
+  [data-theme="dark"] .message .bot .message-bubble th,
+  [data-theme="dark"] .message .bot .message-bubble code,
+  [data-theme="dark"] .message .bot .message-bubble strong,
+  [data-theme="dark"] .message .bot .message-bubble em {
+    color: var(--text-primary);
+    opacity: 1;
+  }
+
+  /* Placeholder contrast in dark mode */
+  [data-theme="dark"] #user-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 1;
   }
   
   .message .bot .message-bubble::before {
