@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="/src/styles.css">
   <link rel="stylesheet" href="/src/credential.css">
   <link rel="stylesheet" href="/src/imgmodal.css">
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -82,8 +82,30 @@
     </div>
 </div>
 
+  <!-- Notification Toast -->
+  <div id="notification-toast" class="notification-toast hidden">
+    <div class="notification-content">
+      <i class="notification-icon"></i>
+      <span class="notification-message"></span>
+      <button class="notification-close">&times;</button>
+    </div>
+  </div>
+
   <div class="chat-container">
-    <div id="chat-header" class="chat-header">Medical Chatbot Doctor</div>
+    <div id="chat-header" class="chat-header">
+      <div class="header-content">
+        <div class="header-title">Medical Chatbot Doctor</div>
+        <div class="header-actions">
+          <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span class="status-text">Online</span>
+          </div>
+          <button class="header-action-btn" id="settings-btn" title="Settings">
+            <i class="fas fa-cog"></i>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="chat-messages" id="chat-messages">
       <!-- Welcome Screen (visible initially) -->
       <div id="welcome-container">

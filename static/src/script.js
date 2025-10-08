@@ -168,6 +168,42 @@ function initializeTheme() {
     }
 }
 
+// Notification System
+function showNotification(message, type = 'info', duration = 5000) {
+    const toast = document.getElementById('notification-toast');
+    const icon = toast.querySelector('.notification-icon');
+    const messageEl = toast.querySelector('.notification-message');
+    
+    // Set icon based on type
+    const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+    };
+    
+    icon.className = `notification-icon ${icons[type] || icons.info}`;
+    messageEl.textContent = message;
+    
+    // Show notification
+    toast.classList.remove('hidden');
+    
+    // Auto hide after duration
+    setTimeout(() => {
+        hideNotification();
+    }, duration);
+}
+
+function hideNotification() {
+    const toast = document.getElementById('notification-toast');
+    toast.classList.add('hidden');
+}
+
+// Settings functionality
+function openSettings() {
+    showNotification('Settings panel coming soon!', 'info');
+}
+
 // --- Remove last message ---
 function removeLastMessage() {
     const messagesDiv = document.getElementById('chat-messages');
@@ -296,6 +332,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Theme toggle functionality
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('click', toggleTheme);
+    
+    // Settings button functionality
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', openSettings);
+    }
+    
+    // Notification close functionality
+    const notificationClose = document.querySelector('.notification-close');
+    if (notificationClose) {
+        notificationClose.addEventListener('click', hideNotification);
+    }
     
     // Input mode functionality
     const modeButtons = document.querySelectorAll('.mode-btn');

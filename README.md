@@ -9,9 +9,9 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, and http-server, is deployed on Vercel.”
 
 ---
-For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/README-vi.md)
+For my Vietnamese language user, navigate to [README](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/README-vi.md)
 
-For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/%08README-zh.md)
+For my Mandarin/Chinese language user, navigate to [README](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/%08README-zh.md)
 
 ---
 
@@ -29,12 +29,12 @@ For my Mandarin/Chinese language user, navigate to [README](https://github.com/L
 Clone the repository to your local machine with:
 
 ```bash
-git clone https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot.git
+git clone https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG.git
 ```
 
 ### Installation
 
-Follow the detailed installation instructions in our [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md) to install and configure the project.
+Follow the detailed installation instructions in our [Setup Guide](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/setup.md) to install and configure the project.
 
 ---
 
@@ -46,14 +46,6 @@ Run the main server script with:
 
 ```bash
 python3 app.py
-```
-
-### Debug Mode
-
-For debugging purposes, run:
-
-```bash
-python3 -X faulthandler app.py
 ```
 
 ### Start the Interface (UI)
@@ -92,7 +84,7 @@ vercel run dev
 - **High-Performance Indexing:** Employs FAISS (cosine similarity) for fast, scalable similarity search.
 - **Robust FastAPI Backend:** Provides a scalable, efficient server built on FastAPI.
 - **Dynamic UI with Markdown Rendering:** The frontend uses dynamic HTML templates enhanced by MarkdownJS for rich text responses.
-- **Chat-history continuity:** Sytem dynamically fusing semantic search over historical QA and recent chat sessions with SLM verifier to ensure converstational continuity. [READ MORE](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/Medical-Chatbot/chat-history.md).
+- **Chat-history continuity:** Sytem dynamically fusing semantic search over historical QA and recent chat sessions with SLM verifier to ensure converstational continuity. [READ MORE](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/Medical-Chatbot/chat-history.md).
 - **Multilingual Support:** Includes English, Vietnamese, and Mandarin language options for a global audience. Leveraging NLP lightweight models like `envit5-translation` and `opus-mt-zh-en`.
 
 ---
@@ -169,10 +161,9 @@ vercel run dev
 ## 📚 Documentation
 
 For more detailed instructions and further documentation, please refer to:  
-- [Setup Guide](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/setup.md)  
-- [Autogen Documentation](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/autogen.md)  
-- [Project Wiki](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/wiki)
-
+- [Setup Guide](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/setup.md)  
+- [Autogen Documentation](https://github.com/Lelekhoa1812/AMedical-Chatbot-RAG/blob/main/autogen.md)  
+- HF commit `git subtree push --prefix=backend hf main`
 ---
 
 ## 🧩 Flowchart
@@ -183,7 +174,7 @@ For more detailed instructions and further documentation, please refer to:
 
 ## 📝 License
 
-This project is licensed under the [Apache 2.0 License](https://github.com/Lelekhoa1812/AutoGen-RAG-Medical-Chatbot/blob/main/LICENSE).
+This project is licensed under the [Apache 2.0 License](https://github.com/Lelekhoa1812/Medical-Chatbot-RAG/blob/main/LICENSE).
 
 ---
 
