@@ -10,7 +10,7 @@ transformers
 accelerate  
 sentencepiece
 # **Environment**
-python-dotenv       # Not used in Streamlit deployment
+python-dotenv      
 pymongo
 # **VLMs**
 # transformers
@@ -24,3 +24,6 @@ psutil              # CPU/RAM logger
 # **Web Search**
 requests
 beautifulsoup4
+# **Data**
+pandas
+numpy
