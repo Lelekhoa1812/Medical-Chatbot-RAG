@@ -31,6 +31,124 @@ let currentTheme = "light";
 let searchModeActive = false;
 let uploadModeActive = false;
 
+// Chat history management
+const CHAT_HISTORY_KEY = 'medical_chatbot_history';
+const MAX_HISTORY_ITEMS = 100; // Limit to prevent localStorage bloat
+
+// Chat history functions
+function saveChatHistory() {
+    try {
+        const messagesDiv = document.getElementById('chat-messages');
+        const messages = Array.from(messagesDiv.children)
+            .filter(messageEl => messageEl.classList.contains('message'))
+            .map(messageEl => {
+                // Determine role based on message structure
+                const userElement = messageEl.querySelector('.user');
+                const botElement = messageEl.querySelector('.bot');
+                const role = userElement ? 'user' : (botElement ? 'bot' : 'unknown');
+                
+                // Get the message content (excluding the role label)
+                const messageBubble = messageEl.querySelector('.message-bubble');
+                const content = messageBubble ? messageBubble.innerHTML : messageEl.innerHTML;
+                
+                const timestamp = new Date().toISOString();
+                
+                return {
+                    role,
+                    content,
+                    timestamp
+                };
+            })
+            .filter(msg => msg.role !== 'unknown'); // Filter out unknown role messages
+        
+        // Keep only the last MAX_HISTORY_ITEMS messages
+        const limitedMessages = messages.slice(-MAX_HISTORY_ITEMS);
+        localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(limitedMessages));
+        
+        console.log(`Saved ${limitedMessages.length} messages to chat history`);
+    } catch (error) {
+        console.error('Error saving chat history:', error);
+    }
+}
+
+function loadChatHistory() {
+    try {
+        const savedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
+        if (savedHistory) {
+            const messages = JSON.parse(savedHistory);
+            const messagesDiv = document.getElementById('chat-messages');
+            
+            // Clear existing messages (except welcome screen)
+            const welcomeContainer = document.getElementById('welcome-container');
+            if (welcomeContainer) {
+                welcomeContainer.remove();
+            }
+            
+            // Load each message with proper structure
+            messages.forEach(messageData => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                
+                // Create message structure similar to appendMessage
+                const prefix = messageData.role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
+                
+                // Create message container
+                const messageContainer = document.createElement('div');
+                messageContainer.classList.add(messageData.role);
+                
+                // Create label
+                const label = document.createElement('strong');
+                label.textContent = prefix;
+                messageContainer.appendChild(label);
+                
+                // Create message bubble
+                const messageBubble = document.createElement('div');
+                messageBubble.classList.add('message-bubble');
+                messageBubble.innerHTML = messageData.content;
+                
+                messageContainer.appendChild(messageBubble);
+                messageDiv.appendChild(messageContainer);
+                messagesDiv.appendChild(messageDiv);
+            });
+            
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            if (messages.length > 0) {
+                showNotification(`Loaded ${messages.length} previous messages`, 'success', 3000);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading chat history:', error);
+        showNotification('Error loading chat history', 'error', 3000);
+    }
+}
+
+function clearChatHistory() {
+    try {
+        localStorage.removeItem(CHAT_HISTORY_KEY);
+        const messagesDiv = document.getElementById('chat-messages');
+        const messages = messagesDiv.querySelectorAll('.message');
+        messages.forEach(message => message.remove());
+        
+        // Restore welcome screen
+        const welcomeHTML = `
+            <div id="welcome-container">
+                <img src="/public/img/logo.png" alt="Welcome Logo">
+                <p id="welcome-text">${translations[currentLang].welcomeText}</p>
+                <h1 id="acknowledgement">${translations[currentLang].acknowledgement}</h1>
+                <p id="author">${translations[currentLang].author}</p>
+                <a id="license" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG/blob/main/LICENSE">${translations[currentLang].license}</a>
+            </div>`;
+        messagesDiv.innerHTML = welcomeHTML;
+        
+        showNotification('Chat history cleared', 'success', 2000);
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        showNotification('Error clearing chat history', 'error', 3000);
+    }
+}
+
 // Translation strings
 const translations = {
     "EN": {
@@ -476,8 +594,8 @@ function appendMessage(role, text, isHTML) {
         const imagePreview = document.createElement('div');
         imagePreview.className = 'chat-preview-image-block';
         imagePreview.innerHTML = `
-            <img src="data:image/jpeg;base64,${pendingImageBase64}" alt="User Image" />
-            <p class="image-desc">${pendingImageDesc}</p>
+                <img src="data:image/jpeg;base64,${pendingImageBase64}" alt="User Image" />
+                <p class="image-desc">${pendingImageDesc}</p>
         `;
         messageBubble.appendChild(imagePreview);
     }
@@ -491,6 +609,9 @@ function appendMessage(role, text, isHTML) {
         top: messagesDiv.scrollHeight,
         behavior: 'smooth'
     });
+    
+    // Save chat history after adding message
+    saveChatHistory();
 }
 
 
@@ -499,12 +620,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme
     initializeTheme();
     
+    // Load chat history on page load
+    loadChatHistory();
+    
     // Initialize mobile menu
     initializeMobileMenu();
     
     // Theme toggle functionality
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('click', toggleTheme);
+    
+    // Clear history button functionality
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all chat history? This action cannot be undone.')) {
+                clearChatHistory();
+            }
+        });
+    }
     
     // Settings button functionality
     const settingsBtn = document.getElementById('settings-btn');
