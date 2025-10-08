@@ -544,7 +544,7 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         query: message,
         lang: currentLang,
         user_id,
-        search: currentMode === "search",
+        search: !!searchModeActive,
         ...(pendingImageBase64 ? { image_base64: pendingImageBase64 } : {}),
         img_desc: pendingImageDesc,
     };
@@ -772,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
           event.preventDefault(); // prevent newline
           // Only send if not already submitting
           if (!isSubmitting) {
-            sendMessage(); // your custom send function
+          sendMessage(); // your custom send function
           }
         }
     });
