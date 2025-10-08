@@ -181,7 +181,8 @@ class _NvidiaReranker:
     """Simple client for NVIDIA NIM reranking: nvidia/rerank-qa-mistral-4b"""
     def __init__(self):
         self.api_key = os.getenv("NVIDIA_URI")
-        self.model = "nvidia/rerank-qa-mistral-4b"
+        # Use provider doc model identifier
+        self.model = os.getenv("NVIDIA_RERANK_MODEL", "nv-rerank-qa-mistral-4b:1")
         # NIM rerank endpoint (subject to environment); keep configurable
         self.base_url = os.getenv("NVIDIA_RERANK_ENDPOINT", "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking")
         self.timeout_s = 30
@@ -194,16 +195,36 @@ class _NvidiaReranker:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
         }
-        payload = {
-            "model": self.model,
-            "query": query,
-            "documents": [{"text": d} for d in documents],
-        }
+        # Truncate and limit candidates to avoid 4xx
+        docs = documents[:10]
+        docs = [d[:2000] for d in docs if isinstance(d, str)]
+        # Two payload shapes based on provider doc
+        payloads = [
+            {
+                "model": self.model,
+                "query": {"text": query},
+                "passages": [{"text": d} for d in docs],
+            },
+            {
+                "model": self.model,
+                "query": query,
+                "documents": [{"text": d} for d in docs],
+            },
+        ]
         try:
-            resp = requests.post(self.base_url, headers=headers, json=payload, timeout=self.timeout_s)
-            resp.raise_for_status()
-            data = resp.json()
+            data = None
+            for p in payloads:
+                resp = requests.post(self.base_url, headers=headers, json=p, timeout=self.timeout_s)
+                if resp.status_code >= 400:
+                    # try next shape
+                    continue
+                data = resp.json()
+                break
+            if data is None:
+                # last attempt for diagnostics
+                resp.raise_for_status()
             # Expecting a list with scores and indices or texts
             results = []
             entries = data.get("results") or data.get("data") or []
