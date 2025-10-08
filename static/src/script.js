@@ -30,6 +30,7 @@ let currentTheme = "light";
 // Global variables for independent mode states
 let searchModeActive = false;
 let uploadModeActive = false;
+let videoModeActive = false;
 
 // Submission state management
 let isSubmitting = false;
@@ -271,6 +272,120 @@ function cleanupOldPendingRequests() {
     }
 }
 
+// Video display functions
+function displayVideos(videos) {
+    if (!videos || videos.length === 0) return;
+    
+    const messagesDiv = document.getElementById('chat-messages');
+    const videoContainer = document.createElement('div');
+    videoContainer.classList.add('video-container');
+    videoContainer.innerHTML = `
+        <div class="video-header">
+            <h4>📹 Related Medical Videos</h4>
+        </div>
+        <div class="video-grid">
+            ${videos.map((video, index) => createVideoCard(video, index)).join('')}
+        </div>
+    `;
+    
+    messagesDiv.appendChild(videoContainer);
+    
+    // Scroll to bottom
+    messagesDiv.scrollTo({
+        top: messagesDiv.scrollHeight,
+        behavior: 'smooth'
+    });
+    
+    // Add event listeners for video cards
+    addVideoEventListeners();
+}
+
+function createVideoCard(video, index) {
+    const videoId = `video-${index}`;
+    const embedUrl = getEmbedUrl(video.url);
+    
+    return `
+        <div class="video-card" data-video-id="${videoId}">
+            <div class="video-thumbnail" onclick="toggleVideo('${videoId}')">
+                <img src="${video.thumbnail}" alt="${video.title}" />
+                <div class="video-overlay">
+                    <i class="fas fa-play"></i>
+                </div>
+                <div class="video-duration">${video.duration || ''}</div>
+            </div>
+            <div class="video-info">
+                <h5 class="video-title">${video.title}</h5>
+                <p class="video-channel">${video.channel || video.source}</p>
+                <div class="video-actions">
+                    <button class="video-btn" onclick="toggleVideo('${videoId}')">
+                        <i class="fas fa-play"></i> Watch
+                    </button>
+                    <a href="${video.url}" target="_blank" class="video-btn external">
+                        <i class="fas fa-external-link-alt"></i> Open
+                    </a>
+                </div>
+            </div>
+            <div class="video-player" id="${videoId}" style="display: none;">
+                <iframe 
+                    src="${embedUrl}" 
+                    frameborder="0" 
+                    allowfullscreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                </iframe>
+                <button class="close-video" onclick="toggleVideo('${videoId}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function getEmbedUrl(url) {
+    // Convert YouTube URLs to embed format
+    if (url.includes('youtube.com/watch')) {
+        const videoId = url.split('v=')[1]?.split('&')[0];
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    } else if (url.includes('youtu.be/')) {
+        const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    }
+    // For other platforms, return original URL (they might not support embedding)
+    return url;
+}
+
+function toggleVideo(videoId) {
+    const videoPlayer = document.getElementById(videoId);
+    const videoCard = videoPlayer.closest('.video-card');
+    
+    if (videoPlayer.style.display === 'none') {
+        // Show video player
+        videoPlayer.style.display = 'block';
+        videoCard.classList.add('expanded');
+        
+        // Hide other expanded videos
+        document.querySelectorAll('.video-card.expanded').forEach(card => {
+            if (card !== videoCard) {
+                const otherPlayer = card.querySelector('.video-player');
+                otherPlayer.style.display = 'none';
+                card.classList.remove('expanded');
+            }
+        });
+        
+        // Scroll to video
+        videoCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        // Hide video player
+        videoPlayer.style.display = 'none';
+        videoCard.classList.remove('expanded');
+    }
+}
+
+function addVideoEventListeners() {
+    // Event listeners are added via onclick attributes in the HTML
+    // This function can be used for additional event handling if needed
+    console.log('Video event listeners added');
+}
+
 // Translation strings
 const translations = {
     "EN": {
@@ -404,6 +519,10 @@ function toggleInputMode(mode) {
         } else {
             uploadLabel.style.display = 'none';
         }
+    } else if (mode === 'video') {
+        videoModeActive = !videoModeActive;
+        modeButton.classList.toggle('active', videoModeActive);
+        modeButton.classList.toggle('inactive', !videoModeActive);
     }
     
     // Update UI feedback
@@ -414,6 +533,7 @@ function toggleInputMode(mode) {
 function updateModeFeedback() {
     const searchBtn = document.getElementById('search-mode-btn');
     const uploadBtn = document.getElementById('upload-mode-btn');
+    const videoBtn = document.getElementById('video-mode-btn');
     const inputModes = document.querySelector('.input-modes');
     
     // Update button states
@@ -421,19 +541,32 @@ function updateModeFeedback() {
     searchBtn.classList.toggle('inactive', !searchModeActive);
     uploadBtn.classList.toggle('active', uploadModeActive);
     uploadBtn.classList.toggle('inactive', !uploadModeActive);
+    videoBtn.classList.toggle('active', videoModeActive);
+    videoBtn.classList.toggle('inactive', !videoModeActive);
     
-    // Add special class when both modes are active
-    inputModes.classList.toggle('both-active', searchModeActive && uploadModeActive);
+    // Count active modes
+    const activeModes = [searchModeActive, uploadModeActive, videoModeActive].filter(Boolean).length;
+    
+    // Add special class when multiple modes are active
+    inputModes.classList.toggle('multiple-active', activeModes > 1);
     
     // Show notification about current mode state
-    if (searchModeActive && uploadModeActive) {
-        showNotification('Both Search and Upload modes are active', 'info', 3000);
-    } else if (!searchModeActive && !uploadModeActive) {
+    if (activeModes === 0) {
         showNotification('No modes selected - text input only', 'warning', 3000);
-    } else if (searchModeActive) {
-        showNotification('Search mode active', 'success', 2000);
-    } else if (uploadModeActive) {
-        showNotification('Upload mode active', 'success', 2000);
+    } else if (activeModes === 1) {
+        if (searchModeActive) {
+            showNotification('Search mode active', 'success', 2000);
+        } else if (uploadModeActive) {
+            showNotification('Upload mode active', 'success', 2000);
+        } else if (videoModeActive) {
+            showNotification('Video mode active', 'success', 2000);
+        }
+    } else {
+        const activeModeNames = [];
+        if (searchModeActive) activeModeNames.push('Search');
+        if (uploadModeActive) activeModeNames.push('Upload');
+        if (videoModeActive) activeModeNames.push('Video');
+        showNotification(`${activeModeNames.join(', ')} modes are active`, 'info', 3000);
     }
 }
 
@@ -671,6 +804,7 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         lang: currentLang,
         user_id,
         search: !!searchModeActive,
+        video: !!videoModeActive,
         ...(pendingImageBase64 ? { image_base64: pendingImageBase64 } : {}),
         img_desc: pendingImageDesc,
     };
@@ -719,6 +853,11 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         
         // Add event listeners for citation links
         addCitationListeners();
+        
+        // Handle video data if present
+        if (data.videos && data.videos.length > 0) {
+            displayVideos(data.videos);
+        }
         
         // Remove from pending requests since we got the response
         if (data.request_id) {
@@ -871,6 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Input mode functionality - independent toggles
     const searchModeBtn = document.getElementById('search-mode-btn');
     const uploadModeBtn = document.getElementById('upload-mode-btn');
+    const videoModeBtn = document.getElementById('video-mode-btn');
     
     if (searchModeBtn) {
         searchModeBtn.addEventListener('click', function() {
@@ -881,6 +1021,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (uploadModeBtn) {
         uploadModeBtn.addEventListener('click', function() {
             toggleInputMode('upload');
+        });
+    }
+    
+    if (videoModeBtn) {
+        videoModeBtn.addEventListener('click', function() {
+            toggleInputMode('video');
         });
     }
     
