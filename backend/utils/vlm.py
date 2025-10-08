@@ -1,7 +1,7 @@
 import os, logging, traceback, json, base64
 from io import BytesIO
 from PIL import Image
-from translation import translate_query
+from .translation import translate_query
 from gradio_client import Client, handle_file
 import tempfile
 
