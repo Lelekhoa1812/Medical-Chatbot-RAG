@@ -5,52 +5,144 @@
     z-index: 999;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.7);
     justify-content: center;
     align-items: center;
+    animation: modalFadeIn 0.3s ease-out;
   }
+  
+  @keyframes modalFadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  
   .image-modal-content {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    max-width: 500px;
+    background: var(--bg-card);
+    padding: 35px;
+    border-radius: 20px;
+    max-width: 550px;
     width: 90%;
-    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-heavy);
+    border: 1px solid var(--border-color);
+    animation: modalSlideIn 0.4s ease-out;
+    position: relative;
+    overflow: hidden;
   }
-  .image-modal-content h6, 
+  
+  @keyframes modalSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-30px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  .image-modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-accent);
+  }
+  .image-modal-content h4 {
+    text-align: center;
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  
   .image-modal-content p {
     text-align: center;
-    margin: 10px 0;
-    color: #333;
+    margin: 15px 0;
+    color: var(--text-secondary);
+    font-size: 1rem;
   }
+  
   .image-modal-content textarea {
     width: 100%;
-    height: 100px;
-    margin-top: 10px;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 0.95rem;
-    border: 1px solid #ccc;
+    height: 120px;
+    margin-top: 15px;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 1rem;
+    border: 2px solid var(--border-color);
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.3s ease;
+    resize: vertical;
+    font-family: inherit;
   }
+  
+  .image-modal-content textarea:focus {
+    border-color: var(--text-accent);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  }
+  
+  .image-modal-content textarea::placeholder {
+    color: var(--text-secondary);
+  }
+  
   .image-modal-content img {
-    transition: transform 0.2s ease;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    box-shadow: var(--shadow-light);
   }
+  
   .image-modal-content img:hover {
     transform: scale(1.02);
+    box-shadow: var(--shadow-medium);
   }  
+  
   .image-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 15px;
+    margin-top: 25px;
   }
+  
   .image-modal-actions button {
-    padding: 8px 16px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    background-color: rgb(18, 129, 144);
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    min-width: 100px;
+  }
+  
+  .image-modal-actions button:first-child {
+    background: var(--bg-card-hover);
+    color: var(--text-secondary);
+    border: 2px solid var(--border-color);
+  }
+  
+  .image-modal-actions button:first-child:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+  }
+  
+  .image-modal-actions button:last-child {
+    background: var(--gradient-accent);
     color: white;
+    box-shadow: var(--shadow-light);
+  }
+  
+  .image-modal-actions button:last-child:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
   }
   .hidden {
     display: none !important;
@@ -60,55 +152,93 @@
   
   /* Previewer */
   #upload-preview-container {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
   }
+  
   .image-preview-block {
     display: flex;
-    align-items: flex-start;
-    background: #f3f3f3;
-    border-radius: 8px;
-    padding: 10px;
-    gap: 10px;
+    align-items: center;
+    background: var(--bg-card-hover);
+    border-radius: 12px;
+    padding: 15px;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-light);
+    transition: all 0.3s ease;
   }
+  
+  .image-preview-block:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+  }
+  
   .image-preview-block img {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-light);
   }
+  
   .image-preview-block p {
     margin: 0;
-    font-size: 0.85rem;
-    color: #333;
+    font-size: 0.9rem;
+    color: var(--text-primary);
     flex: 1;
+    font-weight: 500;
   }
+  
   .image-preview-block button {
-    background: transparent;
+    background: var(--text-accent);
     border: none;
-    font-size: 1rem;
-    color: #999;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    color: white;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
   }
+  
   .image-preview-block button:hover {
-    color: red;
+    background: #e74c3c;
+    transform: scale(1.1);
   }
   /* On chat previewer */
   .chat-preview-image-block {
-    margin-top: 10px;
+    margin-top: 15px;
     text-align: center;
+    background: var(--bg-card-hover);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-light);
   }
+  
   .chat-preview-image-block img {
-    width: 150px;
-    max-height: 150px;
+    width: 180px;
+    max-height: 180px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: 10px;
     display: block;
     margin: 0 auto;
+    box-shadow: var(--shadow-light);
+    transition: all 0.3s ease;
   }
+  
+  .chat-preview-image-block img:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow-medium);
+  }
+  
   .chat-preview-image-block .image-desc {
-    margin-top: 6px;
-    font-size: 0.85rem;
+    margin-top: 10px;
+    font-size: 0.9rem;
     font-style: italic;
-    color: #555;
+    color: var(--text-secondary);
+    font-weight: 500;
   }
   

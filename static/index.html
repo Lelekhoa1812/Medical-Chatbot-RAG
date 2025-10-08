@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/src/imgmodal.css">
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <!-- Language Selection Modal -->
@@ -41,6 +43,12 @@
             <li data-lang="EN">English</li>
             <li data-lang="ZH">Mandarin</li>
           </ul>
+        </li>
+        <!-- Theme Toggle -->
+        <li>
+          <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+          </button>
         </li>
       </ul>
     </nav>
@@ -100,19 +108,36 @@
         </div>
       </div>
     </div>
-    <!-- Text + image upload input -->
+    <!-- Enhanced chat input with modes -->
     <div class="chat-input">
-      <textarea
-        id="user-input"
-        placeholder="Type your question here..."
-        rows="1"
-      ></textarea>
-      <label id="upload-label" class="upload-icon">
-        <img id="upload-img" src="/public/img/upload.png" alt="Upload" />
-        <div id="upload-tooltip" class="upload-tooltip">Upload medical image diagnosis.</div>
-        <input type="file" id="image-upload" accept="image/*" hidden />
-      </label>
-      <button id="send-btn">Send</button>
+      <!-- Mode Selection -->
+      <div class="input-modes">
+        <button class="mode-btn active" data-mode="search">
+          <i class="fas fa-search"></i>
+          Search
+        </button>
+        <button class="mode-btn" data-mode="upload">
+          <i class="fas fa-upload"></i>
+          Upload
+        </button>
+      </div>
+      
+      <!-- Input Container -->
+      <div class="input-container">
+        <textarea
+          id="user-input"
+          placeholder="Type your question here..."
+          rows="1"
+        ></textarea>
+        <label id="upload-label" class="upload-icon" style="display: none;">
+          <img id="upload-img" src="/public/img/upload.png" alt="Upload" />
+          <div id="upload-tooltip" class="upload-tooltip">Upload medical image diagnosis.</div>
+          <input type="file" id="image-upload" accept="image/*" hidden />
+        </label>
+        <button id="send-btn" class="send-btn">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
     </div>
   </div>
   <!-- Include Marked.js for markdown rendering -->

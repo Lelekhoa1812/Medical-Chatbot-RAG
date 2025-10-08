@@ -1,12 +1,11 @@
 # Utils
 Miniconda3.sh
-AutoGenRAGMedicalChatbot
 storage.md
 
 # Backend
-Medical-Chatbot/secrets.toml
-Medical-Chatbot/.env
-Medical-Chatbot/.git
+backend/secrets.toml
+backend/.env
+backend/.git
 
 # Frontend
 static/dist

@@ -24,6 +24,12 @@ console.log("Mixed formatting:", marked.parse("### **Bold** and *italic* heading
 // Global variable for current language (default English)
 let currentLang = "EN";
 
+// Global variable for current theme (default light)
+let currentTheme = "light";
+
+// Global variable for current input mode (default search)
+let currentMode = "search";
+
 // Translation strings
 const translations = {
     "EN": {
@@ -106,6 +112,60 @@ function updateLanguage(lang) {
     document.getElementById('nav-account').innerText = translations[lang].account;
     document.getElementById('nav-subscription').innerText = translations[lang].subscription;
     document.getElementById('nav-about').innerText = translations[lang].about;
+}
+
+// Function to toggle theme
+function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('theme', currentTheme);
+    
+    // Update theme toggle icon
+    const themeToggle = document.getElementById('theme-toggle');
+    const icon = themeToggle.querySelector('i');
+    if (currentTheme === 'dark') {
+        icon.className = 'fas fa-sun';
+    } else {
+        icon.className = 'fas fa-moon';
+    }
+}
+
+// Function to set input mode
+function setInputMode(mode) {
+    currentMode = mode;
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    const uploadLabel = document.getElementById('upload-label');
+    
+    // Update active button
+    modeButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.mode === mode) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Show/hide upload icon based on mode
+    if (mode === 'upload') {
+        uploadLabel.style.display = 'flex';
+    } else {
+        uploadLabel.style.display = 'none';
+    }
+}
+
+// Initialize theme from localStorage
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    currentTheme = savedTheme;
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
+    // Update theme toggle icon
+    const themeToggle = document.getElementById('theme-toggle');
+    const icon = themeToggle.querySelector('i');
+    if (currentTheme === 'dark') {
+        icon.className = 'fas fa-sun';
+    } else {
+        icon.className = 'fas fa-moon';
+    }
 }
 
 // --- Remove last message ---
@@ -230,6 +290,21 @@ function appendMessage(role, text, isHTML) {
 
 // --- Dropdown Lang Selector ---
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize theme
+    initializeTheme();
+    
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('click', toggleTheme);
+    
+    // Input mode functionality
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            setInputMode(this.dataset.mode);
+        });
+    });
+    
     const dropdownBtn = document.querySelector('.dropdown-btn');
     const dropdownMenu = document.querySelector('.dropdown-menu');
     dropdownBtn.addEventListener('click', function(event) {
