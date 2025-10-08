@@ -40,7 +40,7 @@ async def chat_endpoint(req: Request):
     else:
         # If image is present → diagnose first
         safe_load = len(image_base64.encode("utf-8"))
-        if safe_load > 5_000_000:  # Img size safe processor
+        if safe_load > 6_000_000:  # Img size safe processor
             return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
         logger.info(f"[BOT] VLM+LLM scenario. Search mode: {search_mode}")
         logger.info(f"[VLM] Process medical image size: {safe_load}, desc: {img_desc}, {lang}.")
