@@ -447,33 +447,50 @@ function appendMessage(role, text, isHTML) {
     const messagesDiv = document.getElementById('chat-messages');
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message');
-    // Prefixing
+    
+    // Create message structure
     const prefix = role === 'user' ? translations[currentLang].you : translations[currentLang].bot;
-    // MarkDown -> HTML
-    let content = '';
+    
+    // Create message container
+    const messageContainer = document.createElement('div');
+    messageContainer.classList.add(role);
+    
+    // Create label
+    const label = document.createElement('strong');
+    label.textContent = prefix;
+    messageContainer.appendChild(label);
+    
+    // Create message bubble
+    const messageBubble = document.createElement('div');
+    messageBubble.classList.add('message-bubble');
+    
+    // Set content
     if (isHTML) {
-        content = `<strong class="${role}">${prefix}:</strong><br/>${text}`;
+        messageBubble.innerHTML = text;
     } else {
-        content = `<strong class="${role}">${prefix}:</strong> ${text}`;
-    }
-    // If this is a user message and pendingImageBase64 is set, include image preview
-    if (role === 'user' && pendingImageBase64) {
-        content += `
-            <div class="chat-preview-image-block">
-                <img src="data:image/jpeg;base64,${pendingImageBase64}" alt="User Image" />
-                <p class="image-desc">${pendingImageDesc}</p>
-            </div>`;
-    }
-    // Debug: Log the content being inserted
-    if (role === 'bot') {
-        console.log('🔍 Bot message content:', content);
-        console.log('🔍 Message div element:', messageDiv);
+        messageBubble.textContent = text;
     }
     
-    // Append components
-    messageDiv.innerHTML = content;
+    // If this is a user message and pendingImageBase64 is set, include image preview
+    if (role === 'user' && pendingImageBase64) {
+        const imagePreview = document.createElement('div');
+        imagePreview.className = 'chat-preview-image-block';
+        imagePreview.innerHTML = `
+            <img src="data:image/jpeg;base64,${pendingImageBase64}" alt="User Image" />
+            <p class="image-desc">${pendingImageDesc}</p>
+        `;
+        messageBubble.appendChild(imagePreview);
+    }
+    
+    messageContainer.appendChild(messageBubble);
+    messageDiv.appendChild(messageContainer);
     messagesDiv.appendChild(messageDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    // Smooth scroll to bottom
+    messagesDiv.scrollTo({
+        top: messagesDiv.scrollHeight,
+        behavior: 'smooth'
+    });
 }
 
 

@@ -961,13 +961,13 @@ body {
     box-shadow: var(--shadow-light);
   }
   .message {
-    margin-bottom: 20px;
-    padding: 16px 20px;
-    border-radius: 16px;
-    animation: messageSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 24px;
+    padding: 0;
+    animation: messageSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-light);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
   
   @keyframes messageSlideIn {
@@ -980,22 +980,147 @@ body {
       transform: translateY(0) scale(1);
     }
   }
-  /* Inner MarkDown format */
-  .user {
+  /* Message Container Styles */
+  .message .user,
+  .message .bot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 80%;
+    position: relative;
+  }
+  
+  /* User Message Styling */
+  .message .user {
+    align-self: flex-end;
+    margin-left: 20%;
+  }
+  
+  .message .user .message-bubble {
     background: var(--gradient-primary);
     color: white;
-    margin-left: 20%;
-    border-bottom-right-radius: 6px;
+    padding: 16px 20px;
+    border-radius: 20px 20px 6px 20px;
     box-shadow: var(--shadow-medium);
-    font-weight: 500;
+    position: relative;
+    word-wrap: break-word;
+    line-height: 1.5;
   }
-  .bot {
-    background: var(--bg-card-hover);
-    color: var(--text-primary);
+  
+  .message .user .message-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-left-color: var(--text-accent);
+    border-bottom: 8px solid var(--text-accent);
+  }
+  
+  /* Bot Message Styling */
+  .message .bot {
+    align-self: flex-start;
     margin-right: 20%;
-    border-bottom-left-radius: 6px;
-    font-weight: 400;
+  }
+  
+  .message .bot .message-bubble {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 16px 20px;
+    border-radius: 20px 20px 20px 6px;
+    box-shadow: var(--shadow-light);
     border: 1px solid var(--border-color);
+    position: relative;
+    word-wrap: break-word;
+    line-height: 1.5;
+  }
+  
+  .message .bot .message-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right-color: var(--bg-card);
+    border-bottom: 8px solid var(--bg-card);
+  }
+  
+  /* Message Label Styling */
+  .message .user strong,
+  .message .bot strong {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .message .user strong {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+  
+  .message .bot strong {
+    background: var(--gradient-accent);
+    color: white;
+  }
+  
+  /* Mobile Responsive Messages */
+  @media (max-width: 768px) {
+    .message .user,
+    .message .bot {
+      max-width: 90%;
+      margin-left: 0;
+      margin-right: 0;
+    }
+    
+    .message .user {
+      margin-left: 10%;
+    }
+    
+    .message .bot {
+      margin-right: 10%;
+    }
+    
+    .message .user .message-bubble,
+    .message .bot .message-bubble {
+      padding: 12px 16px;
+      font-size: 0.95rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .message .user,
+    .message .bot {
+      max-width: 95%;
+    }
+    
+    .message .user {
+      margin-left: 5%;
+    }
+    
+    .message .bot {
+      margin-right: 5%;
+    }
+    
+    .message .user .message-bubble,
+    .message .bot .message-bubble {
+      padding: 10px 14px;
+      font-size: 0.9rem;
+    }
+    
+    .message .user strong,
+    .message .bot strong {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+    }
   }
   /* Clean, consolidated heading styles for bot messages */
   .bot h1, .bot h2, .bot h3, .bot h4, .bot h5, .bot h6 {
