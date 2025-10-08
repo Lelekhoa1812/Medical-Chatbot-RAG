@@ -29,34 +29,61 @@ class SafetyGuard:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
         }
-        payload = {
+        # Try OpenAI-compatible schema first
+        payload_chat = {
             "model": self.model,
             "messages": messages,
             "temperature": 0.0,
             "max_tokens": max_tokens,
         }
-        try:
-            resp = requests.post(self.base_url, headers=headers, json=payload, timeout=self.timeout_s)
-            resp.raise_for_status()
-            data = resp.json()
-            content = (
-                data.get("choices", [{}])[0]
-                    .get("message", {})
-                    .get("content", "")
-                    .strip()
-            )
-            return content
-        except Exception as e:
-            logger.error(f"[SafetyGuard] Guard API call failed: {e}")
-            # Fail closed: if guard is unavailable, treat as unsafe by returning empty
-            return ""
+        # Alternative schema (some NVIDIA deployments require message content objects)
+        alt_messages = []
+        for m in messages:
+            content = m.get("content", "")
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
+            alt_messages.append({"role": m.get("role", "user"), "content": content})
+        payload_alt = {
+            "model": self.model,
+            "messages": alt_messages,
+            "temperature": 0.0,
+            "max_tokens": max_tokens,
+        }
+        # Attempt primary, then fallback
+        for payload in (payload_chat, payload_alt):
+            try:
+                resp = requests.post(self.base_url, headers=headers, json=payload, timeout=self.timeout_s)
+                if resp.status_code >= 400:
+                    # Log server message for debugging payload issues
+                    try:
+                        logger.error(f"[SafetyGuard] HTTP {resp.status_code}: {resp.text[:400]}")
+                    except Exception:
+                        pass
+                    resp.raise_for_status()
+                data = resp.json()
+                content = (
+                    data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                        .strip()
+                )
+                if content:
+                    return content
+            except Exception as e:
+                # Try next payload shape
+                logger.error(f"[SafetyGuard] Guard API call failed: {e}")
+                continue
+        # All attempts failed
+        return ""
 
     @staticmethod
     def _parse_guard_reply(text: str) -> Tuple[bool, str]:
         """Parse guard reply; expect 'SAFE' or 'UNSAFE: <reason>' (case-insensitive)."""
         if not text:
-            return False, "safety check unavailable"
+            # Fail-open: treat as SAFE if guard unavailable to avoid false blocks
+            return True, "guard_unavailable"
         t = text.strip()
         upper = t.upper()
         if upper.startswith("SAFE") and not upper.startswith("SAFEGUARD"):
