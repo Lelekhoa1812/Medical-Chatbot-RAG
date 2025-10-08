@@ -3,8 +3,8 @@ import re
 import logging
 from typing import Dict
 from google import genai
-from api.config import gemini_flash_api_key
-from api.retrieval import retrieval_engine
+from config import gemini_flash_api_key
+from retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
 from search import search_web

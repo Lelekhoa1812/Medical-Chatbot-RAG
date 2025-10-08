@@ -2,9 +2,9 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.config import setup_logging, check_system_resources, optimize_memory, CORS_ORIGINS, validate_environment
-from api.database import db_manager
-from api.routes import router
+from config import setup_logging, check_system_resources, optimize_memory, CORS_ORIGINS, validate_environment
+from database import db_manager
+from routes import router
 
 # ✅ Validate environment
 validate_environment()
