@@ -29,4 +29,3 @@ pandas
 numpy
 # **Additional Dependencies**
 gridfs              # MongoDB GridFS for file storage
-tqdm                # Progress bars for data processing
