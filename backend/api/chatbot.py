@@ -7,7 +7,7 @@ from .config import gemini_flash_api_key
 from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
-from search import search_web
+from search import search_web_with_content
 from models import summarizer
 from models import process_search_query
 from models.guard import safety_guard
@@ -74,29 +74,18 @@ class RAGMedicalChatbot:
                 final_search_query = user_query if not memory_focus else f"{user_query}. {memory_focus}"
                 logger.info(f"[SEARCH] Final search query: {final_search_query}")
 
-                # Search the web with max 10 resources using enriched query
-                search_results = search_web(final_search_query, num_results=10)
-                if search_results:
-                    logger.info(f"[SEARCH] Retrieved {len(search_results)} web resources")
-                    # Compose a compact context strictly from query-relevant snippets
-                    # Also build URL mapping for citations
-                    url_mapping = {doc['id']: doc['url'] for doc in search_results if doc.get('id') and doc.get('url')}
-                    # Create per-doc short summaries (already relevant snippets), further compress
-                    summaries = []
-                    for doc in search_results:
-                        content = (doc.get('content') or '').strip()
-                        if not content:
-                            continue
-                        concise = summarizer.summarize_for_query(content, user_query, max_length=320)
-                        if concise:
-                            summaries.append(f"Document {doc['id']}: {concise}")
-                    search_context = "\n\n".join(summaries)
-                    logger.info(f"[SEARCH] Processed with Llama, generated {len(url_mapping)} URL mappings")
+                # Search the web with enhanced processing
+                search_context, url_mapping = search_web_with_content(final_search_query, num_results=10)
+                if search_context and url_mapping:
+                    logger.info(f"[SEARCH] Retrieved and processed {len(url_mapping)} web resources")
                 else:
                     logger.warning("[SEARCH] No search results found")
+                    search_context = ""
+                    url_mapping = {}
             except Exception as e:
                 logger.error(f"[SEARCH] Search failed: {e}")
                 search_context = ""
+                url_mapping = {}
 
         # 3. Build prompt parts
         parts = ["You are a medical chatbot, designed to answer medical questions."]
