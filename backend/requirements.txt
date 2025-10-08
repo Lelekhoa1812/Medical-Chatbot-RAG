@@ -21,3 +21,6 @@ uvicorn
 fastapi
 torch               # Reduce model load with half-precision (float16) to reduce RAM usage
 psutil              # CPU/RAM logger
+# **Web Search**
+requests
+beautifulsoup4

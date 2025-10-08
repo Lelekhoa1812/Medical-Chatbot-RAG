@@ -13,6 +13,8 @@ from sentence_transformers.util import cos_sim
 from memory import MemoryManager
 from translation import translate_query
 from vlm import process_medical_image
+from search import search_web
+from llama_integration import process_search_query
 
 # ✅ Enable Logging for Debugging
 import logging
@@ -221,7 +223,7 @@ class RAGMedicalChatbot:
         self.model_name = model_name
         self.retrieve = retrieve_function
 
-    def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "") -> str:
+    def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "", search_mode: bool = False) -> str:
         # 0. Translate query if not EN, this help our RAG system
         if lang.upper() in {"VI", "ZH"}:
             user_query = translate_query(user_query, lang.lower())
@@ -232,6 +234,24 @@ class RAGMedicalChatbot:
         knowledge_base = "\n".join(retrieved_info)
         ## b. Diagnosis RAG from symptom query
         diagnosis_guides = retrieve_diagnosis_from_symptoms(user_query)  # smart matcher
+        
+        # 1.5. Search mode - web search and Llama processing
+        search_context = ""
+        url_mapping = {}
+        if search_mode:
+            logger.info("[SEARCH] Starting web search mode")
+            try:
+                # Search the web
+                search_results = search_web(user_query, num_results=5)
+                if search_results:
+                    # Process with Llama
+                    search_context, url_mapping = process_search_query(user_query, search_results)
+                    logger.info(f"[SEARCH] Found {len(search_results)} results, processed with Llama")
+                else:
+                    logger.warning("[SEARCH] No search results found")
+            except Exception as e:
+                logger.error(f"[SEARCH] Search failed: {e}")
+                search_context = ""
 
         # 2. Hybrid Context Retrieval: RAG + Recent History + Intelligent Selection
         contextual_chunks = memory.get_contextual_chunks(user_id, user_query, lang)
@@ -258,16 +278,46 @@ class RAGMedicalChatbot:
         # Symptom-Diagnosis prediction RAG
         if diagnosis_guides:
             parts.append("Symptom-based diagnosis guidance (if applicable):\n" + "\n".join(diagnosis_guides))
+        
+        # 5. Search context with citation instructions
+        if search_context:
+            parts.append("Additional information from web search:\n" + search_context)
+            parts.append("IMPORTANT: When you use information from the web search results above, you MUST add a citation tag <#ID> immediately after the relevant content, where ID is the document number (1, 2, 3, etc.). For example: 'According to recent studies <#1>, this condition affects...'")
+        
         parts.append(f"User's question: {user_query}")
         parts.append(f"Language to generate answer: {lang}")
         prompt = "\n\n".join(parts)
         logger.info(f"[LLM] Question query in `prompt`: {prompt}") # Debug out checking RAG on kb and history
         response = gemini_flash_completion(prompt, model=self.model_name, temperature=0.7)
+        
+        # 6. Process citations and replace with URLs
+        if search_mode and url_mapping:
+            response = self._process_citations(response, url_mapping)
+        
          # Store exchange + chunking
         if user_id:
             memory.add_exchange(user_id, user_query, response, lang=lang)
         logger.info(f"[LLM] Response on `prompt`: {response.strip()}") # Debug out base response
         return response.strip()
+    
+    def _process_citations(self, response: str, url_mapping: Dict[int, str]) -> str:
+        """Replace citation tags with actual URLs"""
+        import re
+        
+        # Find all citation tags like <#1>, <#2>, etc.
+        citation_pattern = r'<#(\d+)>'
+        
+        def replace_citation(match):
+            doc_id = int(match.group(1))
+            if doc_id in url_mapping:
+                return f'<{url_mapping[doc_id]}>'
+            return match.group(0)  # Keep original if URL not found
+        
+        # Replace citations with URLs
+        processed_response = re.sub(citation_pattern, replace_citation, response)
+        
+        logger.info(f"[CITATION] Processed citations, found {len(re.findall(citation_pattern, response))} citations")
+        return processed_response
 
 # ✅ Initialize Chatbot
 chatbot = RAGMedicalChatbot(model_name="gemini-2.5-flash", retrieve_function=retrieve_medical_info)
@@ -280,23 +330,24 @@ async def chat_endpoint(req: Request):
     query_raw = body.get("query")
     query = query_raw.strip() if isinstance(query_raw, str) else ""
     lang    = body.get("lang", "EN")
+    search_mode = body.get("search", False)
     image_base64 = body.get("image_base64", None)
     img_desc = body.get("img_desc", "Describe and investigate any clinical findings from this medical image.")
     start = time.time()
     image_diagnosis = ""
     # LLM Only
     if not image_base64:
-        logger.info("[BOT] LLM scenario.")
+        logger.info(f"[BOT] LLM scenario. Search mode: {search_mode}")
     # LLM+VLM
     else:
         # If image is present → diagnose first
         safe_load = len(image_base64.encode("utf-8"))
         if safe_load > 5_000_000: # Img size safe processor
             return JSONResponse({"response": "⚠️ Image too large. Please upload smaller images (<5MB)."})
-        logger.info("[BOT] VLM+LLM scenario.")
+        logger.info(f"[BOT] VLM+LLM scenario. Search mode: {search_mode}")
         logger.info(f"[VLM] Process medical image size: {safe_load}, desc: {img_desc}, {lang}.")
         image_diagnosis = process_medical_image(image_base64, img_desc, lang)
-    answer = chatbot.chat(user_id, query, lang, image_diagnosis)
+    answer = chatbot.chat(user_id, query, lang, image_diagnosis, search_mode)
     elapsed = time.time() - start
     # Final
     return JSONResponse({"response": f"{answer}\n\n(Response time: {elapsed:.2f}s)"})

@@ -108,10 +108,14 @@ function updateLanguage(lang) {
     document.getElementById('license').innerText = translations[lang].license;
     // Update chat input placeholder
     document.getElementById('user-input').placeholder = translations[lang].chatInputPlaceholder;
-    // Update nav links
-    document.getElementById('nav-account').innerText = translations[lang].account;
-    document.getElementById('nav-subscription').innerText = translations[lang].subscription;
-    document.getElementById('nav-about').innerText = translations[lang].about;
+    // Update nav links (both desktop and mobile)
+    const accountLinks = document.querySelectorAll('#nav-account, #nav-account-mobile');
+    const subscriptionLinks = document.querySelectorAll('#nav-subscription, #nav-subscription-mobile');
+    const aboutLinks = document.querySelectorAll('#nav-about, #nav-about-mobile');
+    
+    accountLinks.forEach(link => link.innerText = translations[lang].account);
+    subscriptionLinks.forEach(link => link.innerText = translations[lang].subscription);
+    aboutLinks.forEach(link => link.innerText = translations[lang].about);
 }
 
 // Function to toggle theme
@@ -168,6 +172,24 @@ function initializeTheme() {
     }
 }
 
+// Initialize mobile menu state
+function initializeMobileMenu() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if (!hamburger || !mobileNav) return;
+    
+    // Ensure menu is closed on initialization
+    hamburger.classList.remove('active');
+    mobileNav.classList.remove('active');
+    document.body.classList.remove('menu-open');
+    
+    // Check if we're on desktop and ensure mobile menu is hidden
+    if (window.innerWidth > 768) {
+        closeMobileMenu();
+    }
+}
+
 // Notification System
 function showNotification(message, type = 'info', duration = 5000) {
     const toast = document.getElementById('notification-toast');
@@ -204,12 +226,96 @@ function openSettings() {
     showNotification('Settings panel coming soon!', 'info');
 }
 
+// Hamburger Menu functionality
+function toggleMobileMenu(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const hamburger = document.getElementById('hamburger-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if (!hamburger || !mobileNav) return;
+    
+    const isActive = hamburger.classList.contains('active');
+    
+    if (isActive) {
+        closeMobileMenu();
+    } else {
+        openMobileMenu();
+    }
+}
+
+// Open mobile menu
+function openMobileMenu() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if (!hamburger || !mobileNav) return;
+    
+    hamburger.classList.add('active');
+    mobileNav.classList.add('active');
+    
+    // Add body class to prevent scrolling
+    document.body.classList.add('menu-open');
+}
+
+// Close mobile menu
+function closeMobileMenu() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if (!hamburger || !mobileNav) return;
+    
+    hamburger.classList.remove('active');
+    mobileNav.classList.remove('active');
+    
+    // Remove body class to allow scrolling
+    document.body.classList.remove('menu-open');
+}
+
+// Check if click is outside mobile menu
+function isClickOutsideMobileMenu(event) {
+    const hamburger = document.getElementById('hamburger-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if (!hamburger || !mobileNav) return true;
+    
+    return !hamburger.contains(event.target) && !mobileNav.contains(event.target);
+}
+
 // --- Remove last message ---
 function removeLastMessage() {
     const messagesDiv = document.getElementById('chat-messages');
     if (messagesDiv.lastChild) {
         messagesDiv.removeChild(messagesDiv.lastChild);
     }
+}
+
+// --- Process citations and replace with magnifier icons ---
+function processCitations(htmlContent) {
+    // Find all citation tags like <https://example.com> and replace with magnifier icons
+    const citationPattern = /<https?:\/\/[^>]+>/g;
+    
+    return htmlContent.replace(citationPattern, (match) => {
+        const url = match.slice(1, -1); // Remove < and >
+        return `<span class="citation-link" data-url="${url}" title="Click to view source">
+                    <i class="fas fa-search-plus citation-icon"></i>
+                </span>`;
+    });
+}
+
+// --- Add event listeners for citation links ---
+function addCitationListeners() {
+    const citationLinks = document.querySelectorAll('.citation-link');
+    citationLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.getAttribute('data-url');
+            if (url) {
+                window.open(url, '_blank');
+            }
+        });
+    });
 } 
 
 // Stack over
@@ -243,6 +349,7 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         query: message,
         lang: currentLang,
         user_id,
+        search: currentMode === "search",
         ...(pendingImageBase64 ? { image_base64: pendingImageBase64 } : {}),
         img_desc: pendingImageDesc,
     };
@@ -271,17 +378,19 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         
         // Parse markdown and let CSS handle the styling
         // This approach avoids conflicts with Marked.js internals
-        const htmlResponse = marked.parse(data.response);
+        let htmlResponse = marked.parse(data.response);
+        
+        // Process citation tags and replace with magnifier icons
+        htmlResponse = processCitations(htmlResponse);
         
         // Debug: Log the parsed HTML to see what's generated
         console.log('🔍 Parsed HTML:', htmlResponse);
         console.log('🔍 Original response:', data.response);
         
-        // Debug: Log the parsed HTML to see what's generated
-        console.log('🔍 Parsed HTML:', htmlResponse);
-        // console.log('🔍 Original response:', data.response);
-        
         appendMessage('bot', htmlResponse, true);
+        
+        // Add event listeners for citation links
+        addCitationListeners();
     } catch (err) {
         removeLastMessage();
         appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
@@ -329,6 +438,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme
     initializeTheme();
     
+    // Initialize mobile menu
+    initializeMobileMenu();
+    
     // Theme toggle functionality
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('click', toggleTheme);
@@ -344,6 +456,34 @@ document.addEventListener('DOMContentLoaded', function() {
     if (notificationClose) {
         notificationClose.addEventListener('click', hideNotification);
     }
+    
+    // Hamburger menu functionality
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    if (hamburgerMenu) {
+        hamburgerMenu.addEventListener('click', toggleMobileMenu);
+    }
+    
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', function(event) {
+        if (isClickOutsideMobileMenu(event)) {
+            closeMobileMenu();
+        }
+    });
+    
+    // Close mobile menu when clicking on mobile nav links
+    const mobileNavLinks = document.querySelectorAll('.mobile-nav a');
+    mobileNavLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            closeMobileMenu();
+        });
+    });
+    
+    // Close mobile menu on window resize to desktop
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    });
     
     // Input mode functionality
     const modeButtons = document.querySelectorAll('.mode-btn');
