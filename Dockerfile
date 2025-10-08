@@ -24,7 +24,7 @@ RUN mkdir -p /app/model_cache /home/user/.cache/huggingface/sentence-transformer
     chown -R user:user /app/model_cache /home/user/.cache/huggingface
 
 # Pre-load model in a separate script
-RUN python /app/download_model.py && python /app/warmup.py
+RUN python /app/models/download_model.py && python /app/models/warmup.py
 
 # Ensure ownership and permissions remain intact
 RUN chown -R user:user /app/model_cache
@@ -32,5 +32,5 @@ RUN chown -R user:user /app/model_cache
 # Expose port
 EXPOSE 7860
 
-# Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
+# Run the application using main.py as entry point
+CMD ["python", "main.py"]

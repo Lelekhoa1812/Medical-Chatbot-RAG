@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import logging
+import time
 from typing import List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
@@ -40,27 +41,11 @@ Keywords:"""
     def summarize_documents(self, documents: List[Dict], user_query: str) -> Tuple[str, Dict[int, str]]:
         """Use Llama to summarize documents and return summary with URL mapping"""
         try:
-            # Create document summaries
-            doc_summaries = []
-            url_mapping = {}
+            # Import summarizer here to avoid circular imports
+            from summarizer import summarizer
             
-            for doc in documents:
-                doc_id = doc['id']
-                url_mapping[doc_id] = doc['url']
-                
-                # Create a summary prompt for each document
-                summary_prompt = f"""Summarize this medical information in 2-3 sentences, focusing on details relevant to: "{user_query}"
-
-Document: {doc['title']}
-Content: {doc['content'][:1000]}...
-
-Summary:"""
-                
-                summary = self._call_llama(summary_prompt)
-                doc_summaries.append(f"Document {doc_id}: {summary}")
-            
-            # Combine all summaries
-            combined_summary = "\n\n".join(doc_summaries)
+            # Use the summarizer for document summarization
+            combined_summary, url_mapping = summarizer.summarize_documents(documents, user_query)
             
             return combined_summary, url_mapping
             
@@ -68,41 +53,58 @@ Summary:"""
             logger.error(f"Failed to summarize documents: {e}")
             return "", {}
     
-    def _call_llama(self, prompt: str) -> str:
-        """Make API call to NVIDIA Llama model"""
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.7,
-                "max_tokens": 1000
-            }
-            
-            response = requests.post(
-                self.base_url,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            return result['choices'][0]['message']['content'].strip()
-            
-        except Exception as e:
-            logger.error(f"Llama API call failed: {e}")
-            raise
+    def _call_llama(self, prompt: str, max_retries: int = 3) -> str:
+        """Make API call to NVIDIA Llama model with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                payload = {
+                    "model": self.model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 1000
+                }
+                
+                response = requests.post(
+                    self.base_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+                
+                content = result['choices'][0]['message']['content'].strip()
+                if not content:
+                    raise ValueError("Empty response from Llama API")
+                
+                return content
+                
+            except requests.exceptions.Timeout:
+                logger.warning(f"Llama API timeout (attempt {attempt + 1}/{max_retries})")
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(2 ** attempt)  # Exponential backoff
+                
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Llama API request failed (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(2 ** attempt)
+                
+            except Exception as e:
+                logger.error(f"Llama API call failed: {e}")
+                raise
 
 def process_search_query(user_query: str, search_results: List[Dict]) -> Tuple[str, Dict[int, str]]:
     """Process search results using Llama model"""
