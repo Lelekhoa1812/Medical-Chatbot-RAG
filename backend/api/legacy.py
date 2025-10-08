@@ -1,5 +1,6 @@
 # app.py
-import os
+import os, json, re
+from typing import Dict
 import faiss
 import numpy as np
 import time
@@ -11,10 +12,9 @@ from google import genai
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from memory import MemoryManager
-from translation import translate_query
-from vlm import process_medical_image
+from utils import translate_query, process_medical_image, retrieve_diagnosis_from_symptoms
 from search import search_web
-from llama_integration import process_search_query
+from models import process_search_query
 
 # ✅ Enable Logging for Debugging
 import logging
@@ -239,14 +239,15 @@ class RAGMedicalChatbot:
         search_context = ""
         url_mapping = {}
         if search_mode:
-            logger.info("[SEARCH] Starting web search mode")
+            logger.info(f"[SEARCH] Starting web search mode for query: {user_query}")
             try:
-                # Search the web
-                search_results = search_web(user_query, num_results=5)
+                # Search the web with max 10 resources
+                search_results = search_web(user_query, num_results=10)
                 if search_results:
+                    logger.info(f"[SEARCH] Retrieved {len(search_results)} web resources")
                     # Process with Llama
                     search_context, url_mapping = process_search_query(user_query, search_results)
-                    logger.info(f"[SEARCH] Found {len(search_results)} results, processed with Llama")
+                    logger.info(f"[SEARCH] Processed with Llama, generated {len(url_mapping)} URL mappings")
                 else:
                     logger.warning("[SEARCH] No search results found")
             except Exception as e:
@@ -306,17 +307,22 @@ class RAGMedicalChatbot:
         
         # Find all citation tags like <#1>, <#2>, etc.
         citation_pattern = r'<#(\d+)>'
+        citations_found = re.findall(citation_pattern, response)
         
         def replace_citation(match):
             doc_id = int(match.group(1))
             if doc_id in url_mapping:
-                return f'<{url_mapping[doc_id]}>'
-            return match.group(0)  # Keep original if URL not found
+                url = url_mapping[doc_id]
+                logger.info(f"[CITATION] Replacing <#{doc_id}> with {url}")
+                return f'<{url}>'
+            else:
+                logger.warning(f"[CITATION] No URL mapping found for document ID {doc_id}")
+                return match.group(0)  # Keep original if URL not found
         
         # Replace citations with URLs
         processed_response = re.sub(citation_pattern, replace_citation, response)
         
-        logger.info(f"[CITATION] Processed citations, found {len(re.findall(citation_pattern, response))} citations")
+        logger.info(f"[CITATION] Processed {len(citations_found)} citations, {len(url_mapping)} URL mappings available")
         return processed_response
 
 # ✅ Initialize Chatbot

@@ -96,39 +96,54 @@ class WebSearcher:
             logger.warning(f"Failed to extract content from {url}: {e}")
             return ""
     
-    def search_and_extract(self, query: str, num_results: int = 5) -> List[Dict]:
+    def search_and_extract(self, query: str, num_results: int = 10) -> List[Dict]:
         """Search for query and extract content from top results"""
         logger.info(f"Searching for: {query}")
         
-        # Get search results
-        search_results = self.search_duckduckgo(query, num_results)
+        # Get search results (fetch more than needed for filtering)
+        search_results = self.search_duckduckgo(query, min(num_results * 2, 20))
         
-        # Extract content from each result
+        # Extract content from each result with parallel processing
         enriched_results = []
+        failed_count = 0
+        max_failures = 5  # Stop after 5 consecutive failures
+        
         for i, result in enumerate(search_results):
+            if len(enriched_results) >= num_results:
+                break
+                
+            if failed_count >= max_failures:
+                logger.warning(f"Too many failures ({failed_count}), stopping extraction")
+                break
+                
             try:
                 logger.info(f"Extracting content from {result['url']}")
                 content = self.extract_content(result['url'])
                 
-                if content:
+                if content and len(content.strip()) > 50:  # Only include substantial content
                     enriched_results.append({
-                        'id': i + 1,
+                        'id': len(enriched_results) + 1,  # Sequential ID
                         'url': result['url'],
                         'title': result['title'],
                         'content': content
                     })
+                    failed_count = 0  # Reset failure counter
+                else:
+                    failed_count += 1
+                    logger.warning(f"Insufficient content from {result['url']}")
                 
                 # Add delay to be respectful
-                time.sleep(1)
+                time.sleep(0.5)  # Reduced delay for better performance
                 
             except Exception as e:
+                failed_count += 1
                 logger.warning(f"Failed to process {result['url']}: {e}")
                 continue
         
-        logger.info(f"Successfully processed {len(enriched_results)} results")
+        logger.info(f"Successfully processed {len(enriched_results)} results out of {len(search_results)} attempted")
         return enriched_results
 
-def search_web(query: str, num_results: int = 5) -> List[Dict]:
+def search_web(query: str, num_results: int = 10) -> List[Dict]:
     """Main function to search the web and return enriched results"""
     searcher = WebSearcher()
     return searcher.search_and_extract(query, num_results)

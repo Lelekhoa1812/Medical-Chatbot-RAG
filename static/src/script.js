@@ -298,10 +298,22 @@ function processCitations(htmlContent) {
     
     return htmlContent.replace(citationPattern, (match) => {
         const url = match.slice(1, -1); // Remove < and >
-        return `<span class="citation-link" data-url="${url}" title="Click to view source">
+        const domain = extractDomain(url);
+        return `<span class="citation-link" data-url="${url}" title="View source: ${domain}">
                     <i class="fas fa-search-plus citation-icon"></i>
+                    <span class="citation-domain">${domain}</span>
                 </span>`;
     });
+}
+
+// --- Extract domain from URL for display ---
+function extractDomain(url) {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.replace('www.', '');
+    } catch (e) {
+        return 'Source';
+    }
 }
 
 // --- Add event listeners for citation links ---

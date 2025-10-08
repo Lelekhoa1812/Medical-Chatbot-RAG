@@ -1212,26 +1212,49 @@ body {
 
 /* Citation Link Styles */
 .citation-link {
-  display: inline-block;
-  margin: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 3px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .citation-icon {
   color: var(--text-accent);
-  font-size: 0.9em;
-  padding: 2px 4px;
-  border-radius: 3px;
-  background: rgba(59, 130, 246, 0.1);
+  font-size: 0.8em;
+  margin-right: 4px;
   transition: all 0.2s ease;
+}
+
+.citation-domain {
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.citation-link:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 .citation-link:hover .citation-icon {
   color: var(--text-accent-hover);
-  background: rgba(59, 130, 246, 0.2);
   transform: scale(1.1);
+}
+
+.citation-link:hover .citation-domain {
+  color: var(--text-accent);
 }
 
 .citation-link:hover::after {
@@ -1242,13 +1265,14 @@ body {
   transform: translateX(-50%);
   background: var(--bg-card);
   color: var(--text-primary);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8em;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75em;
   white-space: nowrap;
   z-index: 1000;
   box-shadow: var(--shadow-medium);
   border: 1px solid var(--border-color);
   max-width: 300px;
   word-break: break-all;
+  margin-bottom: 5px;
 }
