@@ -124,7 +124,7 @@ class RAGMedicalChatbot:
         # 5. Search context with citation instructions
         if search_context:
             parts.append("Additional information from web search:\n" + search_context)
-            parts.append("IMPORTANT: When you use information from the web search results above, you MUST add a citation tag <#ID> immediately after the relevant content, where ID is the document number (1, 2, 3, etc.). For example: 'According to recent studies <#1>, this condition affects...'")
+            parts.append("IMPORTANT: When you use information from the web search results above, you MUST add citation tags immediately after the relevant content. Use single citations like <#1> or multiple citations like <#1, #2, #5> when information comes from multiple sources. For example: 'According to recent studies <#1>, this condition affects...' or 'Multiple sources <#1, #3, #7> suggest that...'")
         
         parts.append(f"User's question: {user_query}")
         parts.append(f"Language to generate answer: {lang}")
@@ -149,24 +149,41 @@ class RAGMedicalChatbot:
         return response.strip()
     
     def _process_citations(self, response: str, url_mapping: Dict[int, str]) -> str:
-        """Replace citation tags with actual URLs"""
+        """Replace citation tags with actual URLs, handling both single and multiple references"""
         
-        # Find all citation tags like <#1>, <#2>, etc.
-        citation_pattern = r'<#(\d+)>'
-        citations_found = re.findall(citation_pattern, response)
+        # Pattern to match both single citations <#1> and multiple citations <#1, #2, #5, #7, #9>
+        citation_pattern = r'<#([^>]+)>'
         
         def replace_citation(match):
-            doc_id = int(match.group(1))
-            if doc_id in url_mapping:
-                url = url_mapping[doc_id]
-                logger.info(f"[CITATION] Replacing <#{doc_id}> with {url}")
-                return f'<{url}>'
-            else:
-                logger.warning(f"[CITATION] No URL mapping found for document ID {doc_id}")
-                return match.group(0)  # Keep original if URL not found
+            citation_content = match.group(1)
+            # Split by comma and clean up each citation ID
+            citation_ids = [id_str.strip() for id_str in citation_content.split(',')]
+            
+            urls = []
+            for citation_id in citation_ids:
+                try:
+                    doc_id = int(citation_id)
+                    if doc_id in url_mapping:
+                        url = url_mapping[doc_id]
+                        urls.append(f'<{url}>')
+                        logger.info(f"[CITATION] Replacing <#{doc_id}> with {url}")
+                    else:
+                        logger.warning(f"[CITATION] No URL mapping found for document ID {doc_id}")
+                        urls.append(f'<#{doc_id}>')  # Keep original if URL not found
+                except ValueError:
+                    logger.warning(f"[CITATION] Invalid citation ID: {citation_id}")
+                    urls.append(f'<#{citation_id}>')  # Keep original if invalid
+            
+            # Join multiple URLs with spaces
+            return ' '.join(urls)
         
         # Replace citations with URLs
         processed_response = re.sub(citation_pattern, replace_citation, response)
         
-        logger.info(f"[CITATION] Processed {len(citations_found)} citations, {len(url_mapping)} URL mappings available")
+        # Count total citations processed
+        citations_found = re.findall(citation_pattern, response)
+        total_citations = sum(len([id_str.strip() for id_str in citation_content.split(',')]) 
+                            for citation_content in citations_found)
+        
+        logger.info(f"[CITATION] Processed {total_citations} citations from {len(citations_found)} citation groups, {len(url_mapping)} URL mappings available")
         return processed_response

@@ -12,12 +12,48 @@ vi_en = None
 zh_en = None
 
 def _dedupe_repeats(s: str, n_min: int = 3, n_max: int = 7) -> str:
-    """Collapse excessive repeated n-grams (3..7) and repeated phrases."""
+    """Collapse excessive repeated n-grams and repeated phrases with improved logic."""
     if not s:
         return s
+    
     # Collapse repeated spaces/newlines
     s = re.sub(r"\s+", " ", s).strip()
-    # Heuristic: remove runs of identical tokens
+    
+    # More aggressive repetition detection
+    # Check for simple word repetition (like "a lot of people do not" repeated)
+    words = s.split()
+    if len(words) > 20:  # Only check if text is long enough
+        # Look for repeated sequences of 3-8 words
+        for seq_len in range(8, 2, -1):
+            if len(words) < seq_len * 3:  # Need at least 3 repetitions
+                continue
+            
+            # Check each possible starting position
+            for start in range(len(words) - seq_len * 2):
+                sequence = words[start:start + seq_len]
+                # Count how many times this sequence repeats
+                repeat_count = 1
+                pos = start + seq_len
+                while pos + seq_len <= len(words):
+                    if words[pos:pos + seq_len] == sequence:
+                        repeat_count += 1
+                        pos += seq_len
+                    else:
+                        break
+                
+                # If we found 3+ repetitions, remove the excess
+                if repeat_count >= 3:
+                    # Keep only the first occurrence
+                    new_words = words[:start + seq_len] + words[start + seq_len * repeat_count:]
+                    s = " ".join(new_words)
+                    words = s.split()
+                    break
+            else:
+                continue
+            break  # Break outer loop if we found and fixed a repetition
+    
+    # Additional cleanup for remaining patterns
+    # Remove consecutive identical word
     tokens = s.split()
     out = []
     last = None
@@ -25,12 +61,14 @@ def _dedupe_repeats(s: str, n_min: int = 3, n_max: int = 7) -> str:
         if last is None or t.lower() != last.lower():
             out.append(t)
         last = t
-    s2 = " ".join(out)
+    s = " ".join(out)
+    
     # Limit consecutive duplicate n-grams
     for n in range(n_max, n_min - 1, -1):
         pattern = re.compile(r"(\b(?:\w+\s+){%d}\w+\b)(?:\s+\1){2,}" % (n - 1), flags=re.IGNORECASE)
-        s2 = pattern.sub(r"\1", s2)
-    return s2
+        s = pattern.sub(r"\1", s)
+    
+    return s
 
 
 def _normalize_and_cap(s: str, cap: int = 512) -> str:
@@ -55,26 +93,49 @@ def _is_too_repetitive(s: str, threshold: float = 0.4) -> bool:
 
 def translate_query(text: str, lang_code: str) -> str:
     global vi_en, zh_en
-    if lang_code == "vi":
-        if vi_en is None:
-            vi_en = pipeline("translation", model="VietAI/envit5-translation", src_lang="vi", tgt_lang="en", device=-1)
-        raw = vi_en(text, max_length=512)[0]["translation_text"]
-        cleaned = _dedupe_repeats(raw)
-        norm = _normalize_and_cap(cleaned, cap=512)
-        if _is_too_repetitive(norm):
-            logger.warning("[En-Vi] Translation repetitive; falling back to original text")
-            norm = text
-        logger.info(f"[En-Vi] Query in `{lang_code}` translated to: {norm}")
-        return norm
-    elif lang_code == "zh":
-        if zh_en is None:
-            zh_en = pipeline("translation", model="Helsinki-NLP/opus-mt-zh-en", device=-1)
-        raw = zh_en(text, max_length=512)[0]["translation_text"]
-        cleaned = _dedupe_repeats(raw)
-        norm = _normalize_and_cap(cleaned, cap=512)
-        if _is_too_repetitive(norm):
-            logger.warning("[En-Zh] Translation repetitive; falling back to original text")
-            norm = text
-        logger.info(f"[En-Zh] Query in `{lang_code}` translated to: {norm}")
-        return norm
+    
+    if not text or not text.strip():
+        return text
+    
+    try:
+        if lang_code == "vi":
+            if vi_en is None:
+                logger.info("[Translation] Loading Vietnamese-English model...")
+                vi_en = pipeline("translation", model="VietAI/envit5-translation", src_lang="vi", tgt_lang="en", device=-1)
+            
+            # Limit input length to prevent model issues
+            input_text = text[:1000] if len(text) > 1000 else text
+            raw = vi_en(input_text, max_length=512)[0]["translation_text"]
+            cleaned = _dedupe_repeats(raw)
+            norm = _normalize_and_cap(cleaned, cap=512)
+            
+            if _is_too_repetitive(norm) or len(norm.strip()) < 10:
+                logger.warning("[En-Vi] Translation repetitive or too short; falling back to original text")
+                return text
+                
+            logger.info(f"[En-Vi] Query in `{lang_code}` translated to: {norm[:100]}...")
+            return norm
+            
+        elif lang_code == "zh":
+            if zh_en is None:
+                logger.info("[Translation] Loading Chinese-English model...")
+                zh_en = pipeline("translation", model="Helsinki-NLP/opus-mt-zh-en", device=-1)
+            
+            # Limit input length to prevent model issues
+            input_text = text[:1000] if len(text) > 1000 else text
+            raw = zh_en(input_text, max_length=512)[0]["translation_text"]
+            cleaned = _dedupe_repeats(raw)
+            norm = _normalize_and_cap(cleaned, cap=512)
+            
+            if _is_too_repetitive(norm) or len(norm.strip()) < 10:
+                logger.warning("[En-Zh] Translation repetitive or too short; falling back to original text")
+                return text
+                
+            logger.info(f"[En-Zh] Query in `{lang_code}` translated to: {norm[:100]}...")
+            return norm
+            
+    except Exception as e:
+        logger.error(f"[Translation] Translation failed for {lang_code}: {e}")
+        return text  # Fallback to original text
+    
     return text
