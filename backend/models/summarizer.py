@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import List, Dict, Tuple
-from llama import NVIDIALLamaClient
+from .llama import NVIDIALLamaClient
 
 logger = logging.getLogger(__name__)
 

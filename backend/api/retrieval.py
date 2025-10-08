@@ -1,7 +1,7 @@
 # api/retrieval.py
 import numpy as np
 import logging
-from api.database import db_manager
+from .database import db_manager
 
 logger = logging.getLogger("medical-chatbot")
 
