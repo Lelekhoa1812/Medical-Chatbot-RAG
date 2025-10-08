@@ -3,8 +3,8 @@ import time
 import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from chatbot import RAGMedicalChatbot
-from retrieval import retrieval_engine
+from .chatbot import RAGMedicalChatbot
+from .retrieval import retrieval_engine
 from utils import process_medical_image
 
 logger = logging.getLogger("medical-chatbot")

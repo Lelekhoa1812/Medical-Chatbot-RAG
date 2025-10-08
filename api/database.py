@@ -4,7 +4,7 @@ import numpy as np
 import gridfs
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
-from api.config import mongo_uri, index_uri, MODEL_CACHE_DIR, EMBEDDING_MODEL_DEVICE
+from .config import mongo_uri, index_uri, MODEL_CACHE_DIR, EMBEDDING_MODEL_DEVICE
 import logging
 
 logger = logging.getLogger("medical-chatbot")
