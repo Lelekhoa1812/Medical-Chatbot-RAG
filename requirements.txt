@@ -1,0 +1,31 @@
+# requirements.txt
+# **LLMs**
+google-genai
+huggingface_hub
+# **RAG**
+faiss-cpu
+sentence-transformers
+# **NLPs**
+transformers
+accelerate  
+sentencepiece
+# **Environment**
+python-dotenv      
+pymongo
+# **VLMs**
+# transformers
+gradio_client
+pillow
+# **Deployment**
+uvicorn
+fastapi
+torch               # Reduce model load with half-precision (float16) to reduce RAM usage
+psutil              # CPU/RAM logger
+# **Web Search**
+requests
+beautifulsoup4
+# **Data**
+pandas
+numpy
+# **Additional Dependencies**
+gridfs              # MongoDB GridFS for file storage
