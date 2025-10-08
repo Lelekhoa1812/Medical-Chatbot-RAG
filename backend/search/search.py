@@ -94,3 +94,13 @@ def search_medical(query: str, num_results: int = 8) -> Tuple[str, Dict[int, str
     except Exception as e:
         logger.error(f"Medical search failed: {e}")
         return "", {}
+
+# Multilingual medical search function
+def search_multilingual_medical(query: str, num_results: int = 10, target_language: str = None) -> Tuple[str, Dict[int, str]]:
+    """Comprehensive multilingual medical search supporting English, Vietnamese, and Chinese"""
+    try:
+        coordinator = get_search_coordinator()
+        return coordinator.multilingual_medical_search(query, num_results, target_language)
+    except Exception as e:
+        logger.error(f"Multilingual medical search failed: {e}")
+        return "", {}

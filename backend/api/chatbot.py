@@ -7,7 +7,7 @@ from .config import gemini_flash_api_key
 from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
-from search import search_web_with_content
+from search import search_multilingual_medical
 from models import summarizer
 from models import process_search_query
 from models.guard import safety_guard
@@ -74,10 +74,10 @@ class RAGMedicalChatbot:
                 final_search_query = user_query if not memory_focus else f"{user_query}. {memory_focus}"
                 logger.info(f"[SEARCH] Final search query: {final_search_query}")
 
-                # Search the web with enhanced processing
-                search_context, url_mapping = search_web_with_content(final_search_query, num_results=10)
+                # Search the web with multilingual medical processing
+                search_context, url_mapping = search_multilingual_medical(final_search_query, num_results=10, target_language=lang)
                 if search_context and url_mapping:
-                    logger.info(f"[SEARCH] Retrieved and processed {len(url_mapping)} web resources")
+                    logger.info(f"[SEARCH] Retrieved and processed {len(url_mapping)} multilingual web resources")
                 else:
                     logger.warning("[SEARCH] No search results found")
                     search_context = ""
