@@ -96,6 +96,36 @@ Summary:"""
             logger.error(f"Summarization failed: {e}")
             # Fallback to simple truncation
             return self.clean_text(text)[:max_length]
+
+    def summarize_for_query(self, text: str, query: str, max_length: int = 220) -> str:
+        """Summarize text focusing strictly on information relevant to the query.
+        Returns an empty string if nothing relevant is found.
+        """
+        try:
+            if not text:
+                return ""
+            cleaned_text = self.clean_text(text)
+            if not cleaned_text:
+                return ""
+
+            # Short, strict prompt to avoid verbosity; instruct to output NOTHING if irrelevant
+            prompt = (
+                f"You extract only medically relevant facts that help answer: '{query}'. "
+                f"Respond with a concise bullet list (<= {max_length} chars total). "
+                "If the content is irrelevant, respond with EXACTLY: NONE.\n\n"
+                f"Content: {cleaned_text[:1600]}\n\nRelevant facts:"
+            )
+
+            summary = self.llama_client._call_llama(prompt)
+            summary = self.clean_text(summary)
+            if not summary or summary.upper().strip() == "NONE":
+                return ""
+            if len(summary) > max_length:
+                summary = summary[:max_length-3] + "..."
+            return summary
+        except Exception as e:
+            logger.warning(f"Query-focused summarization failed: {e}")
+            return ""
     
     def summarize_documents(self, documents: List[Dict], user_query: str) -> Tuple[str, Dict[int, str]]:
         """Summarize multiple documents with URL mapping"""

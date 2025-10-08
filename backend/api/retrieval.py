@@ -14,7 +14,14 @@ logger = logging.getLogger("retrieval-bot")
 class RetrievalEngine:
     def __init__(self):
         self.db_manager = db_manager
-        self._reranker = _NvidiaReranker()
+        # Lazy-init reranker to avoid NameError during module import ordering
+        self._reranker = None
+
+    def _get_reranker(self):
+        """Initialize the NVIDIA reranker on first use."""
+        if self._reranker is None:
+            self._reranker = _NvidiaReranker()
+        return self._reranker
     
     @staticmethod
     def _is_cpg_text(text: str) -> bool:
@@ -117,7 +124,7 @@ class RetrievalEngine:
             cpg_candidates = [t for t in kept if self._is_cpg_text(t)]
             if cpg_candidates:
                 logger.info("[Retrieval] CPG content detected; invoking NVIDIA reranker")
-                reranked = self._reranker.rerank(query, cpg_candidates)
+                reranked = self._get_reranker().rerank(query, cpg_candidates)
                 # Keep only valid high-scoring items
                 filtered: List[Dict] = [r for r in reranked if r.get("score", 0) >= 0.3 and r.get("text")]
                 # Limit to top 3 for prompt efficiency

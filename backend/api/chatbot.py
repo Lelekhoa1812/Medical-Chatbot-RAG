@@ -8,6 +8,7 @@ from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
 from search import search_web
+from models import summarizer
 from models import process_search_query
 
 logger = logging.getLogger("medical-chatbot")
@@ -49,28 +50,46 @@ class RAGMedicalChatbot:
         knowledge_base = "\n".join(retrieved_info)
         ## b. Diagnosis RAG from symptom query
         diagnosis_guides = retrieval_engine.retrieve_diagnosis_from_symptoms(user_query)
-        
-        # 1.5. Search mode - web search and Llama processing
+        # c. Hybrid Context Retrieval: RAG + Recent History + Intelligent Selection
+        contextual_chunks = self.memory.get_contextual_chunks(user_id, user_query, lang)
+
+        # 2. Search mode - web search and Llama processing
         search_context = ""
         url_mapping = {}
         if search_mode:
             logger.info(f"[SEARCH] Starting web search mode for query: {user_query}")
             try:
-                # Search the web with max 10 resources
-                search_results = search_web(user_query, num_results=10)
+                # Build enriched search query from user's question + recent memory (no KB retrieval)
+                recent_memory_chunk = self.memory.get_context(user_id, num_turns=3) or ""
+                # If contextual_chunks available, use it instead of recent_memory_chunk
+                recent_memory_ctx = contextual_chunks if contextual_chunks else recent_memory_chunk[:600]
+                memory_focus = summarizer.summarize_for_query(recent_memory_ctx, user_query, max_length=180) if recent_memory_ctx else ""
+                final_search_query = user_query if not memory_focus else f"{user_query}. {memory_focus}"
+                logger.info(f"[SEARCH] Final search query: {final_search_query}")
+
+                # Search the web with max 10 resources using enriched query
+                search_results = search_web(final_search_query, num_results=10)
                 if search_results:
                     logger.info(f"[SEARCH] Retrieved {len(search_results)} web resources")
-                    # Process with Llama
-                    search_context, url_mapping = process_search_query(user_query, search_results)
+                    # Compose a compact context strictly from query-relevant snippets
+                    # Also build URL mapping for citations
+                    url_mapping = {doc['id']: doc['url'] for doc in search_results if doc.get('id') and doc.get('url')}
+                    # Create per-doc short summaries (already relevant snippets), further compress
+                    summaries = []
+                    for doc in search_results:
+                        content = (doc.get('content') or '').strip()
+                        if not content:
+                            continue
+                        concise = summarizer.summarize_for_query(content, user_query, max_length=320)
+                        if concise:
+                            summaries.append(f"Document {doc['id']}: {concise}")
+                    search_context = "\n\n".join(summaries)
                     logger.info(f"[SEARCH] Processed with Llama, generated {len(url_mapping)} URL mappings")
                 else:
                     logger.warning("[SEARCH] No search results found")
             except Exception as e:
                 logger.error(f"[SEARCH] Search failed: {e}")
                 search_context = ""
-
-        # 2. Hybrid Context Retrieval: RAG + Recent History + Intelligent Selection
-        contextual_chunks = self.memory.get_contextual_chunks(user_id, user_query, lang)
 
         # 3. Build prompt parts
         parts = ["You are a medical chatbot, designed to answer medical questions."]
