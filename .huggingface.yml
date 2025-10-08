@@ -1,4 +1,0 @@
-sdk: docker
-app_file: app.py
-port: 7860
-hardware: cpu-basic
