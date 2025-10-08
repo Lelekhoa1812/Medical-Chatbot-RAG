@@ -31,6 +31,11 @@ let currentTheme = "light";
 let searchModeActive = false;
 let uploadModeActive = false;
 
+// Submission state management
+let isSubmitting = false;
+let lastSubmissionTime = 0;
+const SUBMISSION_DEBOUNCE_MS = 1000; // Prevent rapid successive submissions
+
 // Chat history management
 const CHAT_HISTORY_KEY = 'medical_chatbot_history';
 const MAX_HISTORY_ITEMS = 100; // Limit to prevent localStorage bloat
@@ -486,16 +491,44 @@ let pendingImageDesc = null;
 
 // --- Send message over ---
 async function sendMessage(customQuery = null, imageBase64 = null) {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+        console.log('Already submitting, ignoring duplicate request');
+        return;
+    }
+    
+    // Debounce rapid successive submissions
+    const now = Date.now();
+    if (now - lastSubmissionTime < SUBMISSION_DEBOUNCE_MS) {
+        console.log('Submission too soon, debouncing');
+        return;
+    }
+    
     const user_id = getUserId();
     const input = document.getElementById('user-input');
     const message = customQuery || input.value.trim();
+    
+    // Handle empty message properly
     if (!message) {
         if (!pendingImageDesc) {
-            alert("Empty Message!")
-        }
-        else {
+            alert("Empty Message!");
+            isSubmitting = false; // Reset submission state
+            return; // Add return to prevent further execution
+        } else {
+            // Use pending image description if no text message
             message = pendingImageDesc;
         }
+    }
+    
+    // Set submission state
+    isSubmitting = true;
+    lastSubmissionTime = now;
+    
+    // Disable send button during submission
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.6';
     } 
     // Remove welcome screen if shown
     const welcomeContainer = document.getElementById('welcome-container');
@@ -557,6 +590,14 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         removeLastMessage();
         appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
         console.error(err);
+    } finally {
+        // Always reset submission state and re-enable send button
+        isSubmitting = false;
+        const sendBtn = document.getElementById('send-btn');
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.opacity = '1';
+        }
     }
 }
 
@@ -719,12 +760,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Trigger message sender ---
     // 1. By btn click
     const sendBtn = document.getElementById('send-btn');
-    sendBtn.addEventListener('click', () => sendMessage());
+    sendBtn.addEventListener('click', () => {
+        // Only send if not already submitting
+        if (!isSubmitting) {
+            sendMessage();
+        }
+    });
     // 2. By enter key-press
     document.getElementById("user-input").addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault(); // prevent newline
-          sendMessage(); // your custom send function
+          // Only send if not already submitting
+          if (!isSubmitting) {
+            sendMessage(); // your custom send function
+          }
         }
     });
     
