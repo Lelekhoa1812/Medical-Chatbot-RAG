@@ -38,7 +38,9 @@ const SUBMISSION_DEBOUNCE_MS = 1000; // Prevent rapid successive submissions
 
 // Chat history management
 const CHAT_HISTORY_KEY = 'medical_chatbot_history';
+const PENDING_REQUESTS_KEY = 'medical_chatbot_pending_requests';
 const MAX_HISTORY_ITEMS = 100; // Limit to prevent localStorage bloat
+const MAX_PENDING_REQUESTS = 5; // Limit pending requests
 
 // Chat history functions
 function saveChatHistory() {
@@ -132,6 +134,7 @@ function loadChatHistory() {
 function clearChatHistory() {
     try {
         localStorage.removeItem(CHAT_HISTORY_KEY);
+        localStorage.removeItem(PENDING_REQUESTS_KEY);
         const messagesDiv = document.getElementById('chat-messages');
         const messages = messagesDiv.querySelectorAll('.message');
         messages.forEach(message => message.remove());
@@ -151,6 +154,120 @@ function clearChatHistory() {
     } catch (error) {
         console.error('Error clearing chat history:', error);
         showNotification('Error clearing chat history', 'error', 3000);
+    }
+}
+
+// Pending request management functions
+function savePendingRequest(requestId, query, timestamp) {
+    try {
+        const pendingRequests = getPendingRequests();
+        pendingRequests.push({
+            requestId,
+            query,
+            timestamp,
+            status: 'pending'
+        });
+        
+        // Keep only the most recent requests
+        const limitedRequests = pendingRequests.slice(-MAX_PENDING_REQUESTS);
+        localStorage.setItem(PENDING_REQUESTS_KEY, JSON.stringify(limitedRequests));
+        console.log(`Saved pending request ${requestId}`);
+    } catch (error) {
+        console.error('Error saving pending request:', error);
+    }
+}
+
+function getPendingRequests() {
+    try {
+        const saved = localStorage.getItem(PENDING_REQUESTS_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+        console.error('Error getting pending requests:', error);
+        return [];
+    }
+}
+
+function removePendingRequest(requestId) {
+    try {
+        const pendingRequests = getPendingRequests();
+        const filtered = pendingRequests.filter(req => req.requestId !== requestId);
+        localStorage.setItem(PENDING_REQUESTS_KEY, JSON.stringify(filtered));
+        console.log(`Removed pending request ${requestId}`);
+    } catch (error) {
+        console.error('Error removing pending request:', error);
+    }
+}
+
+async function checkPendingRequests() {
+    try {
+        const pendingRequests = getPendingRequests();
+        if (pendingRequests.length === 0) return;
+        
+        console.log(`Checking ${pendingRequests.length} pending requests...`);
+        
+        for (const request of pendingRequests) {
+            try {
+                const response = await fetch(`${API_PREFIX}/check-request/${request.requestId}`);
+                const data = await response.json();
+                
+                if (data.status === 'completed' && data.response) {
+                    // Found a completed response!
+                    console.log(`Found completed response for request ${request.requestId}`);
+                    
+                    // Remove the loader message if it exists
+                    removeLastMessage();
+                    
+                    // Add the bot response
+                    const htmlResponse = marked.parse(data.response);
+                    const processedResponse = processCitations(htmlResponse);
+                    appendMessage('bot', processedResponse, true);
+                    addCitationListeners();
+                    
+                    // Remove from pending requests
+                    removePendingRequest(request.requestId);
+                    
+                    // Show notification
+                    showNotification('Restored response from previous session', 'success', 3000);
+                } else if (data.status === 'failed') {
+                    // Request failed, remove from pending
+                    console.log(`Request ${request.requestId} failed: ${data.error}`);
+                    removePendingRequest(request.requestId);
+                }
+                // If still pending, keep it in the list
+            } catch (error) {
+                console.error(`Error checking request ${request.requestId}:`, error);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking pending requests:', error);
+    }
+}
+
+// Periodic check for pending requests (every 30 seconds)
+function startPendingRequestChecker() {
+    setInterval(async () => {
+        const pendingRequests = getPendingRequests();
+        if (pendingRequests.length > 0) {
+            console.log('Periodic check: Found pending requests');
+            await checkPendingRequests();
+        }
+    }, 30000); // Check every 30 seconds
+}
+
+// Cleanup old pending requests (older than 1 hour)
+function cleanupOldPendingRequests() {
+    try {
+        const pendingRequests = getPendingRequests();
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        
+        const validRequests = pendingRequests.filter(req => req.timestamp > oneHourAgo);
+        
+        if (validRequests.length !== pendingRequests.length) {
+            localStorage.setItem(PENDING_REQUESTS_KEY, JSON.stringify(validRequests));
+            console.log(`Cleaned up ${pendingRequests.length - validRequests.length} old pending requests`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up old pending requests:', error);
     }
 }
 
@@ -565,12 +682,19 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             body: JSON.stringify(body)
         });
         const data = await response.json();
+        
+        // Store request ID for persistence
+        if (data.request_id) {
+            savePendingRequest(data.request_id, message, Date.now());
+        }
+        
         // Remove message and img previewer
         removeLastMessage();
         pendingImageBase64 = null;
         pendingImageDesc = null;
         const previewEl = document.getElementById('upload-preview-container');
         if (previewEl) previewEl.remove();
+        
         // Configure Marked.js to handle nested formatting properly
         // Using standard Marked.js parsing with enhanced CSS for styling
         marked.setOptions({
@@ -595,6 +719,11 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         
         // Add event listeners for citation links
         addCitationListeners();
+        
+        // Remove from pending requests since we got the response
+        if (data.request_id) {
+            removePendingRequest(data.request_id);
+        }
     } catch (err) {
         removeLastMessage();
         appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
@@ -672,6 +801,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load chat history on page load
     loadChatHistory();
+    
+    // Check for pending requests from previous session
+    checkPendingRequests();
+    
+    // Start periodic checker for pending requests
+    startPendingRequestChecker();
+    
+    // Cleanup old pending requests
+    cleanupOldPendingRequests();
     
     // Initialize mobile menu
     initializeMobileMenu();
