@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 import logging
 from typing import Tuple, List, Dict
@@ -197,7 +198,6 @@ class SafetyGuard:
             r'\b(pain|hurt|ache|sore|fever|cough|headache)\b'
         ]
         
-        import re
         for pattern in medical_patterns:
             if re.search(pattern, query_lower):
                 return True

@@ -303,7 +303,6 @@ class RAGMedicalChatbot:
     
     def _process_citations(self, response: str, url_mapping: Dict[int, str]) -> str:
         """Replace citation tags with actual URLs"""
-        import re
         
         # Find all citation tags like <#1>, <#2>, etc.
         citation_pattern = r'<#(\d+)>'

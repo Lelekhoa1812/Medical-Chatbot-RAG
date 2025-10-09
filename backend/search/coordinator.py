@@ -216,7 +216,10 @@ class SearchCoordinator:
         lang_mapping = {
             'EN': 'en',
             'VI': 'vi', 
-            'ZH': 'zh'
+            'ZH': 'zh',
+            'en': 'en',
+            'vi': 'vi',
+            'zh': 'zh'
         }
         search_language = lang_mapping.get(target_language, 'en')
         
