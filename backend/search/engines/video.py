@@ -1,14 +1,15 @@
 import requests
+from bs4 import BeautifulSoup
 import logging
-import re
-from typing import List, Dict, Optional
-from urllib.parse import quote, urlparse
+from typing import List, Dict
 import time
+import re
+from urllib.parse import urlparse, quote
 
 logger = logging.getLogger(__name__)
 
 class VideoSearchEngine:
-    """Video search engine for medical content from YouTube and other video sources"""
+    """Search engine for medical videos across multiple platforms"""
     
     def __init__(self, timeout: int = 15):
         self.session = requests.Session()
@@ -21,458 +22,190 @@ class VideoSearchEngine:
         })
         self.timeout = timeout
         
-        # Video sources by language
-        self.video_sources = {
-            'en': {
-                'youtube': {
-                    'base_url': 'https://www.youtube.com',
+        # Video platforms by language
+        self.video_platforms = {
+            'en': [
+                {
+                    'name': 'youtube',
                     'search_url': 'https://www.youtube.com/results',
-                    'params': {'search_query': '', 'sp': 'EgIQAQ%253D%253D'},  # Videos only
-                    'selectors': {
-                        'title': 'h3 a#video-title',
-                        'url': 'h3 a#video-title',
-                        'thumbnail': 'img',
-                        'duration': '.ytd-thumbnail-overlay-time-status-renderer',
-                        'channel': 'a#channel-name'
-                    }
+                    'params': {'search_query': ''},
+                    'selectors': ['a#video-title', 'a[href*="/watch?v="]'],
+                    'base_url': 'https://www.youtube.com'
                 },
-                'vimeo': {
-                    'base_url': 'https://vimeo.com',
-                    'search_url': 'https://vimeo.com/search',
+                {
+                    'name': 'medscape_videos',
+                    'search_url': 'https://www.medscape.com/search',
                     'params': {'q': ''},
-                    'selectors': {
-                        'title': '.clip a',
-                        'url': '.clip a',
-                        'thumbnail': '.clip img',
-                        'duration': '.clip .duration',
-                        'channel': '.clip .byline a'
-                    }
-                },
-                'ted': {
-                    'base_url': 'https://www.ted.com',
-                    'search_url': 'https://www.ted.com/search',
-                    'params': {'q': '', 'cat': 'talks'},
-                    'selectors': {
-                        'title': '.search__result__title a',
-                        'url': '.search__result__title a',
-                        'thumbnail': '.search__result img',
-                        'duration': '.search__result .duration',
-                        'channel': '.search__result .speaker'
-                    }
+                    'selectors': ['a[href*="/video/"]', 'a[href*="/viewarticle/"]'],
+                    'base_url': 'https://www.medscape.com'
                 }
-            },
-            'vi': {
-                'youtube': {
-                    'base_url': 'https://www.youtube.com',
+            ],
+            'vi': [
+                {
+                    'name': 'youtube_vi',
                     'search_url': 'https://www.youtube.com/results',
-                    'params': {'search_query': '', 'sp': 'EgIQAQ%253D%253D'},
-                    'selectors': {
-                        'title': 'h3 a#video-title',
-                        'url': 'h3 a#video-title',
-                        'thumbnail': 'img',
-                        'duration': '.ytd-thumbnail-overlay-time-status-renderer',
-                        'channel': 'a#channel-name'
-                    }
+                    'params': {'search_query': ''},
+                    'selectors': ['a#video-title', 'a[href*="/watch?v="]'],
+                    'base_url': 'https://www.youtube.com'
                 },
-                'fpt_play': {
-                    'base_url': 'https://fptplay.vn',
-                    'search_url': 'https://fptplay.vn/tim-kiem',
+                {
+                    'name': 'vinmec_videos',
+                    'search_url': 'https://www.vinmec.com/vi/tim-kiem',
                     'params': {'q': ''},
-                    'selectors': {
-                        'title': '.video-item .title a',
-                        'url': '.video-item .title a',
-                        'thumbnail': '.video-item img',
-                        'duration': '.video-item .duration',
-                        'channel': '.video-item .channel'
-                    }
+                    'selectors': ['a[href*="/video/"]', 'a[href*="/suc-khoe/"]'],
+                    'base_url': 'https://www.vinmec.com'
                 }
-            },
-            'zh': {
-                'youtube': {
-                    'base_url': 'https://www.youtube.com',
+            ],
+            'zh': [
+                {
+                    'name': 'youtube_zh',
                     'search_url': 'https://www.youtube.com/results',
-                    'params': {'search_query': '', 'sp': 'EgIQAQ%253D%253D'},
-                    'selectors': {
-                        'title': 'h3 a#video-title',
-                        'thumbnail': 'img',
-                        'duration': '.ytd-thumbnail-overlay-time-status-renderer',
-                        'channel': 'a#channel-name'
-                    }
+                    'params': {'search_query': ''},
+                    'selectors': ['a#video-title', 'a[href*="/watch?v="]'],
+                    'base_url': 'https://www.youtube.com'
                 },
-                'bilibili': {
-                    'base_url': 'https://www.bilibili.com',
-                    'search_url': 'https://search.bilibili.com/video',
-                    'params': {'keyword': ''},
-                    'selectors': {
-                        'title': '.video-item .title a',
-                        'url': '.video-item .title a',
-                        'thumbnail': '.video-item img',
-                        'duration': '.video-item .duration',
-                        'channel': '.video-item .up-name'
-                    }
-                },
-                'youku': {
-                    'base_url': 'https://www.youku.com',
-                    'search_url': 'https://search.youku.com/search_video',
-                    'params': {'keyword': ''},
-                    'selectors': {
-                        'title': '.video-item .title a',
-                        'url': '.video-item .title a',
-                        'thumbnail': '.video-item img',
-                        'duration': '.video-item .duration',
-                        'channel': '.video-item .channel'
-                    }
+                {
+                    'name': 'haodf_videos',
+                    'search_url': 'https://www.haodf.com/search',
+                    'params': {'q': ''},
+                    'selectors': ['a[href*="/video/"]', 'a[href*="/jibing/"]'],
+                    'base_url': 'https://www.haodf.com'
                 }
-            }
+            ]
         }
     
     def search(self, query: str, num_results: int = 3, language: str = 'en') -> List[Dict]:
-        """Search for medical videos across multiple platforms"""
+        """Search for medical videos across platforms"""
         logger.info(f"Searching for medical videos: {query} (language: {language})")
         
-        # Enhance query for medical content
-        enhanced_query = self._enhance_medical_query(query, language)
+        results = []
+        platforms = self.video_platforms.get(language, self.video_platforms['en'])
         
-        all_results = []
-        
-        # Get sources for the language
-        sources = self.video_sources.get(language, self.video_sources['en'])
-        
-        for source_name, source_config in sources.items():
-            if len(all_results) >= num_results:
+        for platform in platforms:
+            if len(results) >= num_results:
                 break
-                
+            
             try:
-                source_results = self._search_source(enhanced_query, source_name, source_config, language)
-                all_results.extend(source_results)
+                platform_results = self._search_platform(query, platform, num_results - len(results))
+                results.extend(platform_results)
                 time.sleep(0.5)  # Rate limiting
             except Exception as e:
-                logger.warning(f"Video search failed for {source_name}: {e}")
+                logger.warning(f"Video search failed for {platform['name']}: {e}")
                 continue
         
-        # Remove duplicates and return top results
-        unique_results = self._remove_duplicates(all_results)
-        return unique_results[:num_results]
+        # Add fallback video sources if needed
+        if len(results) < num_results:
+            fallback_results = self._get_fallback_videos(query, language, num_results - len(results))
+            results.extend(fallback_results)
+        
+        logger.info(f"Found {len(results)} video results")
+        return results[:num_results]
     
-    def _enhance_medical_query(self, query: str, language: str) -> str:
-        """Enhance query with medical-specific terms"""
-        medical_terms = {
-            'en': ['medical', 'health', 'doctor', 'treatment', 'symptoms', 'diagnosis'],
-            'vi': ['y tế', 'sức khỏe', 'bác sĩ', 'điều trị', 'triệu chứng', 'chẩn đoán'],
-            'zh': ['医疗', '健康', '医生', '治疗', '症状', '诊断']
-        }
-        
-        terms = medical_terms.get(language, medical_terms['en'])
-        
-        # Add medical context if not already present
-        query_lower = query.lower()
-        has_medical_context = any(term in query_lower for term in terms)
-        
-        if not has_medical_context:
-            # Add the most relevant medical term
-            if language == 'vi':
-                enhanced = f"{query} y tế sức khỏe"
-            elif language == 'zh':
-                enhanced = f"{query} 医疗健康"
-            else:
-                enhanced = f"{query} medical health"
-        else:
-            enhanced = query
-        
-        return enhanced
-    
-    def _search_source(self, query: str, source_name: str, source_config: Dict, language: str) -> List[Dict]:
-        """Search a specific video source"""
+    def _search_platform(self, query: str, platform: Dict, num_results: int) -> List[Dict]:
+        """Search a specific video platform"""
         try:
-            # Try real search first, fallback to mock if network fails
-            try:
-                return self._search_source_real(query, source_name, source_config, language)
-            except Exception as network_error:
-                logger.warning(f"Network search failed for {source_name}: {network_error}")
-                logger.info(f"Using mock results for {source_name} due to network restrictions")
-                return self._get_mock_video_results(source_name, language, query)
+            search_url = platform['search_url']
+            params = platform['params'].copy()
+            
+            # Set search query parameter
+            for param_name in params.keys():
+                params[param_name] = query
+            
+            response = self.session.get(search_url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            results = []
+            
+            # Try platform-specific selectors
+            selectors = platform.get('selectors', ['a[href*="video"]', 'a[href*="watch"]'])
+            
+            for selector in selectors:
+                links = soup.select(selector)
+                if links:
+                    logger.info(f"{platform['name']} found {len(links)} video links with selector: {selector}")
+                    break
+            
+            for link in links[:num_results]:
+                try:
+                    href = link.get('href')
+                    if not href:
+                        continue
+                    
+                    # Make absolute URL
+                    if href.startswith('/'):
+                        href = platform['base_url'] + href
+                    
+                    title = link.get_text(strip=True)
+                    if title and href:
+                        results.append({
+                            'url': href,
+                            'title': title,
+                            'platform': platform['name'],
+                            'type': 'video',
+                            'source': platform['name']
+                        })
+                except Exception as e:
+                    logger.debug(f"Error parsing {platform['name']} link: {e}")
+                    continue
+            
+            return results
             
         except Exception as e:
-            logger.error(f"Error searching {source_name}: {e}")
+            logger.warning(f"Platform {platform['name']} search failed: {e}")
             return []
     
-    def _search_source_real(self, query: str, source_name: str, source_config: Dict, language: str) -> List[Dict]:
-        """Attempt real search with proper error handling"""
-        search_url = source_config.get('search_url')
-        if not search_url:
-            raise ValueError(f"No search URL configured for {source_name}")
-        
-        # Prepare search parameters
-        params = source_config.get('params', {}).copy()
-        
-        # Set the search query parameter based on source
-        if 'search_query' in params:
-            params['search_query'] = query
-        elif 'q' in params:
-            params['q'] = query
-        elif 'keyword' in params:
-            params['keyword'] = query
-        
-        # Make the request with proper headers and timeout
-        response = self.session.get(
-            search_url, 
-            params=params, 
-            timeout=self.timeout,
-            allow_redirects=True
-        )
-        response.raise_for_status()
-        
-        # Parse results
-        return self._parse_video_results(response.text, source_config, source_name, language)
-    
-    def _parse_video_results(self, html_content: str, source_config: Dict, source_name: str, language: str) -> List[Dict]:
-        """Parse video results from HTML content"""
-        results = []
-        
-        # This is a simplified parser - in production, you'd use BeautifulSoup or similar
-        # For now, we'll create mock results based on the query
-        
-        # Extract basic video information using regex patterns
-        title_pattern = r'<title[^>]*>([^<]+)</title>'
-        titles = re.findall(title_pattern, html_content, re.IGNORECASE)
-        
-        # Create mock results for demonstration
-        # In production, you'd extract real video data
-        mock_videos = self._get_mock_video_results(source_name, language)
-        
-        for i, video in enumerate(mock_videos[:3]):  # Limit to 3 results per source
-            results.append({
-                'title': video['title'],
-                'url': video['url'],
-                'thumbnail': video['thumbnail'],
-                'duration': video['duration'],
-                'channel': video['channel'],
-                'source': source_name,
-                'language': language,
-                'type': 'video'
-            })
-        
-        return results
-    
-    def _get_mock_video_results(self, source_name: str, language: str, query: str = "") -> List[Dict]:
-        """Get mock video results for demonstration"""
-        # In production, this would be replaced with actual video parsing
-        # For now, return relevant mock results based on the query
-        
-        # Generate query-specific results
-        query_lower = query.lower()
-        
-        # Determine topic based on query
-        if any(term in query_lower for term in ['migraine', 'headache', 'đau đầu', '头痛']):
-            topic = 'migraine'
-        elif any(term in query_lower for term in ['pain', 'đau', '疼痛']):
-            topic = 'pain'
-        elif any(term in query_lower for term in ['treatment', 'điều trị', '治疗']):
-            topic = 'treatment'
-        else:
-            topic = 'general'
-        
-        # Generate topic-specific results
-        topic_results = self._get_topic_specific_results(topic, language)
-        
-        mock_results = {
-            'youtube': {
-                'en': topic_results.get('en', [
-                    {
-                        'title': 'Medical Treatment: What You Need to Know',
-                        'url': 'https://www.youtube.com/watch?v=example1',
-                        'thumbnail': 'https://img.youtube.com/vi/example1/mqdefault.jpg',
-                        'duration': '12:34',
-                        'channel': 'Medical Education Channel'
-                    }
-                ]),
-                'vi': [
-                    {
-                        'title': 'Chẩn đoán và điều trị y tế',
-                        'url': 'https://www.youtube.com/watch?v=example_vi1',
-                        'thumbnail': 'https://img.youtube.com/vi/example_vi1/mqdefault.jpg',
-                        'duration': '10:15',
-                        'channel': 'Kênh Y Tế Việt Nam'
-                    },
-                    {
-                        'title': 'Hiểu về các triệu chứng y tế thường gặp',
-                        'url': 'https://www.youtube.com/watch?v=example_vi2',
-                        'thumbnail': 'https://img.youtube.com/vi/example_vi2/mqdefault.jpg',
-                        'duration': '7:30',
-                        'channel': 'Sức Khỏe & Đời Sống'
-                    }
-                ],
-                'zh': [
-                    {
-                        'title': '医疗诊断和治疗解释',
-                        'url': 'https://www.youtube.com/watch?v=example_zh1',
-                        'thumbnail': 'https://img.youtube.com/vi/example_zh1/mqdefault.jpg',
-                        'duration': '11:25',
-                        'channel': '医疗教育频道'
-                    },
-                    {
-                        'title': '了解常见医疗症状',
-                        'url': 'https://www.youtube.com/watch?v=example_zh2',
-                        'thumbnail': 'https://img.youtube.com/vi/example_zh2/mqdefault.jpg',
-                        'duration': '9:10',
-                        'channel': '健康与医疗'
-                    }
-                ]
-            },
-            'ted': {
-                'en': [
-                    {
-                        'title': 'The Future of Medical Technology',
-                        'url': 'https://www.ted.com/talks/example_ted1',
-                        'thumbnail': 'https://pi.tedcdn.com/r/example_ted1.jpg',
-                        'duration': '18:45',
-                        'channel': 'TED Talks'
-                    }
-                ]
-            }
+    def _get_fallback_videos(self, query: str, language: str, num_results: int) -> List[Dict]:
+        """Get fallback video sources when direct search fails"""
+        fallback_videos = {
+            'en': [
+                {
+                    'url': 'https://www.youtube.com/results?search_query=medical+' + quote(query),
+                    'title': f'Medical Videos: {query}',
+                    'platform': 'youtube_fallback',
+                    'type': 'video',
+                    'source': 'youtube'
+                },
+                {
+                    'url': 'https://www.medscape.com/search?q=' + quote(query),
+                    'title': f'Medscape Videos: {query}',
+                    'platform': 'medscape_fallback',
+                    'type': 'video',
+                    'source': 'medscape'
+                }
+            ],
+            'vi': [
+                {
+                    'url': 'https://www.youtube.com/results?search_query=y+tế+' + quote(query),
+                    'title': f'Video Y Tế: {query}',
+                    'platform': 'youtube_vi_fallback',
+                    'type': 'video',
+                    'source': 'youtube'
+                },
+                {
+                    'url': 'https://www.vinmec.com/vi/suc-khoe',
+                    'title': f'Vinmec Videos: {query}',
+                    'platform': 'vinmec_fallback',
+                    'type': 'video',
+                    'source': 'vinmec'
+                }
+            ],
+            'zh': [
+                {
+                    'url': 'https://www.youtube.com/results?search_query=医疗+' + quote(query),
+                    'title': f'医疗视频: {query}',
+                    'platform': 'youtube_zh_fallback',
+                    'type': 'video',
+                    'source': 'youtube'
+                },
+                {
+                    'url': 'https://www.haodf.com/jibing',
+                    'title': f'好大夫视频: {query}',
+                    'platform': 'haodf_fallback',
+                    'type': 'video',
+                    'source': 'haodf'
+                }
+            ]
         }
         
-        return mock_results.get(source_name, {}).get(language, [])
-    
-    def _get_topic_specific_results(self, topic: str, language: str) -> Dict[str, List[Dict]]:
-        """Get topic-specific video results"""
-        results = {
-            'migraine': {
-                'en': [
-                    {
-                        'title': 'Migraine Treatment: What You Need to Know',
-                        'url': 'https://www.youtube.com/watch?v=migraine_treatment',
-                        'thumbnail': 'https://img.youtube.com/vi/migraine_treatment/mqdefault.jpg',
-                        'duration': '12:34',
-                        'channel': 'Mayo Clinic'
-                    },
-                    {
-                        'title': 'Understanding Migraine Symptoms and Causes',
-                        'url': 'https://www.youtube.com/watch?v=migraine_symptoms',
-                        'thumbnail': 'https://img.youtube.com/vi/migraine_symptoms/mqdefault.jpg',
-                        'duration': '8:45',
-                        'channel': 'WebMD'
-                    }
-                ],
-                'vi': [
-                    {
-                        'title': 'Điều trị đau nửa đầu: Những điều cần biết',
-                        'url': 'https://www.youtube.com/watch?v=migraine_vi',
-                        'thumbnail': 'https://img.youtube.com/vi/migraine_vi/mqdefault.jpg',
-                        'duration': '10:15',
-                        'channel': 'Kênh Y Tế Việt Nam'
-                    }
-                ],
-                'zh': [
-                    {
-                        'title': '偏头痛治疗：您需要了解的知识',
-                        'url': 'https://www.youtube.com/watch?v=migraine_zh',
-                        'thumbnail': 'https://img.youtube.com/vi/migraine_zh/mqdefault.jpg',
-                        'duration': '11:25',
-                        'channel': '医疗教育频道'
-                    }
-                ]
-            },
-            'pain': {
-                'en': [
-                    {
-                        'title': 'Pain Management: Effective Treatment Options',
-                        'url': 'https://www.youtube.com/watch?v=pain_management',
-                        'thumbnail': 'https://img.youtube.com/vi/pain_management/mqdefault.jpg',
-                        'duration': '15:20',
-                        'channel': 'Health & Wellness'
-                    }
-                ],
-                'vi': [
-                    {
-                        'title': 'Quản lý đau: Các phương pháp điều trị hiệu quả',
-                        'url': 'https://www.youtube.com/watch?v=pain_vi',
-                        'thumbnail': 'https://img.youtube.com/vi/pain_vi/mqdefault.jpg',
-                        'duration': '12:30',
-                        'channel': 'Sức Khỏe & Đời Sống'
-                    }
-                ],
-                'zh': [
-                    {
-                        'title': '疼痛管理：有效的治疗方案',
-                        'url': 'https://www.youtube.com/watch?v=pain_zh',
-                        'thumbnail': 'https://img.youtube.com/vi/pain_zh/mqdefault.jpg',
-                        'duration': '13:45',
-                        'channel': '健康与医疗'
-                    }
-                ]
-            },
-            'treatment': {
-                'en': [
-                    {
-                        'title': 'Medical Treatment Options Explained',
-                        'url': 'https://www.youtube.com/watch?v=treatment_options',
-                        'thumbnail': 'https://img.youtube.com/vi/treatment_options/mqdefault.jpg',
-                        'duration': '18:30',
-                        'channel': 'Medical Professionals'
-                    }
-                ],
-                'vi': [
-                    {
-                        'title': 'Giải thích các phương pháp điều trị y tế',
-                        'url': 'https://www.youtube.com/watch?v=treatment_vi',
-                        'thumbnail': 'https://img.youtube.com/vi/treatment_vi/mqdefault.jpg',
-                        'duration': '16:20',
-                        'channel': 'Bệnh Viện Vinmec'
-                    }
-                ],
-                'zh': [
-                    {
-                        'title': '医疗治疗方案详解',
-                        'url': 'https://www.youtube.com/watch?v=treatment_zh',
-                        'thumbnail': 'https://img.youtube.com/vi/treatment_zh/mqdefault.jpg',
-                        'duration': '17:15',
-                        'channel': '医疗专业频道'
-                    }
-                ]
-            }
-        }
-        
-        return results.get(topic, {
-            'en': [{
-                'title': 'General Medical Information',
-                'url': 'https://www.youtube.com/watch?v=general_medical',
-                'thumbnail': 'https://img.youtube.com/vi/general_medical/mqdefault.jpg',
-                'duration': '10:00',
-                'channel': 'Medical Education'
-            }]
-        })
-    
-    def _remove_duplicates(self, results: List[Dict]) -> List[Dict]:
-        """Remove duplicate results based on URL"""
-        seen_urls = set()
-        unique_results = []
-        
-        for result in results:
-            url = result.get('url', '')
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                unique_results.append(result)
-        
-        return unique_results
-    
-    def search_youtube_direct(self, query: str, num_results: int = 3) -> List[Dict]:
-        """Direct YouTube search using their API (requires API key)"""
-        # This would use YouTube Data API v3 in production
-        # For now, return mock results
-        logger.info(f"Direct YouTube search for: {query}")
-        
-        mock_results = [
-            {
-                'title': f'Medical Video: {query}',
-                'url': f'https://www.youtube.com/watch?v=youtube_{i}',
-                'thumbnail': f'https://img.youtube.com/vi/youtube_{i}/mqdefault.jpg',
-                'duration': f'{10+i}:{30+i}',
-                'channel': 'Medical Channel',
-                'source': 'youtube',
-                'type': 'video'
-            }
-            for i in range(1, num_results + 1)
-        ]
-        
-        return mock_results
+        return fallback_videos.get(language, fallback_videos['en'])[:num_results]

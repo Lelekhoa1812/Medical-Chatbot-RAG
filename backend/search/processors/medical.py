@@ -124,31 +124,52 @@ class MedicalSearchProcessor:
         return summarized_results
     
     def _create_combined_summary(self, summarized_results: List[Dict], user_query: str) -> str:
-        """Create a comprehensive summary from all results"""
+        """Create a comprehensive summary from all results with proper source attribution"""
         if not summarized_results:
             return ""
+        
+        logger.info(f"Creating combined summary from {len(summarized_results)} results")
         
         # Group by topic/similarity
         topic_groups = self._group_by_topic(summarized_results)
         
         summary_parts = []
+        citation_counter = 1
         
         for topic, results in topic_groups.items():
             if not results:
                 continue
             
-            # Create topic summary
-            topic_summary = self._create_topic_summary(topic, results, user_query)
+            logger.info(f"Processing {topic} topic with {len(results)} results")
+            
+            # Create topic summary with source attribution
+            topic_summary = self._create_topic_summary(topic, results, user_query, citation_counter)
             if topic_summary:
                 summary_parts.append(topic_summary)
+                # Update citation counter for next topic
+                citation_counter += len([r for r in results if r.get('summary')])
         
         # Combine all parts
         combined_summary = "\n\n".join(summary_parts)
         
-        # Final summarization to ensure conciseness
-        if len(combined_summary) > 1500:
-            combined_summary = summarizer.summarize_text(combined_summary, max_length=1500)
+        # Don't over-summarize - keep source attribution intact
+        if len(combined_summary) > 2000:
+            # Only truncate if absolutely necessary, but preserve structure
+            lines = combined_summary.split('\n')
+            truncated_lines = []
+            current_length = 0
+            
+            for line in lines:
+                if current_length + len(line) > 2000:
+                    break
+                truncated_lines.append(line)
+                current_length += len(line)
+            
+            combined_summary = '\n'.join(truncated_lines)
+            if len(truncated_lines) < len(lines):
+                combined_summary += "\n\n*[Additional information available from multiple sources]*"
         
+        logger.info(f"Final combined summary length: {len(combined_summary)} characters")
         return combined_summary
     
     def _group_by_topic(self, results: List[Dict]) -> Dict[str, List[Dict]]:
@@ -177,33 +198,53 @@ class MedicalSearchProcessor:
         
         return topics
     
-    def _create_topic_summary(self, topic: str, results: List[Dict], user_query: str) -> str:
-        """Create summary for a specific topic"""
+    def _create_topic_summary(self, topic: str, results: List[Dict], user_query: str, citation_start: int = 1) -> str:
+        """Create summary for a specific topic with source attribution"""
         if not results:
             return ""
         
-        # Combine summaries for this topic
-        combined_text = " ".join([r.get('summary', '') for r in results])
+        # Add topic header
+        topic_headers = {
+            'symptoms': "**Symptoms and Signs:**",
+            'treatments': "**Treatment Options:**",
+            'diagnosis': "**Diagnosis and Testing:**",
+            'general': "**General Information:**"
+        }
         
-        if not combined_text:
-            return ""
+        header = topic_headers.get(topic, "**Information:**")
+        summary_parts = [header]
         
-        # Create focused summary for this topic
-        topic_summary = summarizer.summarize_for_query(combined_text, user_query, max_length=400)
-        
-        if topic_summary:
-            # Add topic header
-            topic_headers = {
-                'symptoms': "**Symptoms and Signs:**",
-                'treatments': "**Treatment Options:**",
-                'diagnosis': "**Diagnosis and Testing:**",
-                'general': "**General Information:**"
-            }
+        # Process each result individually to maintain source attribution
+        for i, result in enumerate(results[:3]):  # Limit to top 3 per topic
+            summary = result.get('summary', '')
+            if not summary:
+                continue
             
-            header = topic_headers.get(topic, "**Information:**")
-            return f"{header}\n{topic_summary}"
+            # Extract domain from URL for source attribution
+            url = result.get('url', '')
+            domain = self._extract_domain(url)
+            
+            # Use proper citation number
+            citation_num = citation_start + i
+            
+            # Add source attribution
+            summary_with_source = f"* {summary} <#{citation_num}>"
+            summary_parts.append(summary_with_source)
         
-        return ""
+        return "\n".join(summary_parts)
+    
+    def _extract_domain(self, url: str) -> str:
+        """Extract domain name from URL"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            # Remove www. prefix
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            return domain
+        except:
+            return ""
     
     def _create_url_mapping(self, results: List[Dict]) -> Dict[int, str]:
         """Create URL mapping for citations"""
@@ -212,4 +253,5 @@ class MedicalSearchProcessor:
         for i, result in enumerate(results):
             url_mapping[i + 1] = result['url']
         
+        logger.info(f"Created URL mapping for {len(url_mapping)} sources")
         return url_mapping
