@@ -74,8 +74,17 @@ class VideoSearchEngine:
             ]
         }
     
+    def _normalize_query(self, q: str) -> str:
+        if not q:
+            return ""
+        q = q.strip()
+        q = re.sub(r"^(en|vi|zh)\s*:\s*", "", q, flags=re.IGNORECASE)
+        q = re.sub(r"\s+", " ", q)
+        return q
+
     def search(self, query: str, num_results: int = 3, language: str = 'en') -> List[Dict]:
         """Search for medical videos across platforms"""
+        query = self._normalize_query(query)
         logger.info(f"Searching for medical videos: {query} (language: {language})")
         
         results = []
@@ -95,8 +104,16 @@ class VideoSearchEngine:
         
         # Add fallback video sources if needed
         if len(results) < num_results:
-            fallback_results = self._get_fallback_videos(query, language, num_results - len(results))
-            results.extend(fallback_results)
+            # Try resilient YouTube via Invidious API
+            try:
+                resilient = self._search_youtube_invidious(query, language, num_results - len(results))
+                results.extend(resilient)
+            except Exception as e:
+                logger.warning(f"Invidious fallback failed: {e}")
+            # Final fallback: provider search URLs
+            if len(results) < num_results:
+                fallback_results = self._get_fallback_videos(query, language, num_results - len(results))
+                results.extend(fallback_results)
         
         logger.info(f"Found {len(results)} video results")
         return results[:num_results]
@@ -120,6 +137,7 @@ class VideoSearchEngine:
             # Try platform-specific selectors
             selectors = platform.get('selectors', ['a[href*="video"]', 'a[href*="watch"]'])
             
+            links = []
             for selector in selectors:
                 links = soup.select(selector)
                 if links:
@@ -136,7 +154,7 @@ class VideoSearchEngine:
                     if href.startswith('/'):
                         href = platform['base_url'] + href
                     
-                    title = link.get_text(strip=True)
+                    title = link.get_text(strip=True) or platform['name']
                     if title and href:
                         results.append({
                             'url': href,
@@ -154,6 +172,47 @@ class VideoSearchEngine:
         except Exception as e:
             logger.warning(f"Platform {platform['name']} search failed: {e}")
             return []
+
+    def _search_youtube_invidious(self, query: str, language: str, needed: int) -> List[Dict]:
+        """Search YouTube via public Invidious instances (no API key)."""
+        if needed <= 0:
+            return []
+        instances = [
+            "https://yewtu.be",
+            "https://invidious.flokinet.to",
+            "https://vid.puffyan.us",
+            "https://iv.ggtyler.dev"
+        ]
+        out: List[Dict] = []
+        q = quote(query)
+        for base in instances:
+            if len(out) >= needed:
+                break
+            try:
+                url = f"{base}/api/v1/search?q={q}&region={'VN' if language=='vi' else 'US'}&fields=title,videoId,author&type=video"
+                r = self.session.get(url, timeout=6)
+                r.raise_for_status()
+                data = r.json()
+                for item in data:
+                    if len(out) >= needed:
+                        break
+                    vid = item.get("videoId")
+                    title = (item.get("title") or "").strip()
+                    if not vid or not title:
+                        continue
+                    out.append({
+                        'url': f"https://www.youtube.com/watch?v={vid}",
+                        'title': title,
+                        'thumbnail': f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                        'platform': 'youtube',
+                        'source': 'youtube',
+                        'type': 'video',
+                        'language': language
+                    })
+            except Exception as e:
+                logger.debug(f"Invidious {base} failed: {e}")
+                continue
+        return out
     
     def _get_fallback_videos(self, query: str, language: str, num_results: int) -> List[Dict]:
         """Get fallback video sources when direct search fails"""

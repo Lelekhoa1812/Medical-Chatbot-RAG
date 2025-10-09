@@ -149,7 +149,7 @@ class RAGMedicalChatbot:
         is_safe_ans, reason_ans = safety_guard.check_model_answer(user_query, response or "")
         if not is_safe_ans:
             logger.warning(f"[SAFETY] Withholding unsafe model answer: {reason_ans}")
-            response = "⚠️ I cannot share that information. Let's discuss this topic at a high level or try a different question."
+            response = "⚠️ I cannot share that information. Let's discuss this topic at a high level or try a different question. Tips: Ensure correct language preferences."
 
          # Store exchange + chunking
         if user_id:

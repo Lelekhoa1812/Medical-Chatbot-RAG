@@ -10,7 +10,7 @@ class SourceAggregator:
     """Aggregate and process sources for comprehensive information extraction"""
     
     def __init__(self):
-        # Source credibility scoring
+        # (Removed credibility scoring; keep placeholder map for future use)
         self.source_credibility = {
             # English sources
             'mayoclinic.org': 0.95,
@@ -95,47 +95,52 @@ class SourceAggregator:
     
     def _process_source(self, result: Dict) -> Dict:
         """Process a single search result into standardized source format"""
-        url = result.get('url', '')
+        url = (result or {}).get('url', '')
         if not url:
             return None
         
         domain = self._extract_domain(url)
         source_type = self._classify_source_type(domain)
-        credibility = self._get_source_credibility(domain)
+        # Normalize fields with safe defaults
+        title = str(result.get('title', '') or '').strip()
+        content = str(result.get('content', '') or '')
+        language = (result.get('language') or 'en').lower()
+        source_name = str(result.get('source', '') or '')
+        platform = str(result.get('platform', '') or '')
         
         return {
             'url': url,
-            'title': result.get('title', ''),
-            'content': result.get('content', ''),
+            'title': title,
+            'content': content,
             'domain': domain,
             'source_type': source_type,
-            'credibility_score': credibility,
-            'language': result.get('language', 'en'),
-            'source_name': result.get('source', ''),
-            'platform': result.get('platform', ''),
+            'language': language,
+            'source_name': source_name,
+            'platform': platform,
             'type': 'text'
         }
     
     def _process_video_source(self, video: Dict) -> Dict:
         """Process a video result into standardized source format"""
-        url = video.get('url', '')
+        url = (video or {}).get('url', '')
         if not url:
             return None
         
         domain = self._extract_domain(url)
         source_type = 'video'
-        credibility = self._get_source_credibility(domain)
-        
+        title = str(video.get('title', '') or '').strip()
+        language = (video.get('language') or 'en').lower()
+        source_name = str(video.get('source', '') or '')
+        platform = str(video.get('platform', '') or '')
         return {
             'url': url,
-            'title': video.get('title', ''),
+            'title': title,
             'content': '',  # Videos don't have text content
             'domain': domain,
             'source_type': source_type,
-            'credibility_score': credibility,
-            'language': video.get('language', 'en'),
-            'source_name': video.get('source', ''),
-            'platform': video.get('platform', ''),
+            'language': language,
+            'source_name': source_name,
+            'platform': platform,
             'type': 'video'
         }
     
@@ -159,8 +164,8 @@ class SourceAggregator:
         return 'other'
     
     def _get_source_credibility(self, domain: str) -> float:
-        """Get credibility score for domain"""
-        return self.source_credibility.get(domain, 0.70)  # Default score
+        """Deprecated: credibility scoring removed. Kept for compatibility."""
+        return 0.0
     
     def _deduplicate_sources(self, sources: List[Dict]) -> List[Dict]:
         """Remove duplicate sources based on URL and title similarity"""
@@ -208,7 +213,6 @@ class SourceAggregator:
         """Score and rank sources by relevance and credibility"""
         for source in sources:
             # Calculate composite score
-            credibility = source.get('credibility_score', 0.5)
             content_length = len(source.get('content', ''))
             title_length = len(source.get('title', ''))
             
@@ -220,9 +224,8 @@ class SourceAggregator:
             
             # Composite score (weighted)
             composite_score = (
-                credibility * 0.5 +      # 50% credibility
-                content_score * 0.3 +    # 30% content quality
-                title_score * 0.2        # 20% title quality
+                content_score * 0.6 +    # 60% content quality
+                title_score * 0.4        # 40% title quality
             )
             
             source['composite_score'] = composite_score
@@ -242,7 +245,6 @@ class SourceAggregator:
                 'title': source['title'],
                 'domain': source['domain'],
                 'source_type': source['source_type'],
-                'credibility_score': source['credibility_score'],
                 'language': source['language'],
                 'type': source['type']
             }
@@ -257,18 +259,13 @@ class SourceAggregator:
         # Group by source type
         type_counts = defaultdict(int)
         language_counts = defaultdict(int)
-        high_credibility_count = 0
+        # credibility removed
         
         for source in sources:
             source_type = source.get('source_type', 'other')
             language = source.get('language', 'en')
-            credibility = source.get('credibility_score', 0)
-            
             type_counts[source_type] += 1
             language_counts[language] += 1
-            
-            if credibility >= 0.8:
-                high_credibility_count += 1
         
         # Generate summary
         summary_parts = []
@@ -285,7 +282,7 @@ class SourceAggregator:
             summary_parts.append(f"• **Languages**: {lang_summary}")
         
         # Credibility
-        summary_parts.append(f"• **High Credibility Sources**: {high_credibility_count}/{len(sources)} (≥80% credibility)")
+        # credibility info removed
         
         return "\n".join(summary_parts)
     
@@ -317,21 +314,16 @@ class SourceAggregator:
         reference_parts.append("**📚 References:**")
         
         for i, source in enumerate(top_sources, 1):
-            url = source['url']
-            title = source['title']
-            domain = source['domain']
-            source_type = source['source_type']
-            credibility = source['credibility_score']
-            language = source['language']
+            url = source.get('url', '')
+            title = source.get('title', '')
+            domain = source.get('domain', '')
+            source_type = source.get('source_type', 'other')
+            # credibility removed
+            language = source.get('language', 'en')
             source_type_icon = source['type']
             
-            # Create credibility indicator
-            if credibility >= 0.9:
-                cred_indicator = "🟢"
-            elif credibility >= 0.8:
-                cred_indicator = "🟡"
-            else:
-                cred_indicator = "🔴"
+        # Credibility indicator removed
+        cred_indicator = ""
             
             # Create type indicator
             type_icons = {
@@ -353,7 +345,7 @@ class SourceAggregator:
             }
             lang_icon = lang_icons.get(language, '🌐')
             
-            reference_line = f"{i}. {type_icon} {lang_icon} {cred_indicator} [{title}]({url}) - {domain}"
+            reference_line = f"{i}. {type_icon} {lang_icon} [{title}]({url}) - {domain}"
             reference_parts.append(reference_line)
         
         if len(sources) > max_references:

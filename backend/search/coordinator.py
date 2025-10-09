@@ -273,13 +273,17 @@ class SearchCoordinator:
     
     def _find_source_data(self, url: str, url_mapping: Dict[int, str]) -> Dict:
         """Find source data for a given URL"""
-        # This is a simplified version - in practice, you'd maintain source data
+        # This is a simplified version - ensure required fields always exist
         return {
             'url': url,
             'title': f"Source: {url}",
             'content': '',
             'domain': self._extract_domain(url),
-            'type': 'text'
+            'type': 'text',
+            'source_type': 'text',
+            'language': 'en',
+            'source_name': '',
+            'platform': ''
         }
     
     def _extract_domain(self, url: str) -> str:
@@ -341,20 +345,24 @@ class SearchCoordinator:
                     continue
                 if not parsed.netloc:
                     continue
-                # Quick reachability check
-                try:
-                    r = requests.head(url, allow_redirects=True, timeout=3)
-                    if r.status_code >= 400:
-                        continue
-                except Exception:
-                    # If HEAD blocked, try a light GET with small timeout
+                # Quick reachability check; YouTube often blocks HEAD, so skip strict checks for youtube domain
+                host = parsed.netloc.lower()
+                norm_url = url
+                if 'youtube.com' not in host:
                     try:
-                        r = requests.get(url, stream=True, timeout=4)
+                        r = requests.head(url, allow_redirects=True, timeout=3)
                         if r.status_code >= 400:
                             continue
+                        norm_url = getattr(r, 'url', url) or url
                     except Exception:
-                        continue
-                norm_url = r.url if 'r' in locals() and getattr(r, 'url', None) else url
+                        # If HEAD blocked, try a light GET with small timeout
+                        try:
+                            r = requests.get(url, stream=True, timeout=4)
+                            if r.status_code >= 400:
+                                continue
+                            norm_url = getattr(r, 'url', url) or url
+                        except Exception:
+                            continue
                 if norm_url in seen:
                     continue
                 seen.add(norm_url)

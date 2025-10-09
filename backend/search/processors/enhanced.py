@@ -251,12 +251,12 @@ class EnhancedContentProcessor:
         reference_mapping = {}
         
         for i, source in enumerate(sources, 1):
+            # Be defensive: some upstream sources may miss optional fields
             reference_mapping[i] = {
-                'url': source['url'],
-                'title': source['title'],
-                'domain': source['domain'],
+                'url': source.get('url', ''),
+                'title': source.get('title', ''),
+                'domain': source.get('domain', ''),
                 'source_type': source.get('source_type', 'text'),
-                'credibility_score': source.get('credibility_score', 0.7),
                 'language': source.get('language', 'en'),
                 'type': source.get('type', 'text'),
                 'content_length': len(source.get('content', '')),
@@ -302,7 +302,7 @@ class EnhancedContentProcessor:
             return ""
         
         total_sources = len(sources)
-        high_credibility = sum(1 for s in sources if s.get('credibility_score', 0) >= 0.8)
+        # credibility removed
         
         # Language distribution
         languages = defaultdict(int)
@@ -323,7 +323,7 @@ class EnhancedContentProcessor:
         stats_parts = []
         stats_parts.append(f"**📊 Source Statistics:**")
         stats_parts.append(f"• **Total Sources**: {total_sources}")
-        stats_parts.append(f"• **High Credibility**: {high_credibility}/{total_sources} ({high_credibility/total_sources*100:.1f}%)")
+        # removed credibility summary
         stats_parts.append(f"• **Languages**: {', '.join([f'{count} {lang}' for lang, count in languages.items()])}")
         stats_parts.append(f"• **Types**: {', '.join([f'{count} {type_name}' for type_name, count in source_types.items()])}")
         stats_parts.append(f"• **Avg Content Length**: {avg_content_length:.0f} characters")
