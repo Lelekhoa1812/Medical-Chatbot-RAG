@@ -1,9 +1,9 @@
 # Search package
-from .search import WebSearcher, search_web, search_web_with_content, search_medical, search_multilingual_medical, search_videos
+from .search import WebSearcher, search_web, search_web_with_content, search_medical, search_multilingual_medical, search_videos, search_comprehensive
 from .coordinator import SearchCoordinator
 from .engines import DuckDuckGoEngine, MedicalSearchEngine, MultilingualMedicalEngine, VideoSearchEngine
 from .extractors import ContentExtractor
-from .processors import MedicalSearchProcessor, LanguageProcessor
+from .processors import MedicalSearchProcessor, LanguageProcessor, SourceAggregator, EnhancedContentProcessor
 
 __all__ = [
     'WebSearcher', 
@@ -12,6 +12,7 @@ __all__ = [
     'search_medical',
     'search_multilingual_medical',
     'search_videos',
+    'search_comprehensive',
     'SearchCoordinator',
     'DuckDuckGoEngine',
     'MedicalSearchEngine',
@@ -19,5 +20,7 @@ __all__ = [
     'VideoSearchEngine',
     'ContentExtractor',
     'MedicalSearchProcessor',
-    'LanguageProcessor'
+    'LanguageProcessor',
+    'SourceAggregator',
+    'EnhancedContentProcessor'
 ]

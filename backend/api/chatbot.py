@@ -7,7 +7,7 @@ from .config import gemini_flash_api_key
 from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
-from search import search_multilingual_medical, search_videos
+from search import search_comprehensive
 from models import summarizer
 from models import process_search_query
 from models.guard import safety_guard
@@ -60,45 +60,51 @@ class RAGMedicalChatbot:
         # c. Hybrid Context Retrieval: RAG + Recent History + Intelligent Selection
         contextual_chunks = self.memory.get_contextual_chunks(user_id, user_query, lang)
 
-        # 2. Search mode - web search and Llama processing
+        # 2. Retrieval modes (search and/or video) — handled independently
         search_context = ""
         url_mapping = {}
+        video_results = []
+
+        # Text/web search mode (no videos unless video_mode=True)
         if search_mode:
             logger.info(f"[SEARCH] Starting web search mode for query: {user_query}")
             try:
-                # Build enriched search query from user's question + recent memory (no KB retrieval)
                 recent_memory_chunk = self.memory.get_context(user_id, num_turns=3) or ""
-                # If contextual_chunks available, use it instead of recent_memory_chunk
                 recent_memory_ctx = contextual_chunks if contextual_chunks else recent_memory_chunk[:600]
                 memory_focus = summarizer.summarize_for_query(recent_memory_ctx, user_query, max_length=180) if recent_memory_ctx else ""
                 final_search_query = user_query if not memory_focus else f"{user_query}. {memory_focus}"
                 logger.info(f"[SEARCH] Final search query: {final_search_query}")
 
-                # Search the web with multilingual medical processing
-                search_context, url_mapping = search_multilingual_medical(final_search_query, num_results=10, target_language=lang)
+                # Run comprehensive search; include videos only if UI requested
+                search_context, url_mapping, source_aggregation = search_comprehensive(
+                    final_search_query,
+                    num_results=15,
+                    target_language=lang,
+                    include_videos=bool(video_mode)
+                )
                 if search_context and url_mapping:
-                    logger.info(f"[SEARCH] Retrieved and processed {len(url_mapping)} multilingual web resources")
+                    logger.info(f"[SEARCH] Retrieved and processed {len(url_mapping)} comprehensive web resources")
                 else:
                     logger.warning("[SEARCH] No search results found")
                     search_context = ""
                     url_mapping = {}
+                    source_aggregation = {}
+
+                # If videos were requested and provided by comprehensive search, capture them
+                if video_mode and source_aggregation:
+                    video_results = source_aggregation.get('sources', []) or []
             except Exception as e:
                 logger.error(f"[SEARCH] Search failed: {e}")
                 search_context = ""
                 url_mapping = {}
+                video_results = []
 
-        # 2.1. Video mode - search for medical videos
-        video_results = []
-        if video_mode:
-            logger.info(f"[VIDEO] Starting video search mode for query: {user_query}")
+        # Standalone video mode (when search_mode is False but videos requested)
+        if (not search_mode) and video_mode:
             try:
-                video_results = search_videos(user_query, num_results=3, target_language=lang)
-                if video_results:
-                    logger.info(f"[VIDEO] Retrieved {len(video_results)} video resources")
-                else:
-                    logger.warning("[VIDEO] No video results found")
+                video_results = self.video_search(user_query, num_results=5, target_language=lang)
             except Exception as e:
-                logger.error(f"[VIDEO] Video search failed: {e}")
+                logger.warning(f"[VIDEO] Standalone video search failed: {e}")
                 video_results = []
 
         # 3. Build prompt parts
@@ -124,10 +130,10 @@ class RAGMedicalChatbot:
         if diagnosis_guides:
             parts.append("Symptom-based diagnosis guidance (if applicable):\n" + "\n".join(diagnosis_guides))
         
-        # 5. Search context with citation instructions
+        # 5. Search context with comprehensive information
         if search_context:
-            parts.append("Additional information from web search:\n" + search_context)
-            parts.append("IMPORTANT: When you use information from the web search results above, you MUST add citation tags immediately after the relevant content. Use single citations like <#1> or multiple citations like <#1, #2, #5> when information comes from multiple sources. For example: 'According to recent studies <#1>, this condition affects...' or 'Multiple sources <#1, #3, #7> suggest that...'")
+            parts.append("Comprehensive medical information from multiple sources:\n" + search_context)
+            parts.append("IMPORTANT: The above information includes comprehensive details from multiple medical sources with inline citations. Use the citation tags <#ID> that are already included in the text to reference specific sources. The information is organized by medical categories (symptoms, causes, treatments, diagnosis, prevention, prognosis) and includes both text and video sources.")
         
         parts.append(f"User's question: {user_query}")
         parts.append(f"Language to generate answer: {lang}")
@@ -150,8 +156,8 @@ class RAGMedicalChatbot:
             self.memory.add_exchange(user_id, user_query, response, lang=lang)
         logger.info(f"[LLM] Response on `prompt`: {response.strip()}") # Debug out base response
         
-        # Return response with video data if available
-        if video_results:
+        # Return response with video data if available and requested
+        if video_mode and video_results:
             return {
                 'text': response.strip(),
                 'videos': video_results

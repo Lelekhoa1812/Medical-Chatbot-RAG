@@ -10,6 +10,8 @@ from .engines.video import VideoSearchEngine
 from .extractors.content import ContentExtractor
 from .processors.medical import MedicalSearchProcessor
 from .processors.language import LanguageProcessor
+from .processors.sources import SourceAggregator
+from .processors.enhanced import EnhancedContentProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,8 @@ class SearchCoordinator:
         self.content_extractor = ContentExtractor()
         self.medical_processor = MedicalSearchProcessor()
         self.language_processor = LanguageProcessor()
+        self.source_aggregator = SourceAggregator()
+        self.enhanced_processor = EnhancedContentProcessor()
         
         # Search strategies
         self.strategies = [
@@ -204,6 +208,92 @@ class SearchCoordinator:
         logger.info(f"Multilingual medical search completed: {len(url_mapping)} sources")
         return summary, url_mapping
     
+    def comprehensive_search(self, query: str, num_results: int = 15, target_language: str = None, include_videos: bool = True) -> Tuple[str, Dict[int, str], Dict]:
+        """Comprehensive search with maximum information extraction and detailed references"""
+        logger.info(f"Starting comprehensive search for: {query} (target: {target_language})")
+        
+        # Detect source language
+        source_language = self.language_processor.detect_language(query)
+        logger.info(f"Detected source language: {source_language}")
+        
+        # Execute comprehensive search
+        search_results = []
+        video_results = []
+        
+        # 1. Multilingual text search
+        text_summary, text_url_mapping = self.search(query, num_results, target_language)
+        
+        # 2. Video search if requested
+        if include_videos:
+            try:
+                video_results = self.video_search(query, num_results=5, target_language=target_language)
+                logger.info(f"Video search found {len(video_results)} videos")
+            except Exception as e:
+                logger.warning(f"Video search failed: {e}")
+        
+        # 3. Aggregate all sources
+        all_sources = []
+        
+        # Add text sources
+        for i, url in text_url_mapping.items():
+            # Find corresponding source data
+            source_data = self._find_source_data(url, text_url_mapping)
+            if source_data:
+                all_sources.append(source_data)
+        
+        # Add video sources
+        for video in video_results:
+            all_sources.append(video)
+        
+        # 4. Process with enhanced content processor
+        if all_sources:
+            comprehensive_summary, detailed_mapping = self.enhanced_processor.process_comprehensive_content(all_sources, query)
+        else:
+            comprehensive_summary = text_summary
+            detailed_mapping = text_url_mapping
+        
+        # 5. Create comprehensive source aggregation
+        source_aggregation = self.source_aggregator.aggregate_sources(all_sources, video_results)
+        
+        # 6. Generate comprehensive references
+        comprehensive_references = self.source_aggregator.create_comprehensive_references(all_sources, max_references=20)
+        
+        # 7. Add inline citations
+        final_summary = self.enhanced_processor.create_inline_citations(comprehensive_summary, detailed_mapping)
+        
+        # 8. Add source statistics
+        source_stats = self.enhanced_processor.generate_source_statistics(all_sources)
+        
+        # 9. Combine everything
+        final_response = f"{final_summary}\n\n{comprehensive_references}\n\n{source_stats}"
+        
+        logger.info(f"Comprehensive search completed: {len(all_sources)} total sources processed")
+        
+        return final_response, detailed_mapping, source_aggregation
+    
+    def _find_source_data(self, url: str, url_mapping: Dict[int, str]) -> Dict:
+        """Find source data for a given URL"""
+        # This is a simplified version - in practice, you'd maintain source data
+        return {
+            'url': url,
+            'title': f"Source: {url}",
+            'content': '',
+            'domain': self._extract_domain(url),
+            'type': 'text'
+        }
+    
+    def _extract_domain(self, url: str) -> str:
+        """Extract domain from URL"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            return domain
+        except:
+            return ''
+    
     def video_search(self, query: str, num_results: int = 3, target_language: str = None) -> List[Dict]:
         """Search for medical videos across multiple platforms"""
         logger.info(f"Video search for: {query} (target: {target_language})")
@@ -224,7 +314,63 @@ class SearchCoordinator:
         search_language = lang_mapping.get(target_language, 'en')
         
         # Search for videos
-        video_results = self.video_engine.search(query, num_results, search_language)
+        raw_results = self.video_engine.search(query, num_results, search_language)
+        
+        # Validate and normalize results to avoid corrupted cards/links
+        video_results = self._sanitize_video_results(raw_results, limit=num_results)
         
         logger.info(f"Video search completed: {len(video_results)} videos found")
         return video_results
+
+    def _sanitize_video_results(self, results: List[Dict], limit: int = 4) -> List[Dict]:
+        """Ensure each video has a valid absolute https URL, reasonable title, and platform metadata.
+        Drop unreachable/broken items and deduplicate by URL.
+        """
+        from urllib.parse import urlparse
+        import requests
+        clean: List[Dict] = []
+        seen = set()
+        for item in results or []:
+            url = (item or {}).get('url', '')
+            title = (item or {}).get('title', '').strip()
+            if not url or not title:
+                continue
+            try:
+                parsed = urlparse(url)
+                if parsed.scheme not in ('http', 'https'):
+                    continue
+                if not parsed.netloc:
+                    continue
+                # Quick reachability check
+                try:
+                    r = requests.head(url, allow_redirects=True, timeout=3)
+                    if r.status_code >= 400:
+                        continue
+                except Exception:
+                    # If HEAD blocked, try a light GET with small timeout
+                    try:
+                        r = requests.get(url, stream=True, timeout=4)
+                        if r.status_code >= 400:
+                            continue
+                    except Exception:
+                        continue
+                norm_url = r.url if 'r' in locals() and getattr(r, 'url', None) else url
+                if norm_url in seen:
+                    continue
+                seen.add(norm_url)
+                platform = parsed.netloc.lower()
+                if platform.startswith('www.'):
+                    platform = platform[4:]
+                clean.append({
+                    'title': title,
+                    'url': norm_url,
+                    'thumbnail': item.get('thumbnail', ''),
+                    'source': item.get('source', platform.split('.')[0]),
+                    'platform': platform,
+                    'language': item.get('language', 'en')
+                })
+                if len(clean) >= limit:
+                    break
+            except Exception:
+                continue
+        return clean

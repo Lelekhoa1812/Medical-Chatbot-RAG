@@ -114,3 +114,13 @@ def search_videos(query: str, num_results: int = 2, target_language: str = None)
     except Exception as e:
         logger.error(f"Video search failed: {e}")
         return []
+
+# Comprehensive search function with maximum information extraction
+def search_comprehensive(query: str, num_results: int = 15, target_language: str = None, include_videos: bool = True) -> Tuple[str, Dict[int, str], Dict]:
+    """Comprehensive search with maximum information extraction and detailed references"""
+    try:
+        coordinator = get_search_coordinator()
+        return coordinator.comprehensive_search(query, num_results, target_language, include_videos)
+    except Exception as e:
+        logger.error(f"Comprehensive search failed: {e}")
+        return "", {}, {}

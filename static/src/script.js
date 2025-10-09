@@ -281,7 +281,7 @@ function displayVideos(videos) {
     videoContainer.classList.add('video-container');
     videoContainer.innerHTML = `
         <div class="video-header">
-            <h4>📹 Related Medical Videos</h4>
+            <h4>Related Medical Videos</h4>
         </div>
         <div class="video-grid">
             ${videos.map((video, index) => createVideoCard(video, index)).join('')}
@@ -705,7 +705,7 @@ function removeLastMessage() {
     }
 }
 
-// --- Process citations and replace with magnifier icons ---
+// --- Process citations/links and render as compact domain buttons ---
 function processCitations(htmlContent) {
     // First, clean up malformed citation tags
     let cleanedContent = htmlContent;
@@ -729,10 +729,9 @@ function processCitations(htmlContent) {
         return urlMatch ? urlMatch[0] : match;
     });
     
-    // Now process the cleaned content
+    // 1) Process <https://...> style citations
     const citationPattern = /<https?:\/\/[^>]+>/g;
-    
-    return cleanedContent.replace(citationPattern, (match) => {
+    cleanedContent = cleanedContent.replace(citationPattern, (match) => {
         const url = match.slice(1, -1); // Remove < and >
         const domain = extractDomain(url);
         return `<span class="citation-link" data-url="${url}" title="View source: ${domain}">
@@ -740,6 +739,21 @@ function processCitations(htmlContent) {
                     <span class="citation-domain">${domain}</span>
                 </span>`;
     });
+
+    // 2) Process anchor tags created by markdown (<a href="...">...</a>)
+    // Replace anchor content with compact domain button, preserve original href as data-url
+    const anchorPattern = /<a\s+href=\"(https?:\/\/[^\"\s]+)\"[^>]*>([\s\S]*?)<\/a>/gi;
+    cleanedContent = cleanedContent.replace(anchorPattern, (full, href, inner) => {
+        // Ignore anchors that already look like our citation-link
+        if (/class=\"citation-link\"/.test(full)) return full;
+        const domain = extractDomain(href);
+        return `<span class="citation-link" data-url="${href}" title="View source: ${domain}">
+                    <i class="fas fa-external-link-alt citation-icon"></i>
+                    <span class="citation-domain">${domain}</span>
+                </span>`;
+    });
+
+    return cleanedContent;
 }
 
 // --- Extract domain from URL for display ---
