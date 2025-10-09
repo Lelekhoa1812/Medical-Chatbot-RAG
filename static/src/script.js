@@ -707,14 +707,36 @@ function removeLastMessage() {
 
 // --- Process citations and replace with magnifier icons ---
 function processCitations(htmlContent) {
-    // Find all citation tags like <https://example.com> and replace with magnifier icons
+    // First, clean up malformed citation tags
+    let cleanedContent = htmlContent;
+    
+    // Fix malformed citations like <https://example.com> <##2> or <https://example.com#1>
+    cleanedContent = cleanedContent.replace(/<https?:\/\/[^>]*>[\s]*<##?\d+>/g, (match) => {
+        // Extract the URL part
+        const urlMatch = match.match(/<https?:\/\/[^>]*>/);
+        return urlMatch ? urlMatch[0] : match;
+    });
+    
+    // Fix citations with hash fragments like <https://example.com#1>
+    cleanedContent = cleanedContent.replace(/<https?:\/\/[^>]*#\d+>/g, (match) => {
+        // Remove the hash fragment
+        return match.replace(/#\d+>/, '>');
+    });
+    
+    // Fix citations with malformed hash tags like <https://example.com> <##2>
+    cleanedContent = cleanedContent.replace(/<https?:\/\/[^>]*>[\s]*<##?\d+>/g, (match) => {
+        const urlMatch = match.match(/<https?:\/\/[^>]*>/);
+        return urlMatch ? urlMatch[0] : match;
+    });
+    
+    // Now process the cleaned content
     const citationPattern = /<https?:\/\/[^>]+>/g;
     
-    return htmlContent.replace(citationPattern, (match) => {
+    return cleanedContent.replace(citationPattern, (match) => {
         const url = match.slice(1, -1); // Remove < and >
         const domain = extractDomain(url);
         return `<span class="citation-link" data-url="${url}" title="View source: ${domain}">
-                    <i class="fas fa-search-plus citation-icon"></i>
+                    <i class="fas fa-external-link-alt citation-icon"></i>
                     <span class="citation-domain">${domain}</span>
                 </span>`;
     });

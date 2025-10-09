@@ -184,14 +184,46 @@ class VideoSearchEngine:
     def _search_source(self, query: str, source_name: str, source_config: Dict, language: str) -> List[Dict]:
         """Search a specific video source"""
         try:
-            # For now, return mock results since real API calls may fail due to network restrictions
-            # In production, you would implement actual API calls here
-            logger.info(f"Using mock results for {source_name} due to network restrictions")
-            return self._get_mock_video_results(source_name, language, query)
+            # Try real search first, fallback to mock if network fails
+            try:
+                return self._search_source_real(query, source_name, source_config, language)
+            except Exception as network_error:
+                logger.warning(f"Network search failed for {source_name}: {network_error}")
+                logger.info(f"Using mock results for {source_name} due to network restrictions")
+                return self._get_mock_video_results(source_name, language, query)
             
         except Exception as e:
             logger.error(f"Error searching {source_name}: {e}")
             return []
+    
+    def _search_source_real(self, query: str, source_name: str, source_config: Dict, language: str) -> List[Dict]:
+        """Attempt real search with proper error handling"""
+        search_url = source_config.get('search_url')
+        if not search_url:
+            raise ValueError(f"No search URL configured for {source_name}")
+        
+        # Prepare search parameters
+        params = source_config.get('params', {}).copy()
+        
+        # Set the search query parameter based on source
+        if 'search_query' in params:
+            params['search_query'] = query
+        elif 'q' in params:
+            params['q'] = query
+        elif 'keyword' in params:
+            params['keyword'] = query
+        
+        # Make the request with proper headers and timeout
+        response = self.session.get(
+            search_url, 
+            params=params, 
+            timeout=self.timeout,
+            allow_redirects=True
+        )
+        response.raise_for_status()
+        
+        # Parse results
+        return self._parse_video_results(response.text, source_config, source_name, language)
     
     def _parse_video_results(self, html_content: str, source_config: Dict, source_name: str, language: str) -> List[Dict]:
         """Parse video results from HTML content"""
@@ -226,31 +258,34 @@ class VideoSearchEngine:
         """Get mock video results for demonstration"""
         # In production, this would be replaced with actual video parsing
         # For now, return relevant mock results based on the query
+        
+        # Generate query-specific results
+        query_lower = query.lower()
+        
+        # Determine topic based on query
+        if any(term in query_lower for term in ['migraine', 'headache', 'đau đầu', '头痛']):
+            topic = 'migraine'
+        elif any(term in query_lower for term in ['pain', 'đau', '疼痛']):
+            topic = 'pain'
+        elif any(term in query_lower for term in ['treatment', 'điều trị', '治疗']):
+            topic = 'treatment'
+        else:
+            topic = 'general'
+        
+        # Generate topic-specific results
+        topic_results = self._get_topic_specific_results(topic, language)
+        
         mock_results = {
             'youtube': {
-                'en': [
+                'en': topic_results.get('en', [
                     {
-                        'title': 'Migraine Treatment: What You Need to Know',
+                        'title': 'Medical Treatment: What You Need to Know',
                         'url': 'https://www.youtube.com/watch?v=example1',
                         'thumbnail': 'https://img.youtube.com/vi/example1/mqdefault.jpg',
                         'duration': '12:34',
                         'channel': 'Medical Education Channel'
-                    },
-                    {
-                        'title': 'Understanding Common Medical Symptoms',
-                        'url': 'https://www.youtube.com/watch?v=example2',
-                        'thumbnail': 'https://img.youtube.com/vi/example2/mqdefault.jpg',
-                        'duration': '8:45',
-                        'channel': 'Health & Wellness'
-                    },
-                    {
-                        'title': 'Doctor Explains Treatment Options',
-                        'url': 'https://www.youtube.com/watch?v=example3',
-                        'thumbnail': 'https://img.youtube.com/vi/example3/mqdefault.jpg',
-                        'duration': '15:20',
-                        'channel': 'Medical Professionals'
                     }
-                ],
+                ]),
                 'vi': [
                     {
                         'title': 'Chẩn đoán và điều trị y tế',
@@ -298,6 +333,115 @@ class VideoSearchEngine:
         }
         
         return mock_results.get(source_name, {}).get(language, [])
+    
+    def _get_topic_specific_results(self, topic: str, language: str) -> Dict[str, List[Dict]]:
+        """Get topic-specific video results"""
+        results = {
+            'migraine': {
+                'en': [
+                    {
+                        'title': 'Migraine Treatment: What You Need to Know',
+                        'url': 'https://www.youtube.com/watch?v=migraine_treatment',
+                        'thumbnail': 'https://img.youtube.com/vi/migraine_treatment/mqdefault.jpg',
+                        'duration': '12:34',
+                        'channel': 'Mayo Clinic'
+                    },
+                    {
+                        'title': 'Understanding Migraine Symptoms and Causes',
+                        'url': 'https://www.youtube.com/watch?v=migraine_symptoms',
+                        'thumbnail': 'https://img.youtube.com/vi/migraine_symptoms/mqdefault.jpg',
+                        'duration': '8:45',
+                        'channel': 'WebMD'
+                    }
+                ],
+                'vi': [
+                    {
+                        'title': 'Điều trị đau nửa đầu: Những điều cần biết',
+                        'url': 'https://www.youtube.com/watch?v=migraine_vi',
+                        'thumbnail': 'https://img.youtube.com/vi/migraine_vi/mqdefault.jpg',
+                        'duration': '10:15',
+                        'channel': 'Kênh Y Tế Việt Nam'
+                    }
+                ],
+                'zh': [
+                    {
+                        'title': '偏头痛治疗：您需要了解的知识',
+                        'url': 'https://www.youtube.com/watch?v=migraine_zh',
+                        'thumbnail': 'https://img.youtube.com/vi/migraine_zh/mqdefault.jpg',
+                        'duration': '11:25',
+                        'channel': '医疗教育频道'
+                    }
+                ]
+            },
+            'pain': {
+                'en': [
+                    {
+                        'title': 'Pain Management: Effective Treatment Options',
+                        'url': 'https://www.youtube.com/watch?v=pain_management',
+                        'thumbnail': 'https://img.youtube.com/vi/pain_management/mqdefault.jpg',
+                        'duration': '15:20',
+                        'channel': 'Health & Wellness'
+                    }
+                ],
+                'vi': [
+                    {
+                        'title': 'Quản lý đau: Các phương pháp điều trị hiệu quả',
+                        'url': 'https://www.youtube.com/watch?v=pain_vi',
+                        'thumbnail': 'https://img.youtube.com/vi/pain_vi/mqdefault.jpg',
+                        'duration': '12:30',
+                        'channel': 'Sức Khỏe & Đời Sống'
+                    }
+                ],
+                'zh': [
+                    {
+                        'title': '疼痛管理：有效的治疗方案',
+                        'url': 'https://www.youtube.com/watch?v=pain_zh',
+                        'thumbnail': 'https://img.youtube.com/vi/pain_zh/mqdefault.jpg',
+                        'duration': '13:45',
+                        'channel': '健康与医疗'
+                    }
+                ]
+            },
+            'treatment': {
+                'en': [
+                    {
+                        'title': 'Medical Treatment Options Explained',
+                        'url': 'https://www.youtube.com/watch?v=treatment_options',
+                        'thumbnail': 'https://img.youtube.com/vi/treatment_options/mqdefault.jpg',
+                        'duration': '18:30',
+                        'channel': 'Medical Professionals'
+                    }
+                ],
+                'vi': [
+                    {
+                        'title': 'Giải thích các phương pháp điều trị y tế',
+                        'url': 'https://www.youtube.com/watch?v=treatment_vi',
+                        'thumbnail': 'https://img.youtube.com/vi/treatment_vi/mqdefault.jpg',
+                        'duration': '16:20',
+                        'channel': 'Bệnh Viện Vinmec'
+                    }
+                ],
+                'zh': [
+                    {
+                        'title': '医疗治疗方案详解',
+                        'url': 'https://www.youtube.com/watch?v=treatment_zh',
+                        'thumbnail': 'https://img.youtube.com/vi/treatment_zh/mqdefault.jpg',
+                        'duration': '17:15',
+                        'channel': '医疗专业频道'
+                    }
+                ]
+            }
+        }
+        
+        return results.get(topic, {
+            'en': [{
+                'title': 'General Medical Information',
+                'url': 'https://www.youtube.com/watch?v=general_medical',
+                'thumbnail': 'https://img.youtube.com/vi/general_medical/mqdefault.jpg',
+                'duration': '10:00',
+                'channel': 'Medical Education'
+            }]
+        })
     
     def _remove_duplicates(self, results: List[Dict]) -> List[Dict]:
         """Remove duplicate results based on URL"""

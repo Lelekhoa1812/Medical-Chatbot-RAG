@@ -42,10 +42,8 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 <img src="imgsrc/chatbot_console1.png" alt="Chatbot Medical Answer Example" style="width: 80%; max-width: 1000px;">
 
 ### Chatbot with Answer
-<img src="imgsrc/chat-en1.png" alt="Chatbot UI 1" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/chat-en2.png" alt="Chatbot UI 2" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/chat-en3.png" alt="Chatbot UI 3" style="width: 80%; max-width: 1000px;">
-<img src="imgsrc/chat-en4.png" alt="Chatbot UI 4" style="width: 80%; max-width: 1000px;">
+<img src="imgsrc/src.png" alt="Chatbot UI 1" style="width: 80%; max-width: 1000px;">
+
 
 ## 📊 Memory & Retrieval
 - Per‑user LRU short‑term memory with FAISS; up to 30 recent chunks
