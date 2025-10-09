@@ -31,11 +31,28 @@ let currentTheme = "light";
 let searchModeActive = false;
 let uploadModeActive = false;
 let videoModeActive = false;
+let lastVideosSignature = null; // prevent duplicate renderings
 
 // Submission state management
 let isSubmitting = false;
 let lastSubmissionTime = 0;
 const SUBMISSION_DEBOUNCE_MS = 1000; // Prevent rapid successive submissions
+
+// Conversation scoping for per-conversation persistence (session-scoped)
+let conversationId = sessionStorage.getItem('chat_conversation_id') || '';
+function newConversationId() {
+    return (crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+function ensureConversationId() {
+    if (!conversationId) {
+        conversationId = newConversationId();
+        sessionStorage.setItem('chat_conversation_id', conversationId);
+    }
+}
+function startNewConversation() {
+    conversationId = newConversationId();
+    sessionStorage.setItem('chat_conversation_id', conversationId);
+}
 
 // Chat history management
 const CHAT_HISTORY_KEY = 'medical_chatbot_history';
@@ -275,9 +292,21 @@ function cleanupOldPendingRequests() {
 // Video display functions
 function displayVideos(videos) {
     if (!videos || videos.length === 0) return;
+    // De-dup by signature of URLs list
+    try {
+        const sig = JSON.stringify((videos || []).map(v => v.url).sort());
+        if (lastVideosSignature === sig) {
+            console.log('Skipping duplicate video render');
+            return;
+        }
+        lastVideosSignature = sig;
+    } catch (e) {
+        // ignore signature errors
+    }
     // Persist videos so they survive refresh
     try {
-        localStorage.setItem('chat_videos', JSON.stringify(videos));
+        ensureConversationId();
+        localStorage.setItem(`chat_videos_${conversationId}`, JSON.stringify(videos));
     } catch (e) {
         console.warn('Failed to persist videos', e);
     }
@@ -312,12 +341,6 @@ function createVideoCard(video, index) {
     
     return `
         <div class="video-card" data-video-id="${videoId}">
-            <div class="video-thumbnail placeholder" onclick="toggleVideo('${videoId}')">
-                <div class="video-overlay">
-                    <i class="fas fa-play"></i>
-                </div>
-                <div class="video-duration">${video.duration || ''}</div>
-            </div>
             <div class="video-info">
                 <h5 class="video-title">${video.title}</h5>
                 <p class="video-channel">${video.channel || video.source}</p>
@@ -723,6 +746,12 @@ function processCitations(htmlContent) {
     // First, clean up malformed citation tags
     let cleanedContent = htmlContent;
     
+    // Decode common HTML-escaped angle brackets for our patterns only
+    // Example: &lt;{'url': 'https://...'}&gt;
+    cleanedContent = cleanedContent
+        .replace(/&lt;(\s*\{[\s\S]*?\}\s*)&gt;/g, '<$1>')
+        .replace(/&lt;(https?:\/\/[^>]+)&gt;/g, '<$1>');
+    
     // Fix malformed citations like <https://example.com> <##2> or <https://example.com#1>
     cleanedContent = cleanedContent.replace(/<https?:\/\/[^>]*>[\s]*<##?\d+>/g, (match) => {
         // Extract the URL part
@@ -745,29 +774,38 @@ function processCitations(htmlContent) {
     // Remove stray source-id placeholders like <#context> or <#anything-not-numeric>
     cleanedContent = cleanedContent.replace(/<#(?!\d+(?:\s*,\s*\d+)*)[^>]*>/g, "");
 
-    // 1) Process JSON-ish objects like <{'url': 'https://...', 'title': '...', ...}>
-    const jsonLikePattern = /<\{[^>]*\}>/g;
-    cleanedContent = cleanedContent.replace(jsonLikePattern, (match) => {
-        try {
-            // Extract inside {...}
-            const inner = match.slice(1, -1); // remove < and >
-            // Make it JSON by converting single quotes to double, and removing trailing commas
-            const jsonStr = inner.replace(/([\{,]\s*)'(.*?)'(\s*:)/g, '$1"$2"$3')
-                                 .replace(/:\s*'(.*?)'/g, ':"$1"')
-                                 .replace(/,\s*}/g, '}')
-                                 .replace(/,\s*]/g, ']');
-            const obj = JSON.parse(jsonStr);
-            const url = obj.url || obj.href || obj.link || '';
-            if (!url) return '';
-            const domain = extractDomain(url.startsWith('http') ? url : `https://${url}`);
-            const finalUrl = url.startsWith('http') ? url : `https://${url}`;
-            return `<span class="citation-link" data-url="${finalUrl}" title="View source: ${domain}">
-                        <i class="fas fa-external-link-alt citation-icon"></i>
-                        <span class="citation-domain">${domain}</span>
-                    </span>`;
-        } catch (e) {
-            return '';
-        }
+    // Also handle encoded variants like &lt;#context&gt;
+    cleanedContent = cleanedContent.replace(/&lt;#(?!\d+(?:\s*,\s*\d+)*)[^&]*&gt;/g, "");
+
+    // Handle entity-encoded angle-object blocks directly (e.g., &lt;{ 'url': '...' }&gt;)
+    const encodedObjPattern = /&lt;\s*\{[\s\S]*?\}\s*&gt;\.?/g;
+    cleanedContent = cleanedContent.replace(encodedObjPattern, (match) => {
+        // Convert to real angles to reuse the same builder
+        const decoded = match
+            .replace(/^&lt;/, '<')
+            .replace(/&gt;\.$/, '>')
+            .replace(/&gt;$/, '>');
+        const chip = buildSourceChipFromAngleObject(decoded);
+        return chip || '';
+    });
+
+    // Handle bare objects without angles when they clearly contain a url field
+    const bareObjPattern = /\{[\s\S]*?\}/g;
+    cleanedContent = cleanedContent.replace(bareObjPattern, (obj) => {
+        if (!/['\"]?url['\"]?\s*:/i.test(obj)) return obj;
+        const wrapped = `<${obj}>`;
+        const chip = buildSourceChipFromAngleObject(wrapped);
+        return chip || obj;
+    });
+
+    // 1) Process source objects like <{...}> or entity-encoded &lt;{...}&gt;
+    const realObjPattern = /<\s*\{[\s\S]*?\}\s*>\.?/g;
+    cleanedContent = cleanedContent.replace(realObjPattern, (match) => {
+        const trimmed = match.endsWith('>.') ? match.slice(0, -1) : match;
+        if (!/["']?url["']?\s*:/i.test(trimmed)) return match; // ignore non-source objects
+        const chip = buildSourceChipFromAngleObject(trimmed);
+        // If parsing fails, keep original text to avoid losing content
+        return chip || trimmed;
     });
 
     // 2) Process plain domain inside angle brackets like <mayoclinic.org>
@@ -781,10 +819,15 @@ function processCitations(htmlContent) {
                 </span>`;
     });
 
-    // 3) Process <https://...> style citations
-    const citationPattern = /<https?:\/\/[^>]+>/g;
-    cleanedContent = cleanedContent.replace(citationPattern, (match) => {
-        const url = match.slice(1, -1); // Remove < and >
+    // 3) Process <https://...> style citations (only if not part of an angle-object we already handled)
+    const citationPattern = /<(https?:\/\/[^>]+)>/g;
+    cleanedContent = cleanedContent.replace(citationPattern, (full, url) => {
+        // Skip if this URL is inside an angle-object we already handled
+        // Heuristic: if between a '<{' and the next '}>' without crossing a '>' before '{'
+        const pos = cleanedContent.indexOf(full);
+        const before = cleanedContent.lastIndexOf('<{', pos);
+        const close = cleanedContent.indexOf('}>', before);
+        if (before !== -1 && close !== -1 && pos < close) return full;
         const domain = extractDomain(url);
         return `<span class="citation-link" data-url="${url}" title="View source: ${domain}">
                     <i class="fas fa-external-link-alt citation-icon"></i>
@@ -805,7 +848,94 @@ function processCitations(htmlContent) {
                 </span>`;
     });
 
+    // Final safety pass to catch any remaining angle-object blocks
+    cleanedContent = verifyAndBackfillSources(cleanedContent);
     return cleanedContent;
+}
+
+// Build a pretty source chip from an angle-bracketed object like:
+// <{'url': 'https://...','title':'Source: ...','domain':'mayoclinic.org','source_type':'text','language':'en','type':'text','content_length':0,'composite_score':0.7}>
+function buildSourceChipFromAngleObject(angelObjStr) {
+    try {
+        // Extract inside <{ ... }>
+        const inner = angelObjStr.slice(1, -1);
+        // Pull fields via tolerant regex (single quotes, optional commas, whitespace, newlines)
+        const getField = (name) => {
+            // Support quoted values possibly spanning newlines, or unquoted simple tokens until comma/brace
+            const re = new RegExp(`['\"]?${name}['\"]?\\s*:\\s*(?:['\"]([\\s\\S]*?)['\"]|([^,}]+))`, 'i');
+            const m = inner.match(re);
+            if (!m) return '';
+            let v = m[1] != null ? m[1] : m[2];
+            if (v == null) return '';
+            v = String(v).replace(/\s+/g, ' ').trim();
+            return v;
+        };
+
+        let url = getField('url') || getField('href') || getField('link');
+        if (!url) return '';
+        // Remove bracketed wrappers like [mayoclinic.org]
+        url = url.replace(/[\[\]]/g, '');
+        url = url.replace(/^\.*\s*/, '').replace(/\s*\.*$/, '');
+        if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+        let domain = getField('domain');
+        if (!domain) domain = extractDomain(url);
+        domain = domain.replace(/[\[\]]/g, '').trim();
+        let title = (getField('title') || '').replace(/^Source:\s*/i, '').trim();
+        title = title.replace(/[\[\]]/g, ' ');
+        title = title.replace(/\s+/g, ' ').trim();
+        const type = getField('type') || getField('source_type') || '';
+        const scoreRaw = getField('composite_score');
+        const score = scoreRaw ? Number(scoreRaw).toFixed(2) : '';
+
+        const shortTitle = title.length > 140 ? `${title.slice(0, 140)}…` : title;
+        const tooltip = [shortTitle || domain, type && `Type: ${type}`, score && `Score: ${score}`]
+            .filter(Boolean).join(' | ');
+
+        return `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}" data-url-raw="${url}">
+                    <i class="fas fa-external-link-alt citation-icon"></i>
+                    <span class="citation-domain">${domain}</span>
+                    ${score ? `<span class="citation-meta">${score}</span>` : ''}
+                </span>`;
+    } catch (e) {
+        return '';
+    }
+}
+
+// Fallback verifier: sweep for any remaining <{...}> blocks and rebuild chips
+function verifyAndBackfillSources(html) {
+    if (!html || typeof html !== 'string') return html;
+    const pattern = /<\s*\{[\s\S]*?\}\s*>/g;
+    return html.replace(pattern, (block) => {
+        // Try robust field extraction
+        const pick = (name) => {
+            const re = new RegExp(`['\"]?${name}['\"]?\\s*:\\s*(?:['\"]([\\s\\S]*?)['\"]|([^,}]+))`, 'i');
+            const m = block.match(re);
+            if (!m) return '';
+            let v = m[1] != null ? m[1] : m[2];
+            if (v == null) return '';
+            v = String(v).replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+            return v;
+        };
+        let url = pick('url') || pick('href') || pick('link');
+        if (!url) return '';
+        url = url.replace(/^\.*\s*/, '').replace(/\s*\.*$/, '');
+        if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+        let domain = pick('domain') || extractDomain(url);
+        domain = (domain || '').replace(/[\[\]]/g, ' ').trim();
+        let title = pick('title').replace(/^Source:\s*/i, '');
+        title = (title || '').replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+        const type = pick('type') || pick('source_type');
+        const scoreRaw = pick('composite_score');
+        const score = scoreRaw ? Number(scoreRaw).toFixed(2) : '';
+        const shortTitle = title.length > 140 ? `${title.slice(0, 140)}…` : title;
+        const tooltip = [shortTitle || domain, type && `Type: ${type}`, score && `Score: ${score}`]
+            .filter(Boolean).join(' | ');
+        return `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}">
+                    <i class="fas fa-external-link-alt citation-icon"></i>
+                    <span class="citation-domain">${domain}</span>
+                    ${score ? `<span class="citation-meta">${score}</span>` : ''}
+                </span>`;
+    });
 }
 
 // --- Extract domain from URL for display ---
@@ -865,7 +995,7 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             // Use pending image description if no text message
             message = pendingImageDesc;
         }
-    }
+    } 
     
     // Set submission state
     isSubmitting = true;
@@ -877,6 +1007,17 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         sendBtn.disabled = true;
         sendBtn.style.opacity = '0.6';
     } 
+    // Determine if this is a new conversation (no previous messages rendered)
+    const messagesDiv = document.getElementById('chat-messages');
+    const isNewConversation = messagesDiv.querySelectorAll('.message').length === 0;
+    if (isNewConversation) {
+        startNewConversation();
+        // Do not render any previously stored videos from other conversations
+        clearStoredVideos();
+    } else {
+        ensureConversationId();
+    }
+
     // Remove welcome screen if shown
     const welcomeContainer = document.getElementById('welcome-container');
     if (welcomeContainer) welcomeContainer.remove();
@@ -980,7 +1121,8 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
 // --- Video persistence helpers ---
 function getStoredVideos() {
     try {
-        const raw = localStorage.getItem('chat_videos');
+        ensureConversationId();
+        const raw = localStorage.getItem(`chat_videos_${conversationId}`);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
@@ -992,7 +1134,8 @@ function getStoredVideos() {
 
 function clearStoredVideos() {
     try {
-        localStorage.removeItem('chat_videos');
+        ensureConversationId();
+        localStorage.removeItem(`chat_videos_${conversationId}`);
     } catch (e) {
         console.warn('Failed to clear stored videos', e);
     }

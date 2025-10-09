@@ -1016,6 +1016,8 @@ body {
     position: relative;
     word-wrap: break-word;
     line-height: 1.5;
+    text-align: justify;
+    text-justify: inter-word;
   }
   
   .message .user .message-bubble::before {
@@ -1046,6 +1048,8 @@ body {
     position: relative;
     word-wrap: break-word;
     line-height: 1.5;
+    text-align: justify;
+    text-justify: inter-word;
   }
 
   /* Readability for markdown/content within bubbles */
@@ -1496,6 +1500,19 @@ body {
 .citation-link:active {
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.citation-link.source-chip {
+  padding-right: 10px;
+}
+
+.citation-link .citation-meta {
+  margin-left: 8px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 0.72em;
+  padding: 2px 6px;
+  border-radius: 6px;
 }
 
 .citation-link:hover::after {
