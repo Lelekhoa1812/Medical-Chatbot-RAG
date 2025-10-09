@@ -275,6 +275,12 @@ function cleanupOldPendingRequests() {
 // Video display functions
 function displayVideos(videos) {
     if (!videos || videos.length === 0) return;
+    // Persist videos so they survive refresh
+    try {
+        localStorage.setItem('chat_videos', JSON.stringify(videos));
+    } catch (e) {
+        console.warn('Failed to persist videos', e);
+    }
     
     const messagesDiv = document.getElementById('chat-messages');
     const videoContainer = document.createElement('div');
@@ -306,8 +312,7 @@ function createVideoCard(video, index) {
     
     return `
         <div class="video-card" data-video-id="${videoId}">
-            <div class="video-thumbnail" onclick="toggleVideo('${videoId}')">
-                <img src="${video.thumbnail}" alt="${video.title}" />
+            <div class="video-thumbnail placeholder" onclick="toggleVideo('${videoId}')">
                 <div class="video-overlay">
                     <i class="fas fa-play"></i>
                 </div>
@@ -385,6 +390,14 @@ function addVideoEventListeners() {
     // This function can be used for additional event handling if needed
     console.log('Video event listeners added');
 }
+
+// On initial load, try to render stored videos if any (e.g., after refresh)
+document.addEventListener('DOMContentLoaded', () => {
+    const storedVideos = getStoredVideos();
+    if (storedVideos.length > 0) {
+        displayVideos(storedVideos);
+    }
+});
 
 // Translation strings
 const translations = {
@@ -515,9 +528,9 @@ function toggleInputMode(mode) {
         
         // Show/hide upload icon based on upload mode
         if (uploadModeActive) {
-            uploadLabel.style.display = 'flex';
-        } else {
-            uploadLabel.style.display = 'none';
+        uploadLabel.style.display = 'flex';
+    } else {
+        uploadLabel.style.display = 'none';
         }
     } else if (mode === 'video') {
         videoModeActive = !videoModeActive;
@@ -729,7 +742,46 @@ function processCitations(htmlContent) {
         return urlMatch ? urlMatch[0] : match;
     });
     
-    // 1) Process <https://...> style citations
+    // Remove stray source-id placeholders like <#context> or <#anything-not-numeric>
+    cleanedContent = cleanedContent.replace(/<#(?!\d+(?:\s*,\s*\d+)*)[^>]*>/g, "");
+
+    // 1) Process JSON-ish objects like <{'url': 'https://...', 'title': '...', ...}>
+    const jsonLikePattern = /<\{[^>]*\}>/g;
+    cleanedContent = cleanedContent.replace(jsonLikePattern, (match) => {
+        try {
+            // Extract inside {...}
+            const inner = match.slice(1, -1); // remove < and >
+            // Make it JSON by converting single quotes to double, and removing trailing commas
+            const jsonStr = inner.replace(/([\{,]\s*)'(.*?)'(\s*:)/g, '$1"$2"$3')
+                                 .replace(/:\s*'(.*?)'/g, ':"$1"')
+                                 .replace(/,\s*}/g, '}')
+                                 .replace(/,\s*]/g, ']');
+            const obj = JSON.parse(jsonStr);
+            const url = obj.url || obj.href || obj.link || '';
+            if (!url) return '';
+            const domain = extractDomain(url.startsWith('http') ? url : `https://${url}`);
+            const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+            return `<span class="citation-link" data-url="${finalUrl}" title="View source: ${domain}">
+                        <i class="fas fa-external-link-alt citation-icon"></i>
+                        <span class="citation-domain">${domain}</span>
+                    </span>`;
+        } catch (e) {
+            return '';
+        }
+    });
+
+    // 2) Process plain domain inside angle brackets like <mayoclinic.org>
+    const bareDomainPattern = /<([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^^<>\s]*)?)>/g;
+    cleanedContent = cleanedContent.replace(bareDomainPattern, (full, path) => {
+        const url = path.startsWith('http') ? path : `https://${path}`;
+        const domain = extractDomain(url);
+        return `<span class="citation-link" data-url="${url}" title="View source: ${domain}">
+                    <i class="fas fa-external-link-alt citation-icon"></i>
+                    <span class="citation-domain">${domain}</span>
+                </span>`;
+    });
+
+    // 3) Process <https://...> style citations
     const citationPattern = /<https?:\/\/[^>]+>/g;
     cleanedContent = cleanedContent.replace(citationPattern, (match) => {
         const url = match.slice(1, -1); // Remove < and >
@@ -740,7 +792,7 @@ function processCitations(htmlContent) {
                 </span>`;
     });
 
-    // 2) Process anchor tags created by markdown (<a href="...">...</a>)
+    // 4) Process anchor tags created by markdown (<a href="...">...</a>)
     // Replace anchor content with compact domain button, preserve original href as data-url
     const anchorPattern = /<a\s+href=\"(https?:\/\/[^\"\s]+)\"[^>]*>([\s\S]*?)<\/a>/gi;
     cleanedContent = cleanedContent.replace(anchorPattern, (full, href, inner) => {
@@ -891,9 +943,15 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         addCitationListeners();
         
         // Handle video data if present
-        if (data.videos && data.videos.length > 0) {
-            displayVideos(data.videos);
+    if (data.videos && data.videos.length > 0) {
+        displayVideos(data.videos);
+    } else {
+        // If backend didn't return videos, try to render any that were previously stored
+        const stored = getStoredVideos();
+        if (stored.length > 0) {
+            displayVideos(stored);
         }
+    }
         
         // Remove from pending requests since we got the response
         if (data.request_id) {
@@ -904,6 +962,11 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
         console.error(err);
     } finally {
+        // Attempt to render any stored videos after error as well
+        const stored = getStoredVideos();
+        if (stored.length > 0) {
+            displayVideos(stored);
+        }
         // Always reset submission state and re-enable send button
         isSubmitting = false;
         const sendBtn = document.getElementById('send-btn');
@@ -911,6 +974,27 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             sendBtn.disabled = false;
             sendBtn.style.opacity = '1';
         }
+    }
+}
+
+// --- Video persistence helpers ---
+function getStoredVideos() {
+    try {
+        const raw = localStorage.getItem('chat_videos');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        console.warn('Failed to read stored videos', e);
+        return [];
+    }
+}
+
+function clearStoredVideos() {
+    try {
+        localStorage.removeItem('chat_videos');
+    } catch (e) {
+        console.warn('Failed to clear stored videos', e);
     }
 }
 

@@ -320,11 +320,8 @@ class SourceAggregator:
             source_type = source.get('source_type', 'other')
             # credibility removed
             language = source.get('language', 'en')
-            source_type_icon = source['type']
-            
-        # Credibility indicator removed
-        cred_indicator = ""
-            
+            source_type_icon = source.get('type', 'other')
+
             # Create type indicator
             type_icons = {
                 'academic': '🎓',
