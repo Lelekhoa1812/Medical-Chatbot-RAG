@@ -149,7 +149,9 @@ class SafetyGuard:
                 'adhd', 'autism', 'dementia', 'alzheimer', 'parkinson', 'epilepsy',
                 'cancer', 'tumor', 'cancerous', 'malignant', 'benign', 'metastasis',
                 'heart disease', 'stroke', 'heart attack', 'coronary', 'arrhythmia',
-                'pneumonia', 'bronchitis', 'copd', 'emphysema', 'tuberculosis'
+                'pneumonia', 'bronchitis', 'copd', 'emphysema', 'tuberculosis',
+                'migraine', 'headache', 'chronic migraine', 'cluster headache',
+                'tension headache', 'sinus headache', 'cure', 'treat', 'treatment'
             ],
             'treatments': [
                 'treatment', 'therapy', 'medication', 'medicine', 'drug', 'pill', 'tablet',
@@ -195,7 +197,10 @@ class SafetyGuard:
             r'\b(should|can|may|might)\s+(i|you|we)\s+(take|use|do|avoid)\b',
             r'\b(diagnosis|diagnosed|symptoms|treatment|medicine|drug)\b',
             r'\b(medical|health|doctor|physician|hospital|clinic)\b',
-            r'\b(pain|hurt|ache|sore|fever|cough|headache)\b'
+            r'\b(pain|hurt|ache|sore|fever|cough|headache)\b',
+            r'\b(which\s+medication|best\s+medication|how\s+to\s+cure|without\s+medications)\b',
+            r'\b(chronic\s+migraine|migraine\s+treatment|migraine\s+cure)\b',
+            r'\b(cure|treat|heal|relief|remedy|solution)\b'
         ]
         
         for pattern in medical_patterns:
@@ -229,7 +234,37 @@ class SafetyGuard:
         
         text_lower = text.lower()
         
-        # Critical harmful patterns (immediate block)
+        # First check if this is clearly medical content - be more permissive
+        if self._is_medical_query(text):
+            # For medical content, only check for truly dangerous patterns
+            dangerous_medical_patterns = {
+                'suicide_self_harm': [
+                    r'\b(kill\s+yourself|suicide|end\s+your\s+life|take\s+your\s+life)\b',
+                    r'\b(self\s*harm|self\s*injury|cut\s+yourself|hurt\s+yourself)\b',
+                    r'\b(overdose|poison\s+yourself|hang\s+yourself)\b'
+                ],
+                'dangerous_medical_advice': [
+                    r'\b(overdose\s+on|take\s+too\s+much|excessive\s+dosage)\b',
+                    r'\b(mix\s+drugs|combine\s+medications|contraindicated)\b',
+                    r'\b(stop\s+taking\s+prescribed|discontinue\s+medication)\b',
+                    r'\b(don\'t\s+call\s+911|avoid\s+emergency\s+room|ignore\s+severe\s+symptoms)\b'
+                ],
+                'illegal_drugs': [
+                    r'\b(cocaine|heroin|methamphetamine|ecstasy|lsd|marijuana\s+abuse)\b',
+                    r'\b(prescription\s+abuse|drug\s+dealing|illegal\s+substances)\b'
+                ]
+            }
+            
+            # Check only dangerous medical patterns
+            for category, patterns in dangerous_medical_patterns.items():
+                for pattern in patterns:
+                    if re.search(pattern, text_lower):
+                        return False, f"contains {category}: {pattern}"
+            
+            # Allow medical content through
+            return True, "medical_content"
+        
+        # For non-medical content, use stricter patterns
         critical_patterns = {
             'suicide_self_harm': [
                 r'\b(kill\s+yourself|suicide|end\s+your\s+life|take\s+your\s+life)\b',
@@ -238,7 +273,8 @@ class SafetyGuard:
             ],
             'violence': [
                 r'\b(kill\s+someone|murder|assassinate|violence|harm\s+others)\b',
-                r'\b(bomb|explosive|weapon|gun|knife|attack)\b'
+                r'\b(bomb|explosive|weapon|gun|knife)\b',
+                r'\b(attack\s+(someone|people|others|innocent))\b'  # More specific attack pattern
             ],
             'illegal_drugs': [
                 r'\b(cocaine|heroin|methamphetamine|ecstasy|lsd|marijuana\s+abuse)\b',
@@ -320,6 +356,41 @@ Please evaluate this message for safety, keeping in mind that:
             return "low", 0.0
         
         text_lower = text.lower()
+        
+        # If this is medical content, be more lenient
+        if self._is_medical_query(text):
+            # For medical content, only flag truly dangerous patterns
+            dangerous_medical_indicators = {
+                'high': [
+                    'suicide', 'kill yourself', 'end your life', 'self harm',
+                    'overdose', 'poison yourself', 'illegal drugs', 'violence'
+                ],
+                'medium': [
+                    'prescription abuse', 'excessive dosage', 'mix drugs',
+                    'stop taking prescribed', 'ignore severe symptoms'
+                ]
+            }
+            
+            risk_score = 0.0
+            for level, indicators in dangerous_medical_indicators.items():
+                for indicator in indicators:
+                    if indicator in text_lower:
+                        if level == 'high':
+                            risk_score += 3.0
+                        elif level == 'medium':
+                            risk_score += 1.5
+            
+            # Normalize score for medical content (more lenient)
+            risk_score = min(risk_score / 15.0, 1.0)
+            
+            if risk_score >= 0.6:
+                return "high", risk_score
+            elif risk_score >= 0.2:
+                return "medium", risk_score
+            else:
+                return "low", risk_score
+        
+        # For non-medical content, use original risk assessment
         risk_indicators = {
             'high': [
                 'suicide', 'kill yourself', 'end your life', 'self harm',
@@ -414,3 +485,5 @@ Please evaluate this message for safety, keeping in mind that:
 
 # Global instance (optional convenience)
 safety_guard = SafetyGuard()
+
+

@@ -42,7 +42,7 @@ class MedicalReranker:
             'generic_health_site': 0.30
         }
         
-        # Irrelevant content patterns
+        # Irrelevant content patterns - more specific to avoid false positives
         self.irrelevant_patterns = [
             r'quiz|test|assessment|survey',
             r'homepage|main page|index',
@@ -54,7 +54,7 @@ class MedicalReranker:
             r'healthy-sleep/quiz',  # Sleep quiz example
         ]
     
-    def rerank_results(self, query: str, results: List[Dict], min_score: float = 0.3) -> List[Dict]:
+    def rerank_results(self, query: str, results: List[Dict], min_score: float = 0.05) -> List[Dict]:
         """Rerank search results based on medical relevance"""
         if not results:
             return []
@@ -105,8 +105,10 @@ class MedicalReranker:
                 logger.debug(f"Filtered irrelevant result: {url}")
                 continue
             
-            # Skip if content is too short or generic
-            if len(content) < 100:
+            # Only skip if we have content and it's extremely short
+            # Don't filter based on content length if no content is available yet
+            if content and len(content) < 20:  # Much more lenient - only filter very short content
+                logger.debug(f"Filtered result with very short content: {url}")
                 continue
             
             filtered.append(result)
@@ -121,8 +123,8 @@ class MedicalReranker:
             url = result.get('url', '')
             domain = self._extract_domain(url)
             
-            # Get domain score
-            domain_score = self.domain_scores.get(domain, 0.30)  # Default low score
+            # Get domain score - be much more lenient with unknown domains
+            domain_score = self.domain_scores.get(domain, 0.70)  # Much higher default score
             
             # Boost score for medical-specific content
             title = result.get('title', '').lower()
@@ -241,10 +243,10 @@ class MedicalReranker:
             if query.lower() in title:
                 title_relevance = min(title_relevance + 0.3, 1.0)
             
-            # Update composite score
-            domain_score = result.get('domain_score', 0.3)
+            # Update composite score - be much more lenient
+            domain_score = result.get('domain_score', 0.7)  # Much higher default
             result['title_relevance'] = title_relevance
-            result['composite_score'] = (domain_score * 0.4) + (title_relevance * 0.6)
+            result['composite_score'] = (domain_score * 0.3) + (title_relevance * 0.7)  # Favor title relevance
         
         return results
     
@@ -273,7 +275,7 @@ class MedicalReranker:
         
         # Boost for medical terms in title
         medical_terms = ['treatment', 'diagnosis', 'symptoms', 'therapy', 'medication', 'medical', 'health']
-        medical_boost = sum(0.1 for term in medical_terms if term in title_lower)
+        medical_boost = sum(0.15 for term in medical_terms if term in title_lower)
         
         return min(base_score + medical_boost, 1.0)
     
@@ -377,7 +379,7 @@ class MedicalReranker:
                 if domain_counts[domain] > max_per_domain:
                     # Reduce score for over-represented domains
                     current_score = result.get('composite_score', 0)
-                    penalty = 0.1 * (domain_counts[domain] - max_per_domain)
+                    penalty = 0.15 * (domain_counts[domain] - max_per_domain)
                     result['composite_score'] = max(0, current_score - penalty)
                     result['diversity_penalty'] = penalty
                     logger.debug(f"Applied diversity penalty {penalty} to {domain}")

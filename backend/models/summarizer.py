@@ -213,3 +213,4 @@ Medical summary:"""
 
 # Global summarizer instance
 summarizer = TextSummarizer()
+

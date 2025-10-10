@@ -30,7 +30,7 @@ class DuckDuckGoEngine:
         logger.info(f"Cleaned query: '{query}' -> '{clean_query}'")
         
         results = []
-        min_score = 0.3  # Adjustable
+        min_score = 0.15  # Reduced from 0.3 to be less strict
         
         # Strategy 1: HTML Interface with medical focus
         html_results = self._search_html(clean_query, num_results * 3)  # Get more to filter
@@ -79,6 +79,20 @@ class DuckDuckGoEngine:
             try:
                 reranked_results = self.reranker.rerank_results(clean_query, filtered_results, min_score)
                 logger.info(f"Reranked {len(filtered_results)} results to {len(reranked_results)} high-quality results")
+                
+                # If reranking filtered out too many results, be more lenient
+                if len(reranked_results) < min(3, num_results) and len(filtered_results) > 0:
+                    logger.warning(f"Reranking too strict ({len(reranked_results)} results), using fallback with lower threshold")
+                    # Try with even lower threshold
+                    fallback_results = self.reranker.rerank_results(clean_query, filtered_results, 0.05)
+                    if len(fallback_results) > len(reranked_results):
+                        return fallback_results[:num_results]
+                    else:
+                        # Last resort: return original filtered results with basic scoring
+                        for i, result in enumerate(filtered_results[:num_results]):
+                            result['composite_score'] = 0.5 - (i * 0.05)  # Decreasing score
+                        return filtered_results[:num_results]
+                
                 return reranked_results[:num_results]
             except Exception as e:
                 logger.warning(f"Reranking failed: {e}, returning filtered results")
@@ -249,9 +263,6 @@ class DuckDuckGoEngine:
                         logger.warning(f"DuckDuckGo rate limited, waiting...")
                         time.sleep(2)
                         continue
-                    
-            response.raise_for_status()
-                    break
                     
                 except Exception as e:
                     logger.warning(f"DuckDuckGo endpoint {endpoint['url']} failed: {e}")

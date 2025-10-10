@@ -174,11 +174,88 @@ class SearchCoordinator:
         # Use only DuckDuckGo for speed
         results = self.duckduckgo_engine.search(query, num_results)
         
+        # If no results, try with simplified query
+        if not results:
+            logger.warning("No results from DuckDuckGo, trying simplified query")
+            simplified_query = self._simplify_query(query)
+            if simplified_query != query:
+                results = self.duckduckgo_engine.search(simplified_query, num_results)
+                logger.info(f"Simplified query '{simplified_query}' found {len(results)} results")
+        
+        # If still no results, try medical engine as fallback
+        if not results:
+            logger.warning("Still no results, trying medical engine fallback")
+            try:
+                medical_results = self.medical_engine.search(query, num_results)
+                if medical_results:
+                    results = medical_results
+                    logger.info(f"Medical engine fallback found {len(results)} results")
+            except Exception as e:
+                logger.warning(f"Medical engine fallback failed: {e}")
+        
         # Remove duplicates
         unique_results = self._remove_duplicates(results)
         
+        # If we still have no results, create a basic fallback
+        if not unique_results:
+            logger.warning("No search results found, creating basic fallback")
+            unique_results = self._create_fallback_results(query)
+        
         logger.info(f"Quick search completed: {len(unique_results)} results")
         return unique_results
+    
+    def _simplify_query(self, query: str) -> str:
+        """Simplify query to core medical terms"""
+        if not query:
+            return ""
+        
+        # Extract key medical terms
+        import re
+        words = query.split()
+        
+        # Keep medical keywords and important terms
+        medical_keywords = [
+            'migraine', 'headache', 'pain', 'treatment', 'therapy', 'medication', 'drug',
+            'chronic', 'acute', 'symptoms', 'diagnosis', 'prevention', 'management',
+            'disease', 'condition', 'syndrome', 'disorder', 'infection', 'inflammation',
+            'blood', 'heart', 'lung', 'brain', 'liver', 'kidney', 'diabetes', 'cancer',
+            'covid', 'flu', 'cold', 'fever', 'cough', 'breathing', 'chest', 'stomach'
+        ]
+        
+        # Keep words that are medical keywords or are important (longer than 3 chars)
+        important_words = []
+        for word in words:
+            word_lower = word.lower()
+            if word_lower in medical_keywords or len(word) > 3:
+                important_words.append(word)
+        
+        # If we have important words, use them; otherwise use first few words
+        if important_words:
+            return ' '.join(important_words[:5])  # Max 5 words
+        else:
+            return ' '.join(words[:3])  # Max 3 words
+    
+    def _create_fallback_results(self, query: str) -> List[Dict]:
+        """Create basic fallback results when search fails"""
+        # Create some basic medical information URLs as fallback
+        fallback_urls = [
+            "https://www.mayoclinic.org",
+            "https://www.webmd.com",
+            "https://www.healthline.com",
+            "https://medlineplus.gov",
+            "https://www.cdc.gov"
+        ]
+        
+        results = []
+        for i, url in enumerate(fallback_urls[:3]):  # Limit to 3 fallback results
+            results.append({
+                'url': url,
+                'title': f"Medical Information - {query}",
+                'source': 'fallback',
+                'composite_score': 0.3 - (i * 0.05)  # Decreasing score
+            })
+        
+        return results
     
     def medical_focus_search(self, query: str, num_results: int = 8) -> Tuple[str, Dict[int, str]]:
         """Medical-focused search with enhanced processing"""

@@ -307,12 +307,23 @@ def search_comprehensive(query: str, num_results: int = 15, target_language: str
     
     # Use reranker to improve overall quality and relevance
     if all_results:
-        reranked_results = reranker.rerank_results(boosted_query, all_results, min_score=0.4)
+        reranked_results = reranker.rerank_results(boosted_query, all_results, min_score=0.1)  # Much more lenient
         logger.info(f"Reranked {len(all_results)} total results to {len(reranked_results)} high-quality results")
-        all_results = reranked_results
+        
+        # If reranking filtered out too many results, use original results
+        if len(reranked_results) < max(1, len(all_results) // 4):  # If less than 25% remain
+            logger.warning(f"Reranking too strict ({len(reranked_results)}/{len(all_results)}), using original results")
+            all_results = all_results[:num_results]  # Just take top N original results
+        else:
+            all_results = reranked_results
     
     # Limit final results to requested count
     all_results = all_results[:num_results]
+    
+    # Final safety check - ensure we have at least some results
+    if not all_results and text_results:
+        logger.warning("No results after processing, using original text results as fallback")
+        all_results = text_results[:num_results]
     
     # Create URL mapping
     url_mapping = {}
