@@ -743,6 +743,11 @@ function removeLastMessage() {
 
 // --- Process citations/links and render as compact domain buttons ---
 function processCitations(htmlContent) {
+    console.log('🔍 processCitations called with:', htmlContent);
+    
+    // Test the buildSourceChipFromAngleObject function with a simple case
+    const testChip = buildSourceChipFromAngleObject("<{'url': 'https://example.com', 'title': 'Test', 'domain': 'example.com'}>");
+    console.log('🔍 Test chip result:', testChip);
     // First, clean up malformed citation tags
     let cleanedContent = htmlContent;
     
@@ -789,10 +794,12 @@ function processCitations(htmlContent) {
         return chip || '';
     });
 
-    // Handle bare objects without angles when they clearly contain a url field
+    // Handle bare objects without angles when they clearly contain a url field (but avoid matching JSON code blocks)
     const bareObjPattern = /\{[\s\S]*?\}/g;
     cleanedContent = cleanedContent.replace(bareObjPattern, (obj) => {
         if (!/['\"]?url['\"]?\s*:/i.test(obj)) return obj;
+        // Ignore if this looks like code/pre block content
+        if (/class=\"language|<code|<pre/i.test(cleanedContent)) return obj;
         const wrapped = `<${obj}>`;
         const chip = buildSourceChipFromAngleObject(wrapped);
         return chip || obj;
@@ -801,11 +808,20 @@ function processCitations(htmlContent) {
     // 1) Process source objects like <{...}> or entity-encoded &lt;{...}&gt;
     const realObjPattern = /<\s*\{[\s\S]*?\}\s*>\.?/g;
     cleanedContent = cleanedContent.replace(realObjPattern, (match) => {
+        console.log('🔍 Found angle object match:', match);
         const trimmed = match.endsWith('>.') ? match.slice(0, -1) : match;
-        if (!/["']?url["']?\s*:/i.test(trimmed)) return match; // ignore non-source objects
+        if (!/["']?url["']?\s*:/i.test(trimmed)) {
+            console.log('🔍 No URL field found, keeping original');
+            return match; // ignore non-source objects
+        }
         const chip = buildSourceChipFromAngleObject(trimmed);
+        console.log('🔍 Generated chip:', chip);
         // If parsing fails, keep original text to avoid losing content
-        return chip || trimmed;
+        if (!chip) {
+            console.log('🔍 Chip generation failed, keeping original match');
+            return match;
+        }
+        return chip;
     });
 
     // 2) Process plain domain inside angle brackets like <mayoclinic.org>
@@ -850,39 +866,79 @@ function processCitations(htmlContent) {
 
     // Final safety pass to catch any remaining angle-object blocks
     cleanedContent = verifyAndBackfillSources(cleanedContent);
+    // Final pass: if any missed objects remain, try a light backfill
+    cleanedContent = verifyAndBackfillSources(cleanedContent);
     return cleanedContent;
 }
 
 // Build a pretty source chip from an angle-bracketed object like:
 // <{'url': 'https://...','title':'Source: ...','domain':'mayoclinic.org','source_type':'text','language':'en','type':'text','content_length':0,'composite_score':0.7}>
 function buildSourceChipFromAngleObject(angelObjStr) {
+    console.log('🔍 buildSourceChipFromAngleObject called with:', angelObjStr);
     try {
         // Extract inside <{ ... }>
         const inner = angelObjStr.slice(1, -1);
-        // Pull fields via tolerant regex (single quotes, optional commas, whitespace, newlines)
+        console.log('🔍 Extracted inner content:', inner);
+        
+        // More robust field extraction that handles various quote styles and formats
         const getField = (name) => {
-            // Support quoted values possibly spanning newlines, or unquoted simple tokens until comma/brace
-            const re = new RegExp(`['\"]?${name}['\"]?\\s*:\\s*(?:['\"]([\\s\\S]*?)['\"]|([^,}]+))`, 'i');
-            const m = inner.match(re);
-            if (!m) return '';
-            let v = m[1] != null ? m[1] : m[2];
-            if (v == null) return '';
-            v = String(v).replace(/\s+/g, ' ').trim();
-            return v;
+            // Try multiple patterns for different quote styles and formats
+            const patterns = [
+                // Single quotes with newlines: 'url': 'value'
+                new RegExp(`['\"]?${name}['\"]?\\s*:\\s*['\"]([\\s\\S]*?)['\"]`, 'i'),
+                // Double quotes: "url": "value"  
+                new RegExp(`['\"]?${name}['\"]?\\s*:\\s*['\"]([\\s\\S]*?)['\"]`, 'i'),
+                // Unquoted values: url: value
+                new RegExp(`['\"]?${name}['\"]?\\s*:\\s*([^,}]+)`, 'i')
+            ];
+            
+            for (const pattern of patterns) {
+                const m = inner.match(pattern);
+                if (m && m[1]) {
+                    let v = m[1].trim();
+                    // Clean up the value
+                    v = v.replace(/^['\"]|['\"]$/g, ''); // Remove surrounding quotes
+                    v = v.replace(/\s+/g, ' ').trim(); // Normalize whitespace
+                    if (v) return v;
+                }
+            }
+            return '';
         };
 
         let url = getField('url') || getField('href') || getField('link');
-        if (!url) return '';
-        // Remove bracketed wrappers like [mayoclinic.org]
-        url = url.replace(/[\[\]]/g, '');
-        url = url.replace(/^\.*\s*/, '').replace(/\s*\.*$/, '');
-        if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+        console.log('🔍 Extracted URL:', url);
+        
+        if (!url) {
+            console.log('🔍 No URL found, returning empty');
+            return '';
+        }
+        
+        // Clean up URL
+        url = url.replace(/[\[\]]/g, ''); // Remove brackets
+        url = url.replace(/^\.*\s*/, '').replace(/\s*\.*$/, ''); // Remove leading/trailing dots and spaces
+        url = url.trim();
+        
+        // Ensure URL has protocol
+        if (!/^https?:\/\//i.test(url)) {
+            url = `https://${url}`;
+        }
+        
+        console.log('🔍 Cleaned URL:', url);
+        
+        // Get domain
         let domain = getField('domain');
-        if (!domain) domain = extractDomain(url);
+        if (!domain) {
+            domain = extractDomain(url);
+        }
         domain = domain.replace(/[\[\]]/g, '').trim();
-        let title = (getField('title') || '').replace(/^Source:\s*/i, '').trim();
+        console.log('🔍 Final domain:', domain);
+        
+        // Get title and clean it
+        let title = getField('title') || '';
+        title = title.replace(/^Source:\s*/i, '').trim();
         title = title.replace(/[\[\]]/g, ' ');
         title = title.replace(/\s+/g, ' ').trim();
+        
         const type = getField('type') || getField('source_type') || '';
         const scoreRaw = getField('composite_score');
         const score = scoreRaw ? Number(scoreRaw).toFixed(2) : '';
@@ -891,12 +947,16 @@ function buildSourceChipFromAngleObject(angelObjStr) {
         const tooltip = [shortTitle || domain, type && `Type: ${type}`, score && `Score: ${score}`]
             .filter(Boolean).join(' | ');
 
-        return `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}" data-url-raw="${url}">
+        // Build chip with proper HTML formatting
+        const chip = `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}" data-url-raw="${url}">
                     <i class="fas fa-external-link-alt citation-icon"></i>
                     <span class="citation-domain">${domain}</span>
                     ${score ? `<span class="citation-meta">${score}</span>` : ''}
                 </span>`;
+        console.log('🔍 Final chip HTML:', chip);
+        return chip;
     } catch (e) {
+        console.log('🔍 Error in buildSourceChipFromAngleObject:', e);
         return '';
     }
 }
@@ -930,7 +990,7 @@ function verifyAndBackfillSources(html) {
         const shortTitle = title.length > 140 ? `${title.slice(0, 140)}…` : title;
         const tooltip = [shortTitle || domain, type && `Type: ${type}`, score && `Score: ${score}`]
             .filter(Boolean).join(' | ');
-        return `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}">
+        return `<span class="citation-link source-chip" data-url="${url}" title="${tooltip}" data-url-raw="${url}">
                     <i class="fas fa-external-link-alt citation-icon"></i>
                     <span class="citation-domain">${domain}</span>
                     ${score ? `<span class="citation-meta">${score}</span>` : ''}
@@ -944,7 +1004,9 @@ function extractDomain(url) {
         const urlObj = new URL(url);
         return urlObj.hostname.replace('www.', '');
     } catch (e) {
-        return 'Source';
+        // Try to salvage a domain from strings like "mayoclinic.org/path"
+        const m = String(url).match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+        return m ? m[1].replace('www.', '') : 'Source';
     }
 }
 
@@ -1067,9 +1129,11 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             mangle: false
         });
         
+        // Preprocess source objects BEFORE markdown parsing so they aren't stripped
+        const preProcessed = preProcessSourceObjects(data.response || "");
         // Parse markdown and let CSS handle the styling
         // This approach avoids conflicts with Marked.js internals
-        let htmlResponse = marked.parse(data.response);
+        let htmlResponse = marked.parse(preProcessed);
         
         // Process citation tags and replace with magnifier icons
         htmlResponse = processCitations(htmlResponse);
@@ -1116,6 +1180,32 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
             sendBtn.style.opacity = '1';
         }
     }
+}
+
+// Preprocess angle-bracket or bare JSON-like source objects BEFORE markdown parsing
+// Accepted forms:
+//  - <{'url': 'https://...', 'title': '...', 'domain': '...'}>
+//  - {'url': 'https://...', 'title': '...', 'domain': '...'} (no angle brackets)
+function preProcessSourceObjects(text) {
+    if (!text) return text;
+
+    // 1) Replace angle-bracketed objects with chips
+    const angleObj = /<\s*\{[\s\S]*?\}\s*>\.?/g;
+    text = text.replace(angleObj, (match) => {
+        const trimmed = match.endsWith('>.') ? match.slice(0, -1) : match;
+        const chip = buildSourceChipFromAngleObject(trimmed);
+        return chip || '';
+    });
+
+    // 2) Replace bare objects that are on their own (ensure starts with { and contains 'url')
+    const bareObj = /\{[^{}]*?\burl\b[\s\S]*?\}/g;
+    text = text.replace(bareObj, (match) => {
+        const wrapped = `<${match}>`;
+        const chip = buildSourceChipFromAngleObject(wrapped);
+        return chip || match; // fallback to original if parsing fails
+    });
+
+    return text;
 }
 
 // --- Video persistence helpers ---
