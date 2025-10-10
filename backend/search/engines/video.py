@@ -81,8 +81,11 @@ class VideoSearchEngine:
             return ""
         q = q.strip()
         q = re.sub(r"^(en|vi|zh)\s*:\s*", "", q, flags=re.IGNORECASE)
+        # Remove bullet points and special characters
+        q = re.sub(r'[•·▪▫‣⁃]', ' ', q)
+        q = re.sub(r'[^\w\s\-\.]', ' ', q)
         q = re.sub(r"\s+", " ", q)
-        return q
+        return q.strip()
 
     def _is_valid_medical_video(self, result: Dict, query: str) -> bool:
         """Check if video is medically relevant and has valid URL"""
@@ -113,6 +116,19 @@ class VideoSearchEngine:
         
         return has_medical or has_query
 
+    def _search_platform_with_retry(self, query: str, platform: Dict, num_results: int, max_retries: int = 2) -> List[Dict]:
+        """Search platform with retry logic and better error handling"""
+        for attempt in range(max_retries):
+            try:
+                return self._search_platform(query, platform, num_results)
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed for {platform['name']}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Wait before retry
+                else:
+                    logger.error(f"All attempts failed for {platform['name']}")
+        return []
+
     def search(self, query: str, num_results: int = 3, language: str = 'en') -> List[Dict]:
         """Search for medical videos across platforms with deduplication and medical filtering"""
         query = self._normalize_query(query)
@@ -123,12 +139,18 @@ class VideoSearchEngine:
         seen_video_ids = set()  # Track video IDs to avoid duplicates
         platforms = self.video_platforms.get(language, self.video_platforms['en'])
         
+        # Try platforms in order of reliability
         for platform in platforms:
             if len(results) >= num_results:
                 break
             
             try:
-                platform_results = self._search_platform(query, platform, num_results * 3)  # Get more to filter
+                # Add timeout and retry logic
+                platform_results = self._search_platform_with_retry(query, platform, num_results * 3)
+                
+                if not platform_results:
+                    logger.warning(f"No results from {platform['name']}")
+                    continue
                 
                 # Filter out duplicates and non-medical content
                 for result in platform_results:
@@ -139,7 +161,7 @@ class VideoSearchEngine:
                     if url in seen_urls or (video_id and video_id in seen_video_ids):
                         continue
                     
-                    # Check if it's a valid medical video
+                    # Check if it's a valid medical video (less strict for more results)
                     if self._is_valid_medical_video(result, query):
                         seen_urls.add(url)
                         if video_id:
@@ -179,6 +201,20 @@ class VideoSearchEngine:
                             break
             except Exception as e:
                 logger.warning(f"Invidious fallback failed: {e}")
+            
+            # If still no results, try generic video search fallback
+            if len(results) < num_results:
+                try:
+                    fallback_results = self._get_fallback_videos(query, language, num_results - len(results))
+                    for result in fallback_results:
+                        if result['url'] not in seen_urls:
+                            seen_urls.add(result['url'])
+                            results.append(result)
+                            if len(results) >= num_results:
+                                break
+                    logger.info(f"Added {len(fallback_results)} fallback video results")
+                except Exception as e:
+                    logger.warning(f"Fallback video search failed: {e}")
         
         # Use reranker to improve quality and relevance
         if results:
@@ -190,7 +226,7 @@ class VideoSearchEngine:
         return results[:num_results]
     
     def _search_platform(self, query: str, platform: Dict, num_results: int) -> List[Dict]:
-        """Search a specific video platform"""
+        """Search a specific video platform with improved error handling"""
         try:
             search_url = platform['search_url']
             params = platform['params'].copy()
@@ -199,7 +235,27 @@ class VideoSearchEngine:
             for param_name in params.keys():
                 params[param_name] = query
             
-            response = self.session.get(search_url, params=params, timeout=self.timeout)
+            # Add headers to avoid blocking
+            headers = self.session.headers.copy()
+            headers.update({
+                'Referer': 'https://www.google.com/',
+                'Cache-Control': 'no-cache',
+            })
+            
+            # Try with shorter timeout first
+            response = self.session.get(search_url, params=params, headers=headers, timeout=10)
+            
+            # Check for common error responses
+            if response.status_code == 404:
+                logger.warning(f"Platform {platform['name']} returned 404 - endpoint may have changed")
+                return []
+            elif response.status_code == 403:
+                logger.warning(f"Platform {platform['name']} returned 403 - may be blocking requests")
+                return []
+            elif response.status_code >= 400:
+                logger.warning(f"Platform {platform['name']} returned {response.status_code}")
+                return []
+            
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -215,6 +271,15 @@ class VideoSearchEngine:
                     logger.info(f"{platform['name']} found {len(links)} video links with selector: {selector}")
                     break
             
+            # If no links found, try generic selectors
+            if not links:
+                generic_selectors = ['a[href*="http"]', 'a[href*="www"]']
+                for selector in generic_selectors:
+                    links = soup.select(selector)
+                    if links:
+                        logger.info(f"{platform['name']} found {len(links)} generic links with selector: {selector}")
+                        break
+            
             for link in links[:num_results]:
                 try:
                     href = link.get('href')
@@ -224,6 +289,10 @@ class VideoSearchEngine:
                     # Make absolute URL
                     if href.startswith('/'):
                         href = platform['base_url'] + href
+                    
+                    # Skip if not a valid URL
+                    if not href.startswith('http'):
+                        continue
                     
                     title = link.get_text(strip=True) or platform['name']
                     if title and href:
@@ -240,6 +309,12 @@ class VideoSearchEngine:
             
             return results
             
+        except requests.exceptions.Timeout:
+            logger.warning(f"Platform {platform['name']} search timed out")
+            return []
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"Platform {platform['name']} connection failed - network issue")
+            return []
         except Exception as e:
             logger.warning(f"Platform {platform['name']} search failed: {e}")
             return []

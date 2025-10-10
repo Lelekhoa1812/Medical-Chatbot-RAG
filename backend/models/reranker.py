@@ -75,8 +75,11 @@ class MedicalReranker:
             logger.warning(f"Semantic reranking failed: {e}")
             semantic_scored = domain_scored
         
+        # Apply source diversity scoring
+        diversity_scored = self._apply_diversity_scoring(semantic_scored)
+        
         # Final filtering and sorting
-        final_results = [r for r in semantic_scored if r.get('composite_score', 0) >= min_score]
+        final_results = [r for r in diversity_scored if r.get('composite_score', 0) >= min_score]
         final_results.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
         
         return final_results
@@ -346,3 +349,48 @@ class MedicalReranker:
                 return match.group(1)
         
         return None
+    
+    def _apply_diversity_scoring(self, results: List[Dict]) -> List[Dict]:
+        """Apply diversity scoring to avoid too many results from same domain"""
+        if not results:
+            return results
+        
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        
+        # Track domain counts
+        domain_counts = defaultdict(int)
+        max_per_domain = 3  # Maximum results per domain
+        
+        # Apply diversity penalty
+        for result in results:
+            url = result.get('url', '')
+            try:
+                domain = urlparse(url).netloc.lower()
+                if domain.startswith('www.'):
+                    domain = domain[4:]
+                
+                # Count current domain usage
+                domain_counts[domain] += 1
+                
+                # Apply penalty if domain is over-represented
+                if domain_counts[domain] > max_per_domain:
+                    # Reduce score for over-represented domains
+                    current_score = result.get('composite_score', 0)
+                    penalty = 0.1 * (domain_counts[domain] - max_per_domain)
+                    result['composite_score'] = max(0, current_score - penalty)
+                    result['diversity_penalty'] = penalty
+                    logger.debug(f"Applied diversity penalty {penalty} to {domain}")
+                else:
+                    result['diversity_penalty'] = 0
+                    
+            except Exception as e:
+                logger.debug(f"Error parsing domain for diversity scoring: {e}")
+                result['diversity_penalty'] = 0
+        
+        # Log diversity statistics
+        total_domains = len(domain_counts)
+        over_represented = sum(1 for count in domain_counts.values() if count > max_per_domain)
+        logger.info(f"Diversity scoring: {total_domains} domains, {over_represented} over-represented")
+        
+        return results
