@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import logging
 from typing import List, Dict
 import time
+from models.reranker import MedicalReranker
 
 logger = logging.getLogger(__name__)
 
@@ -20,32 +21,81 @@ class DuckDuckGoEngine:
             'Upgrade-Insecure-Requests': '1',
         })
         self.timeout = timeout
+        self.reranker = MedicalReranker()
     
     def search(self, query: str, num_results: int = 10) -> List[Dict]:
-        """Search with multiple DuckDuckGo strategies"""
+        """Search with multiple DuckDuckGo strategies and medical focus"""
         results = []
+        min_score = 0.5  # Adjustable
         
-        # Strategy 1: HTML Interface
-        html_results = self._search_html(query, num_results)
+        # Strategy 1: HTML Interface with medical focus
+        html_results = self._search_html(query, num_results * 2)  # Get more to filter
         if html_results:
             results.extend(html_results)
             logger.info(f"DuckDuckGo HTML found {len(html_results)} results")
         
         # Strategy 2: Instant Answer API
-        if len(results) < num_results:
-            api_results = self._search_api(query, num_results - len(results))
+        if len(results) < num_results * 2:
+            api_results = self._search_api(query, num_results)
             if api_results:
                 results.extend(api_results)
                 logger.info(f"DuckDuckGo API found {len(api_results)} results")
         
         # Strategy 3: Lite Interface (mobile-friendly)
-        if len(results) < num_results:
-            lite_results = self._search_lite(query, num_results - len(results))
+        if len(results) < num_results * 2:
+            lite_results = self._search_lite(query, num_results)
             if lite_results:
                 results.extend(lite_results)
                 logger.info(f"DuckDuckGo Lite found {len(lite_results)} results")
         
-        return results[:num_results]
+        # Filter out irrelevant results first
+        filtered_results = self._filter_irrelevant_sources(results)
+        logger.info(f"Filtered {len(results)} results to {len(filtered_results)} relevant results")
+        
+        # Rerank results to filter out irrelevant sources and improve quality
+        if filtered_results:
+            reranked_results = self.reranker.rerank_results(query, filtered_results, min_score)
+            logger.info(f"Reranked {len(filtered_results)} results to {len(reranked_results)} high-quality results")
+            return reranked_results[:num_results]
+        
+        return filtered_results[:num_results]
+    
+    def _filter_irrelevant_sources(self, results: List[Dict]) -> List[Dict]:
+        """Filter out irrelevant sources like generic health pages, quizzes, etc."""
+        import re
+        filtered = []
+        
+        # Patterns to exclude
+        exclude_patterns = [
+            r'healthtopics\.html',  # Generic topic pages
+            r'healthy-sleep/quiz',  # Sleep quiz example
+            r'/quiz',  # Any quiz pages
+            r'/test',  # Any test pages
+            r'/assessment',  # Assessment pages
+            r'/survey',  # Survey pages
+            r'homepage|main page|index',  # Homepage/index pages
+            r'login|sign up|register',  # Auth pages
+            r'contact|about us|privacy',  # Info pages
+            r'subscribe|newsletter|rss',  # Subscription pages
+            r'sitemap|search results',  # Navigation pages
+        ]
+        
+        for result in results:
+            url = result.get('url', '').lower()
+            title = result.get('title', '').lower()
+            
+            # Skip if matches exclude patterns
+            should_exclude = False
+            for pattern in exclude_patterns:
+                if re.search(pattern, url) or re.search(pattern, title):
+                    should_exclude = True
+                    logger.debug(f"Excluding irrelevant source: {url}")
+                    break
+            
+            if not should_exclude:
+                filtered.append(result)
+        
+        return filtered
     
     def _search_html(self, query: str, num_results: int) -> List[Dict]:
         """Search using DuckDuckGo HTML interface"""

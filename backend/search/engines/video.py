@@ -5,6 +5,7 @@ from typing import List, Dict
 import time
 import re
 from urllib.parse import urlparse, quote
+from models.reranker import MedicalReranker
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class VideoSearchEngine:
             'Connection': 'keep-alive',
         })
         self.timeout = timeout
+        self.reranker = MedicalReranker()
         
         # Video platforms by language
         self.video_platforms = {
@@ -82,12 +84,43 @@ class VideoSearchEngine:
         q = re.sub(r"\s+", " ", q)
         return q
 
+    def _is_valid_medical_video(self, result: Dict, query: str) -> bool:
+        """Check if video is medically relevant and has valid URL"""
+        url = result.get('url', '')
+        title = result.get('title', '')
+        
+        # Skip generic YouTube search result pages
+        if 'results?search_query=' in url:
+            return False
+        
+        # Skip non-YouTube URLs that aren't medical platforms
+        if 'youtube.com' not in url and not any(med in url for med in ['medscape.com', 'vinmec.com', 'haodf.com']):
+            return False
+        
+        # Check if title contains medical keywords or query terms
+        title_lower = title.lower()
+        query_lower = query.lower()
+        
+        medical_keywords = [
+            'medical', 'health', 'doctor', 'treatment', 'diagnosis',
+            'symptoms', 'therapy', 'medicine', 'clinical', 'patient',
+            'disease', 'condition', 'healthcare', 'physician'
+        ]
+        
+        # Must contain medical keywords or query terms
+        has_medical = any(keyword in title_lower for keyword in medical_keywords)
+        has_query = any(word in title_lower for word in query_lower.split() if len(word) > 3)
+        
+        return has_medical or has_query
+
     def search(self, query: str, num_results: int = 3, language: str = 'en') -> List[Dict]:
-        """Search for medical videos across platforms"""
+        """Search for medical videos across platforms with deduplication and medical filtering"""
         query = self._normalize_query(query)
         logger.info(f"Searching for medical videos: {query} (language: {language})")
         
         results = []
+        seen_urls = set()  # Track URLs to avoid duplicates
+        seen_video_ids = set()  # Track video IDs to avoid duplicates
         platforms = self.video_platforms.get(language, self.video_platforms['en'])
         
         for platform in platforms:
@@ -95,8 +128,32 @@ class VideoSearchEngine:
                 break
             
             try:
-                platform_results = self._search_platform(query, platform, num_results - len(results))
-                results.extend(platform_results)
+                platform_results = self._search_platform(query, platform, num_results * 3)  # Get more to filter
+                
+                # Filter out duplicates and non-medical content
+                for result in platform_results:
+                    url = result.get('url', '')
+                    video_id = self._extract_video_id(url)
+                    
+                    # Skip if URL or video ID already seen
+                    if url in seen_urls or (video_id and video_id in seen_video_ids):
+                        continue
+                    
+                    # Check if it's a valid medical video
+                    if self._is_valid_medical_video(result, query):
+                        seen_urls.add(url)
+                        if video_id:
+                            seen_video_ids.add(video_id)
+                        
+                        # Normalize YouTube URLs
+                        if video_id and 'youtube.com' in url:
+                            result['url'] = f"https://www.youtube.com/watch?v={video_id}"
+                            result['video_id'] = video_id
+                        
+                        results.append(result)
+                        if len(results) >= num_results:
+                            break
+                
                 time.sleep(0.5)  # Rate limiting
             except Exception as e:
                 logger.warning(f"Video search failed for {platform['name']}: {e}")
@@ -107,15 +164,29 @@ class VideoSearchEngine:
             # Try resilient YouTube via Invidious API
             try:
                 resilient = self._search_youtube_invidious(query, language, num_results - len(results))
-                results.extend(resilient)
+                for result in resilient:
+                    url = result.get('url', '')
+                    video_id = result.get('video_id', '')
+                    
+                    if (url not in seen_urls and 
+                        video_id not in seen_video_ids and 
+                        self._is_valid_medical_video(result, query)):
+                        seen_urls.add(url)
+                        if video_id:
+                            seen_video_ids.add(video_id)
+                        results.append(result)
+                        if len(results) >= num_results:
+                            break
             except Exception as e:
                 logger.warning(f"Invidious fallback failed: {e}")
-            # Final fallback: provider search URLs
-            if len(results) < num_results:
-                fallback_results = self._get_fallback_videos(query, language, num_results - len(results))
-                results.extend(fallback_results)
         
-        logger.info(f"Found {len(results)} video results")
+        # Use reranker to improve quality and relevance
+        if results:
+            reranked_results = self.reranker.filter_youtube_results(results, query)
+            logger.info(f"Reranked {len(results)} video results to {len(reranked_results)} high-quality results")
+            return reranked_results[:num_results]
+        
+        logger.info(f"Found {len(results)} medical video results")
         return results[:num_results]
     
     def _search_platform(self, query: str, platform: Dict, num_results: int) -> List[Dict]:
@@ -268,3 +339,19 @@ class VideoSearchEngine:
         }
         
         return fallback_videos.get(language, fallback_videos['en'])[:num_results]
+    
+    def _extract_video_id(self, url: str) -> str:
+        """Extract YouTube video ID from URL"""
+        patterns = [
+            r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+            r'(?:embed\/)([0-9A-Za-z_-]{11})',
+            r'(?:watch\?v=)([0-9A-Za-z_-]{11})'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        
+        return None
+

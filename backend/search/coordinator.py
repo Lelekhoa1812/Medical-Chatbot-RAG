@@ -12,6 +12,7 @@ from .processors.medical import MedicalSearchProcessor
 from .processors.language import LanguageProcessor
 from .processors.sources import SourceAggregator
 from .processors.enhanced import EnhancedContentProcessor
+from models.reranker import MedicalReranker
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class SearchCoordinator:
         self.language_processor = LanguageProcessor()
         self.source_aggregator = SourceAggregator()
         self.enhanced_processor = EnhancedContentProcessor()
+        self.reranker = MedicalReranker()
         
         # Search strategies
         self.strategies = [
@@ -81,6 +83,12 @@ class SearchCoordinator:
         
         # Extract content from URLs
         enriched_results = self._enrich_with_content(unique_results)
+        
+        # Use reranker to improve quality and relevance
+        if enriched_results:
+            reranked_results = self.reranker.rerank_results(query, enriched_results, min_score=0.4)
+            logger.info(f"Reranked {len(enriched_results)} results to {len(reranked_results)} high-quality results")
+            enriched_results = reranked_results
         
         # Process results into comprehensive summary
         summary, url_mapping = self.medical_processor.process_results(enriched_results, query)
@@ -187,6 +195,12 @@ class SearchCoordinator:
         
         # Enrich with content
         enriched_results = self._enrich_with_content(all_results)
+        
+        # Use reranker to improve quality and relevance
+        if enriched_results:
+            reranked_results = self.reranker.rerank_results(query, enriched_results, min_score=0.5)
+            logger.info(f"Reranked {len(enriched_results)} medical results to {len(reranked_results)} high-quality results")
+            enriched_results = reranked_results
         
         # Process with medical focus
         summary, url_mapping = self.medical_processor.process_results(enriched_results, query)
@@ -320,8 +334,11 @@ class SearchCoordinator:
         # Search for videos
         raw_results = self.video_engine.search(query, num_results, search_language)
         
+        # Use reranker to filter and improve YouTube results
+        filtered_video_results = self.reranker.filter_youtube_results(raw_results, query)
+        
         # Validate and normalize results to avoid corrupted cards/links
-        video_results = self._sanitize_video_results(raw_results, limit=num_results)
+        video_results = self._sanitize_video_results(filtered_video_results, limit=num_results)
         
         logger.info(f"Video search completed: {len(video_results)} videos found")
         return video_results
@@ -382,3 +399,6 @@ class SearchCoordinator:
             except Exception:
                 continue
         return clean
+
+
+
