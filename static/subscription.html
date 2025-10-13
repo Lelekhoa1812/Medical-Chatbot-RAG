@@ -2,44 +2,219 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Medical Chatbot</title>
-  <link rel="website icon" type="png" href="/public/img/logo.png">
-  <link rel="stylesheet" href="/src/styles.css?v=2.3.9">
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>Support Medical AI Research - Medical Chatbot</title>
+  <link rel="website icon" type="png" href="/img/logo.png">
+  <link rel="stylesheet" href="/src/styles.css">
+  <link rel="stylesheet" href="/src/credential.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-content">
+      <div class="loading-logo">
+        <i class="fas fa-heart-pulse"></i>
+      </div>
+      <div class="loading-text">Loading...</div>
+      <div class="loading-bar">
+        <div class="loading-progress"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Navigation -->
   <header>
     <nav class="navbar">
-      <a href="index.html" class="logo">
+      <a href="/" class="logo">
         <img src="/img/logo.png" alt="logo">
-        <!-- Tooltip container using cloud.gif -->
-        <div id="tooltip" class="logo-tooltip">Hello, how can I support you today?</div>
         <h1 id="nav-header">Medical Chatbot Doctor</h1>
       </a>
-      <ul class="links">
-        <li><a id="nav-account">Account</a></li>
-        <li><a id="nav-subscription" href="index.html">Home</a></li>
+      
+      <!-- Mobile Hamburger Menu -->
+      <button class="hamburger-menu" id="hamburger-menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      
+      <!-- Desktop Navigation -->
+      <ul class="links desktop-nav">
+        <li><a id="nav-account" href="/">Back to Chat</a></li>
+        <li><a id="nav-subscription" href="subscription.html" class="active">Support</a></li>
         <li><a id="nav-about" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG">About</a></li>
+      </ul>
+      
+      <!-- Mobile Navigation Menu -->
+      <ul class="links mobile-nav" id="mobile-nav">
+        <li><a id="nav-account-mobile" href="/">Back to Chat</a></li>
+        <li><a id="nav-subscription-mobile" href="subscription.html" class="active">Support</a></li>
+        <li><a id="nav-about-mobile" href="https://github.com/Lelekhoa1812/Medical-Chatbot-RAG">About</a></li>
+      </ul>
+      
+      <!-- Always Visible Controls -->
+      <div class="navbar-controls">
         <!-- Dropdown Language Selector -->
-        <li class="dropdown">
+        <div class="dropdown">
           <button class="dropdown-btn">EN &#x25BC;</button>
           <ul class="dropdown-menu">
             <li data-lang="VI">Vietnamese</li>
             <li data-lang="EN">English</li>
             <li data-lang="ZH">Mandarin</li>
           </ul>
-        </li>
-      </ul>
+        </div>
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
     </nav>
   </header>
-  <div class="chat-container">
-    <h1>OOPS! Everything is free for now, you can navigate back to home page ^^</h1>
+
+  <!-- Main Content -->
+  <main class="subscription-container">
+    <div class="subscription-content">
+      <!-- Hero Section -->
+      <div class="hero-section">
+        <div class="hero-icon">
+          <i class="fas fa-heart-pulse"></i>
+        </div>
+        <h1 class="hero-title">Support Medical AI Research</h1>
+        <p class="hero-subtitle">Join our mission to put humanity back at the heart of healthcare</p>
+      </div>
+
+      <!-- Mission Statement -->
+      <div class="mission-section">
+        <div class="mission-content">
+          <h2>Our Mission</h2>
+          <p class="mission-text">
+            We're building medical AI that understands patient history - because context saves lives.
+          </p>
+          <p class="mission-text">
+            As a non-profit SwinBurne initiative, we're creating AI that reads between the lines of medical data. 
+            Our technology integrates your full health story to support doctors in delivering truly personalized care.
+          </p>
+          <p class="mission-text">
+            This isn't for profit - it's for people. We're developing open solutions that will benefit everyone, 
+            not shareholders.
+          </p>
+          <p class="mission-text highlight">
+            Your support fuels research that puts humanity back at the heart of healthcare.
+          </p>
+          <p class="mission-cta">
+            <strong>Join our mission. Fund AI that cares.</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Donation Section -->
+      <div class="donation-section">
+        <div class="donation-card">
+          <div class="donation-header">
+            <i class="fas fa-coffee"></i>
+            <h3>Support Our Research</h3>
+            <p>Help us continue developing life-saving medical AI technology</p>
+          </div>
+          
+          <div class="donation-options">
+            <div class="donation-amounts">
+              <button class="donation-btn" data-amount="5">
+                <i class="fas fa-coffee"></i>
+                <span>$5</span>
+                <small>Buy us a coffee</small>
+              </button>
+              <button class="donation-btn" data-amount="15">
+                <i class="fas fa-laptop"></i>
+                <span>$15</span>
+                <small>Support development</small>
+              </button>
+              <button class="donation-btn" data-amount="50">
+                <i class="fas fa-microscope"></i>
+                <span>$50</span>
+                <small>Fund research</small>
+              </button>
+              <button class="donation-btn" data-amount="100">
+                <i class="fas fa-heart"></i>
+                <span>$100</span>
+                <small>Save lives</small>
+              </button>
+            </div>
+            
+            <div class="custom-donation">
+              <label for="custom-amount">Custom Amount:</label>
+              <div class="custom-input-group">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="custom-amount" placeholder="Enter amount" min="1" step="1">
+                <button class="custom-donate-btn" id="custom-donate-btn">
+                  <i class="fas fa-heart"></i>
+                  Donate
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="donation-footer">
+            <p class="donation-note">
+              <i class="fas fa-shield-alt"></i>
+              Secure donations powered by Buy Me a Coffee
+            </p>
+            <div class="researcher-info">
+              <div class="researcher-avatar">
+                <i class="fas fa-user-graduate"></i>
+              </div>
+              <div class="researcher-details">
+                <h4>Dang Khoa Le (Liam)</h4>
+                <p>Lead Researcher & Developer</p>
+                <p class="institution">Swinburne University of Technology</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Impact Section -->
+      <div class="impact-section">
+        <h2>Your Impact</h2>
+        <div class="impact-grid">
+          <div class="impact-item">
+            <i class="fas fa-users"></i>
+            <h3>Open Source</h3>
+            <p>All our research and tools are freely available to benefit the global medical community</p>
+          </div>
+          <div class="impact-item">
+            <i class="fas fa-graduation-cap"></i>
+            <h3>Academic Research</h3>
+            <p>Supporting evidence-based medical AI development at Swinburne University</p>
+          </div>
+          <div class="impact-item">
+            <i class="fas fa-globe"></i>
+            <h3>Global Impact</h3>
+            <p>Creating technology that improves healthcare outcomes worldwide</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="subscription-footer">
+    <div class="footer-content">
+      <p>&copy; 2024 Medical Chatbot Research Team. All rights reserved.</p>
+      <p>Part of Swinburne University of Technology's AI Research Initiative</p>
+      <div class="footer-links">
+        <a href="https://huggingface.co/MedAI-COS30018" target="_blank">
+          <i class="fab fa-github"></i> GitHub
+        </a>
+        <a href="https://buymeacoffee.com/kle1812" target="_blank">
+          <i class="fas fa-coffee"></i> Buy Me a Coffee
+        </a>
+      </div>
   </div>
-  <!-- Include Marked.js for markdown rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Main scripts -->
-  <script type="module" src="/src/script.js?v=2.3.9"></script>
-  <script type="module" src="/src/credential.js?v=2.3.9"></script>
+  </footer>
+
+  <!-- Scripts -->
+  <script type="module" src="/src/subscription.js"></script>
 </body>
 </html>

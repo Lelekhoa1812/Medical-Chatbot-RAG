@@ -23,7 +23,7 @@ optimize_memory()
 app = FastAPI(
     title="Medical Chatbot API",
     description="AI-powered medical chatbot with RAG and search capabilities",
-    version="1.0.0"
+    version="3.0.0"
 )
 
 # ✅ Add CORS middleware
