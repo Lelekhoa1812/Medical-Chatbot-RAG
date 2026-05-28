@@ -2,32 +2,16 @@
 import re
 import logging
 from typing import Dict
-from google import genai
-from .config import gemini_flash_api_key
+from .config import foundry_api_key, foundry_endpoint
 from .retrieval import retrieval_engine
 from memory import MemoryManager
 from utils import translate_query, process_medical_image
 from search import search_comprehensive
-from models import summarizer
+from models import summarizer, AzureLLMClient
 from models import process_search_query
 from models.guard import safety_guard
 
 logger = logging.getLogger("medical-chatbot")
-
-class GeminiClient:
-    """Gemini API client for generating responses"""
-    
-    def __init__(self):
-        self.client = genai.Client(api_key=gemini_flash_api_key)
-    
-    def generate_content(self, prompt: str, model: str = "gemini-2.5-flash", temperature: float = 0.7) -> str:
-        """Generate content using Gemini API"""
-        try:
-            response = self.client.models.generate_content(model=model, contents=prompt)
-            return response.text
-        except Exception as e:
-            logger.error(f"[LLM] ❌ Error calling Gemini API: {e}")
-            return "Error generating response from Gemini."
 
 class RAGMedicalChatbot:
     """Main chatbot class with RAG capabilities"""
@@ -35,7 +19,11 @@ class RAGMedicalChatbot:
     def __init__(self, model_name: str, retrieve_function):
         self.model_name = model_name
         self.retrieve = retrieve_function
-        self.gemini_client = GeminiClient()
+        self.llm_client = AzureLLMClient(
+            api_key=foundry_api_key,
+            endpoint=foundry_endpoint,
+            model_name=model_name,
+        )
         self.memory = MemoryManager()
     
     def chat(self, user_id: str, user_query: str, lang: str = "EN", image_diagnosis: str = "", search_mode: bool = False, video_mode: bool = False) -> str:
@@ -139,7 +127,7 @@ class RAGMedicalChatbot:
         parts.append(f"Language to generate answer: {lang}")
         prompt = "\n\n".join(parts)
         logger.info(f"[LLM] Question query in `prompt`: {prompt}") # Debug out checking RAG on kb and history
-        response = self.gemini_client.generate_content(prompt, model=self.model_name, temperature=0.7)
+        response = self.llm_client.generate_content(prompt)
         
         # 6. Process citations and replace with URLs
         if search_mode and url_mapping:

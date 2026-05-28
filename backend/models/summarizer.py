@@ -128,12 +128,7 @@ Summary:"""
                 doc_id = doc['id']
                 url_mapping[doc_id] = doc['url']
                 
-                summary_prompt = f"""Summarize this medical document in 2-3 sentences, focusing on information relevant to: \"{user_query}\"
-
-Document: {doc['title']}
-Content: {doc['content'][:800]}
-
-Key medical information:"""
+                summary_prompt = f"""Summarize this medical document in 2-3 sentences, focusing on information relevant to: \"{user_query}\"\n\nDocument: {doc['title']}\nContent: {doc['content'][:800]}\n\nKey medical information:"""
 
                 summary = self.llama_client._call_llm(summary_prompt)
                 summary = self.clean_text(summary)
@@ -200,3 +195,8 @@ Medical summary:"""
 
 # Global summarizer instance
 summarizer = TextSummarizer()
+
+
+def get_summarizer() -> TextSummarizer:
+    """Backward-compatible accessor for legacy imports."""
+    return summarizer

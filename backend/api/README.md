@@ -8,6 +8,7 @@
 - System resource monitoring
 - Memory optimization settings
 - CORS configuration
+- Azure AI Foundry provider settings
 
 ### **database.py** - Database Management
 - MongoDB connection management
@@ -21,10 +22,11 @@
 - Symptom-based diagnosis retrieval
 - Smart deduplication and similarity matching
 - Vector similarity computations
+- Optional reranking support for guideline-heavy content
 
 ### **chatbot.py** - Core Chatbot Logic
 - RAGMedicalChatbot class
-- Gemini API client
+- Azure LLM client usage
 - Search mode integration
 - Citation processing
 - Memory management integration
@@ -49,7 +51,7 @@ Request → routes.py → chatbot.py → retrieval.py → database.py
                 ↓
          memory.py (context) + search.py (web search)
                 ↓
-         models/ (NVIDIA Llama processing)
+         models/ (provider-backed model processing)
                 ↓
          Response with citations
 ```
