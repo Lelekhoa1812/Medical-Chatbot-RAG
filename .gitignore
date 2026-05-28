@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Utils
 Miniconda3.sh
 storage.md
@@ -12,7 +11,7 @@ backend/.git
 static/dist
 static/node_modules
 static/.vercel
-=======
+
 .env
 secrets.toml
->>>>>>> hf/main
+__pycache__/*
