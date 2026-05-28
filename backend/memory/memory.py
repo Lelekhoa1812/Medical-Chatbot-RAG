@@ -1,30 +1,32 @@
-# memory_updated.py
+# memory.py
 import re, time, hashlib, asyncio, os
 from collections import defaultdict, deque
 from typing import List, Dict
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from google import genai  # must be configured in app.py and imported globally
 import logging
-from models.summarizer import get_summarizer
+# Removed Google GenAI import to ensure Azure Foundry is the sole AI provider.
+from models import summarizer  # type: ignore
 
-_LLM_SMALL = "gemini-2.5-flash-lite-preview-06-17"
-# Load embedding model
-EMBED = SentenceTransformer("/app/model_cache", device="cpu").half()
+_EMBED_CACHE_DIR = "/app/model_cache"  # Directory for embedding model artifacts
+
+# Load embedding model (CPU, FP16 for memory efficiency)
+EMBED = SentenceTransformer(_EMBED_CACHE_DIR, device="cpu").half()
 logger = logging.getLogger("rag-agent")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
+logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True)
 
-api_key = os.getenv("FlashAPI")
-client = genai.Client(api_key=api_key)
+# Note: This memory module previously instantiated a Google GenAI client here.
+# That client has been removed to avoid relying on external Google Gemini API keys.
+# Azure Foundry-based LLM integration is handled by the primary API layer (backend/api/chatbot.py).
 
 class MemoryManager:
     def __init__(self, max_users=1000, history_per_user=20, max_chunks=60):
-        # STM: recent conversation summaries (topic + summary), up to 5 entries
+        # STM: short-term memory summaries (topic + summary), per-user
         self.stm_summaries = defaultdict(lambda: deque(maxlen=history_per_user))  # deque of {topic,text,vec,timestamp,used}
         # Legacy raw cache (kept for compatibility if needed)
         self.text_cache   = defaultdict(lambda: deque(maxlen=history_per_user))
-        # LTM: semantic chunk store (approx 3 chunks x 20 rounds)
+        # LTM: long-term semantic chunks per user
         self.chunk_index  = defaultdict(self._new_index)     # user_id -> faiss index
         self.chunk_meta   = defaultdict(list)                #  ''  -> list[{text,tag,vec,timestamp,used}]
         self.user_queue   = deque(maxlen=max_users)          # LRU of users
@@ -281,7 +283,6 @@ class MemoryManager:
 
     def _topics_similar(self, topic1: str, topic2: str) -> bool:
         """Check if two topics are similar"""
-        # Simple similarity check based on common words
         words1 = set(topic1.lower().split())
         words2 = set(topic2.lower().split())
         intersection = words1.intersection(words2)
@@ -291,10 +292,8 @@ class MemoryManager:
         """Find similar chunk in LTM"""
         if not self.chunk_meta[user_id]:
             return None
-        
         text_vec = self._embed(text)
         sims, idxs = self.chunk_index[user_id].search(np.array([text_vec]), k=3)
-        
         for sim, idx in zip(sims[0], idxs[0]):
             if sim > 0.8:  # High similarity threshold
                 return int(idx)
@@ -304,14 +303,10 @@ class MemoryManager:
         """Remove the oldest chunk from LTM"""
         if not self.chunk_meta[user_id]:
             return
-        
-        # Find oldest chunk
         oldest_idx = min(range(len(self.chunk_meta[user_id])), 
                         key=lambda i: self.chunk_meta[user_id][i]["timestamp"])
-        
-        # Remove from index and metadata
         self.chunk_meta[user_id].pop(oldest_idx)
-        # Note: FAISS doesn't support direct removal, so we rebuild the index
+        # FAISS index removal is non-trivial; rebuild index from remaining vectors
         self._rebuild_index(user_id)
 
     def _rebuild_index(self, user_id: str):
@@ -319,7 +314,6 @@ class MemoryManager:
         if not self.chunk_meta[user_id]:
             self.chunk_index[user_id] = self._new_index()
             return
-        
         vectors = [chunk["vec"] for chunk in self.chunk_meta[user_id]]
         self.chunk_index[user_id] = self._new_index()
         self.chunk_index[user_id].add(np.array(vectors))
@@ -327,5 +321,5 @@ class MemoryManager:
     @staticmethod
     def _embed(text: str):
         vec = EMBED.encode(text, convert_to_numpy=True)
-        # L2 normalise for cosine on IndexFlatIP
+        # L2 normalize for cosine similarity on IndexFlatIP
         return vec / (np.linalg.norm(vec) + 1e-9)
