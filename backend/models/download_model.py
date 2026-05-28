@@ -42,10 +42,5 @@ for root, dirs, files in os.walk(MODEL_CACHE_DIR):
     for file in files:
         print(f"  📄 {file}")
 
-
-### --- B. translation modules ---
-from transformers import pipeline
-print("⏬ Downloading Vietnamese–English translator...")
-_ = pipeline("translation", model="VietAI/envit5-translation", src_lang="vi", tgt_lang="en")
-print("⏬ Downloading Chinese–English translator...")
-_ = pipeline("translation", model="Helsinki-NLP/opus-mt-zh-en")
+print("\nℹ️ Translation models are no longer downloaded locally.")
+print("ℹ️ Vietnamese and Chinese query translation now use the Azure AI Foundry SLM at runtime.")

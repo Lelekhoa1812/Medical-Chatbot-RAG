@@ -3,9 +3,7 @@
 const isLocal = window.location.hostname === "localhost";
 const API_PREFIX = isLocal
   ? "http://0.0.0.0:8000"  // local dev
-//   : "https://my-medical-chatbot.onrender.com";     // production Render server
-//   : "https://medical-chatbot-henna.streamlit.app"; // production Streamlit server
-     : "https://BinKhoaLe1812-Medical-Chatbot.hf.space"
+  : "https://khoaliamle-Medical-Chatbot.hf.space"
 
 
 // Test markdown rendering

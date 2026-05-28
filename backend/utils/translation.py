@@ -1,15 +1,22 @@
 # translation.py
-from transformers import pipeline
 import logging
 import re
 from collections import Counter
 
+from backend.models.llama import AzureAIClient
+
 logger = logging.getLogger("translation-agent")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
 
-# To use lazy model loader
-vi_en = None
-zh_en = None
+_translation_client = None
+
+
+def _get_translation_client() -> AzureAIClient:
+    global _translation_client
+    if _translation_client is None:
+        _translation_client = AzureAIClient(model_env_var="SLM_MODEL", default_model="gpt-5-nano")
+    return _translation_client
+
 
 def _dedupe_repeats(s: str, n_min: int = 3, n_max: int = 7) -> str:
     """Collapse excessive repeated n-grams and repeated phrases with improved logic."""
@@ -91,48 +98,57 @@ def _is_too_repetitive(s: str, threshold: float = 0.4) -> bool:
     return (top / max(1, len(tokens))) >= threshold
 
 
+def _translate_with_slm(text: str, source_language: str, source_label: str) -> str:
+    client = _get_translation_client()
+    input_text = text[:1000] if len(text) > 1000 else text
+
+    prompt = f"""Translate the following medical user query from {source_label} to English.
+Preserve the full medical meaning, symptoms, medications, dosage words, body parts, and urgency.
+Do not answer the question.
+Do not summarize.
+Return only the English translation text.
+
+Text: {input_text}
+
+English translation:"""
+
+    raw = client.chat_completion(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a precise medical translation assistant. Translate only and return only the translated English text.",
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        temperature=0.0,
+        max_tokens=512,
+        timeout=30,
+        max_retries=3,
+    )
+
+    cleaned = _dedupe_repeats(raw)
+    norm = _normalize_and_cap(cleaned, cap=512)
+
+    if _is_too_repetitive(norm) or len(norm.strip()) < 2:
+        logger.warning(f"[Translation-{source_language}] Translation repetitive or too short; falling back to original text")
+        return text
+
+    logger.info(f"[Translation-{source_language}] Query translated to: {norm[:100]}...")
+    return norm
+
+
 def translate_query(text: str, lang_code: str) -> str:
-    global vi_en, zh_en
-    
     if not text or not text.strip():
         return text
     
     try:
         if lang_code == "vi":
-            if vi_en is None:
-                logger.info("[Translation] Loading Vietnamese-English model...")
-                vi_en = pipeline("translation", model="VietAI/envit5-translation", src_lang="vi", tgt_lang="en", device=-1)
-            
-            # Limit input length to prevent model issues
-            input_text = text[:1000] if len(text) > 1000 else text
-            raw = vi_en(input_text, max_length=512)[0]["translation_text"]
-            cleaned = _dedupe_repeats(raw)
-            norm = _normalize_and_cap(cleaned, cap=512)
-            
-            if _is_too_repetitive(norm) or len(norm.strip()) < 10:
-                logger.warning("[En-Vi] Translation repetitive or too short; falling back to original text")
-                return text
-                
-            logger.info(f"[En-Vi] Query in `{lang_code}` translated to: {norm[:100]}...")
-            return norm
-            
+            return _translate_with_slm(text, "vi", "Vietnamese")
         elif lang_code == "zh":
-            if zh_en is None:
-                logger.info("[Translation] Loading Chinese-English model...")
-                zh_en = pipeline("translation", model="Helsinki-NLP/opus-mt-zh-en", device=-1)
-            
-            # Limit input length to prevent model issues
-            input_text = text[:1000] if len(text) > 1000 else text
-            raw = zh_en(input_text, max_length=512)[0]["translation_text"]
-            cleaned = _dedupe_repeats(raw)
-            norm = _normalize_and_cap(cleaned, cap=512)
-            
-            if _is_too_repetitive(norm) or len(norm.strip()) < 10:
-                logger.warning("[En-Zh] Translation repetitive or too short; falling back to original text")
-                return text
-                
-            logger.info(f"[En-Zh] Query in `{lang_code}` translated to: {norm[:100]}...")
-            return norm
+            return _translate_with_slm(text, "zh", "Chinese")
             
     except Exception as e:
         logger.error(f"[Translation] Translation failed for {lang_code}: {e}")

@@ -1,13 +1,13 @@
 import re
 import logging
 from typing import List, Dict, Tuple
-from .llama import NVIDIALLamaClient
+from .llama import AzureLLMClient
 
 logger = logging.getLogger(__name__)
 
 class TextSummarizer:
     def __init__(self):
-        self.llama_client = NVIDIALLamaClient()
+        self.llama_client = AzureLLMClient()
     
     def clean_text(self, text: str) -> str:
         """Clean and normalize text for summarization"""
@@ -60,19 +60,15 @@ class TextSummarizer:
         return list(set(key_phrases))  # Remove duplicates
     
     def summarize_text(self, text: str, max_length: int = 200) -> str:
-        """Summarize text using NVIDIA Llama model"""
+        """Summarize text using Azure AI LLM"""
         try:
             if not text or len(text.strip()) < 50:
                 return text
             
-            # Clean the text first
             cleaned_text = self.clean_text(text)
-            
-            # Extract key phrases for context
             key_phrases = self.extract_key_phrases(cleaned_text)
             key_phrases_str = ", ".join(key_phrases[:5]) if key_phrases else "medical information"
             
-            # Create optimized prompt
             prompt = f"""Summarize this medical text in {max_length} characters or less. Focus only on key medical facts, symptoms, treatments, and diagnoses. Do not include greetings, confirmations, or conversational elements.
 
 Key terms: {key_phrases_str}
@@ -81,12 +77,9 @@ Text: {cleaned_text[:1500]}
 
 Summary:"""
 
-            summary = self.llama_client._call_llama(prompt)
-            
-            # Post-process summary
+            summary = self.llama_client._call_llm(prompt)
             summary = self.clean_text(summary)
             
-            # Ensure it's within length limit
             if len(summary) > max_length:
                 summary = summary[:max_length-3] + "..."
             
@@ -94,7 +87,6 @@ Summary:"""
             
         except Exception as e:
             logger.error(f"Summarization failed: {e}")
-            # Fallback to simple truncation
             return self.clean_text(text)[:max_length]
 
     def summarize_for_query(self, text: str, query: str, max_length: int = 220) -> str:
@@ -108,7 +100,6 @@ Summary:"""
             if not cleaned_text:
                 return ""
 
-            # Short, strict prompt to avoid verbosity; instruct to output NOTHING if irrelevant
             prompt = (
                 f"You extract only medically relevant facts that help answer: '{query}'. "
                 f"Respond with a concise bullet list (<= {max_length} chars total). "
@@ -116,7 +107,7 @@ Summary:"""
                 f"Content: {cleaned_text[:1600]}\n\nRelevant facts:"
             )
 
-            summary = self.llama_client._call_llama(prompt)
+            summary = self.llama_client._call_llm(prompt)
             summary = self.clean_text(summary)
             if not summary or summary.upper().strip() == "NONE":
                 return ""
@@ -137,15 +128,14 @@ Summary:"""
                 doc_id = doc['id']
                 url_mapping[doc_id] = doc['url']
                 
-                # Create focused summary for each document
-                summary_prompt = f"""Summarize this medical document in 2-3 sentences, focusing on information relevant to: "{user_query}"
+                summary_prompt = f"""Summarize this medical document in 2-3 sentences, focusing on information relevant to: \"{user_query}\"
 
 Document: {doc['title']}
 Content: {doc['content'][:800]}
 
 Key medical information:"""
 
-                summary = self.llama_client._call_llama(summary_prompt)
+                summary = self.llama_client._call_llm(summary_prompt)
                 summary = self.clean_text(summary)
                 
                 doc_summaries.append(f"Document {doc_id}: {summary}")
@@ -171,7 +161,7 @@ Conversation: {cleaned_chunk[:1000]}
 
 Medical summary:"""
 
-            summary = self.llama_client._call_llama(prompt)
+            summary = self.llama_client._call_llm(prompt)
             return self.clean_text(summary)
             
         except Exception as e:
@@ -184,7 +174,6 @@ Medical summary:"""
             if not response or len(response) <= max_chunk_size:
                 return [response]
             
-            # Split by sentences first
             sentences = re.split(r'[.!?]+', response)
             chunks = []
             current_chunk = ""
@@ -194,14 +183,12 @@ Medical summary:"""
                 if not sentence:
                     continue
                 
-                # Check if adding this sentence would exceed limit
                 if len(current_chunk) + len(sentence) > max_chunk_size and current_chunk:
                     chunks.append(self.summarize_conversation_chunk(current_chunk))
                     current_chunk = sentence
                 else:
                     current_chunk += sentence + ". "
             
-            # Add the last chunk
             if current_chunk:
                 chunks.append(self.summarize_conversation_chunk(current_chunk))
             
@@ -213,4 +200,3 @@ Medical summary:"""
 
 # Global summarizer instance
 summarizer = TextSummarizer()
-

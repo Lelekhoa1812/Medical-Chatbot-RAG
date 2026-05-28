@@ -1,6 +1,6 @@
 # Medical Chatbot Platform
 
-Welcome to the RAG-based Medical Chatbot project! This project leverages cutting‑edge technologies such as Retrieval-Augmented Generation (RAG), Gemini Flash 2.5 (Backbone reasoning LLM), MedGemma (VLM), Llama, Mistral, and GPT varieties to deliver an intelligent medical chatbot . It uses a custom medical dataset (over 256,916 QA curation), diagnosis retrieval agent (over 4,962 symptom scenarios), and employs FAISS for efficient similarity search. The server runs on FastAPI and dynamically renders HTML using MarkdownJS.
+Welcome to the RAG-based Medical Chatbot project! This project leverages Retrieval-Augmented Generation (RAG), Azure AI Foundry-hosted GPT models for reasoning and lightweight orchestration, medical imaging support, FAISS, and a curated medical knowledge base to deliver an intelligent medical chatbot. It uses a custom medical dataset (over 256,916 QA curation), diagnosis retrieval agent (over 4,962 symptom scenarios), and FAISS for efficient similarity search. The server runs on FastAPI and dynamically renders HTML using MarkdownJS.
 
 ## Access Now
 - [Web App](https://medical-chatbot-henna.vercel.app/)
@@ -8,6 +8,21 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 
 2. **Frontend**:  
    “Frontend (UI), built with Node.js and incorporating Vite, Axios, is deployed on Vercel.”
+
+### Environment
+Configure Azure AI access through environment variables:
+
+```env
+FOUNDRY_API_KEY=your_azure_ai_key
+FOUNDRY_ENDPOINT=https://your-resource.openai.azure.com
+LLM_MODEL=gpt-5.4
+SLM_MODEL=gpt-5-nano
+```
+
+- `FOUNDRY_API_KEY`: Azure AI Foundry / Azure OpenAI API key
+- `FOUNDRY_ENDPOINT`: Azure AI Foundry-compatible endpoint base
+- `LLM_MODEL`: default stronger model for harder tasks
+- `SLM_MODEL`: lightweight model for easier tasks, reranking, validation, guardrails, and query translation
 
 ### Frontend Capabilities
 - Multilingual UX (EN/VI/ZH), light/dark themes, responsive design
@@ -20,20 +35,22 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 - RAG over curated medical KB (FAISS) with deduplication and decay scoring
 - Query‑Focused Web Search Agent:
   - Aggregates up to 10 results via DuckDuckGo and expands select same‑domain links
-  - Crawls large pages, chunks with overlap, and uses Llama to extract only query‑relevant facts per chunk
+  - Crawls large pages, chunks with overlap, and uses Azure AI LLMs to extract only query‑relevant facts per chunk
   - Merges distilled snippets per source and builds URL mappings for citations
-- Summarization Everywhere (Llama):
+- Summarization Everywhere (Azure AI):
   - Conversation/context compression, response chunking, and document synthesis
   - Text cleaning and key‑phrase priming to minimize token footprint
+- Multilingual Query Translation (Azure AI SLM):
+  - Vietnamese and Chinese queries are translated to English at runtime using the Foundry-hosted lightweight model
+  - No local Hugging Face translation models are required for these language paths
 - Vision (VLM) Pipeline: medical image description and analysis
-- Safety Guardrails: Llama Guard validates user input and model output
+- Safety Guardrails: Azure AI lightweight model validates user input and model output
 - Citations: `<#ID>` tagging in model output → resolved to `<URL>` server‑side → rendered as source icons in UI
 
 ## 🧠 Technical Highlights
 - FastAPI modular services (api, models, memory, search, utils)
 - FAISS vector retrieval; MongoDB for KB and index artifacts
-- Llama for concise summarization and query relevance extraction
-- Llama Guard for policy compliance on inputs and outputs
+- Azure AI Foundry-hosted GPT models for keyword generation, summarization, reranking, safety classification, and translation
 - Robust logging, retries, and graceful degradation in network‑bound paths
 
 ## 📸 Screenshots
@@ -47,7 +64,7 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 
 ## 📊 Memory & Retrieval
 - Per‑user LRU short‑term memory with FAISS; up to 30 recent chunks
-- Topic‑level chunking and summarization (Llama) for compact context
+- Topic‑level chunking and summarization (Azure AI) for compact context
 - Time‑decay and usage signals to prioritize what matters now
 
 ### 🧠 Knowledge Embedding & Diagnosis Retrieval
@@ -56,7 +73,7 @@ Welcome to the RAG-based Medical Chatbot project! This project leverages cutting
 - MongoDB vector cache and FAISS for fast similarity search
 
 ## 🛡️ Trust & Safety
-- Llama Guard validates user requests and assistant responses
+- Azure AI lightweight guard validation checks user requests and assistant responses
 - Unsafe requests are blocked; unsafe responses are redacted with safe fallback
 - Web‑derived claims carry explicit citations for auditability
 
