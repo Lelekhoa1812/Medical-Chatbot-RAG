@@ -37,8 +37,6 @@ class AzureAIClient:
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
         timeout: int = 30,
         max_retries: int = 3,
         model: Optional[str] = None,
@@ -53,8 +51,6 @@ class AzureAIClient:
                 payload = {
                     "model": model or self.model,
                     "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
                 }
 
                 response = requests.post(
@@ -143,8 +139,6 @@ Keywords:"""
                     "content": prompt,
                 }
             ],
-            temperature=0.7,
-            max_tokens=1000,
             timeout=30,
             max_retries=max_retries,
         )

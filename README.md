@@ -251,6 +251,14 @@ SLM_MODEL=gpt-5-nano
 - `LLM_MODEL` — primary stronger model for harder reasoning/generation tasks
 - `SLM_MODEL` — smaller/faster model for lightweight tasks such as validation, translation, filtering, and auxiliary processing
 
+### Generation Parameter Policy
+For all LLM services, use provider/model defaults unless a runtime-specific requirement is introduced later. Do not define or send fixed generation-control parameters such as:
+- `temperature`
+- `max_tokens`
+- `max_output_tokens`
+
+This keeps configuration aligned with the request to remove initially defined sampling/output limits across services.
+
 ### Recommended Additional Infrastructure Variables
 The backend docs also indicate non-model infrastructure dependencies. In practice, deployments commonly also require values such as:
 
@@ -478,7 +486,8 @@ This README updates several outdated or inconsistent areas from the previous ver
 - aligns production backend URL with the frontend runtime configuration,
 - documents browser-side pending request recovery and conversation scoping,
 - adds technical detail for multilingual, persistence, and video features,
-- clarifies backend module responsibilities using repository-provided docs.
+- clarifies backend module responsibilities using repository-provided docs,
+- documents removal of explicitly defined generation parameters such as temperature and token caps.
 
 ---
 

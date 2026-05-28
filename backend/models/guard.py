@@ -64,7 +64,7 @@ class SafetyGuard:
             start = max(0, end - overlap)
         return chunks
 
-    def _call_guard(self, messages: List[Dict], max_tokens: int = 512) -> str:
+    def _call_guard(self, messages: List[Dict]) -> str:
         enhanced_messages = self._enhance_messages_with_context(messages)
 
         policy_messages = [
@@ -90,8 +90,6 @@ class SafetyGuard:
         payload = {
             "model": self.model,
             "messages": policy_messages,
-            "temperature": 0.0,
-            "max_tokens": max_tokens,
         }
 
         try:
@@ -226,7 +224,7 @@ class SafetyGuard:
         
         for part in self._chunk_text(text):
             messages = [{"role": "user", "content": part}]
-            reply = self._call_guard(messages, max_tokens=64)
+            reply = self._call_guard(messages)
             ok, reason = self._parse_guard_reply(reply)
             if not ok:
                 return False, reason
@@ -437,7 +435,7 @@ Please evaluate this message for safety, keeping in mind that:
                     {"role": "user", "content": user_context},
                     {"role": "assistant", "content": ans_part},
                 ]
-                reply = self._call_guard(messages, max_tokens=96)
+                reply = self._call_guard(messages)
                 ok, reason = self._parse_guard_reply(reply)
                 if not ok:
                     return False, reason
@@ -456,7 +454,7 @@ Please evaluate this message for safety, keeping in mind that:
                     {"role": "user", "content": user_context},
                     {"role": "assistant", "content": ans_part},
                 ]
-                reply = self._call_guard(messages, max_tokens=96)
+                reply = self._call_guard(messages)
                 ok, reason = self._parse_guard_reply(reply)
                 if not ok:
                     return False, reason

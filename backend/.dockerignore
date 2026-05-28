@@ -2,3 +2,5 @@ api/legacy.py
 *.md
 .env
 *yml
+
+__pycache__*

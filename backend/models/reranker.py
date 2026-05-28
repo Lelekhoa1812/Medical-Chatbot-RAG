@@ -188,8 +188,6 @@ class MedicalReranker:
                     {"role": "system", "content": "You are a precise JSON-only reranking assistant."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.0,
-                "max_tokens": 1200,
             }
             
             response = requests.post(
