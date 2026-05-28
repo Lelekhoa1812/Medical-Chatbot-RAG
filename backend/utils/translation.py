@@ -3,7 +3,11 @@ import logging
 import re
 from collections import Counter
 
-from backend.models.llama import AzureAIClient
+# Root Cause vs Logic: this module imported `backend.models.llama`, but the
+# app is executed from the backend package root where `backend` is not a
+# resolvable runtime package. Use the local package import style already used
+# throughout the API layer to keep imports consistent and avoid startup failures.
+from models.llama import AzureAIClient
 
 logger = logging.getLogger("translation-agent")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
