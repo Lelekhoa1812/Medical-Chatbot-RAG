@@ -1,0 +1,1 @@
+spawn python3 -m compileall . ENOENT

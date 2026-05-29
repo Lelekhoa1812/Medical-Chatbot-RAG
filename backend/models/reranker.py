@@ -91,7 +91,7 @@ class MedicalReranker:
         final_results.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
         
         return final_results
-    
+
     def _filter_irrelevant_results(self, results: List[Dict]) -> List[Dict]:
         """Filter out obviously irrelevant results"""
         filtered = []

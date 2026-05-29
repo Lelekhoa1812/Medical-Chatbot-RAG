@@ -60,7 +60,7 @@ class SearchCoordinator:
             
             for lang, enhanced_query in enhanced_queries.items():
                 for strategy in self.strategies:
-                    future = executor.submit(strategy, enhanced_query, num_results // len(enhanced_queries), lang)
+                    future = executor.submit(strategy, enhanced_query, num_results // max(len(enhanced_queries), 1), lang)
                     future_to_strategy[future] = f"{strategy.__name__}_{lang}"
             
             # Collect results
@@ -160,6 +160,8 @@ class SearchCoordinator:
                         enriched_result = original_result.copy()
                         enriched_result['content'] = content
                         enriched_results.append(enriched_result)
+                    else:
+                        enriched_results.append(original_result)
                 except Exception as e:
                     logger.warning(f"Content extraction failed for {original_result['url']}: {e}")
                     # Still include result without content
@@ -476,6 +478,5 @@ class SearchCoordinator:
             except Exception:
                 continue
         return clean
-
 
 

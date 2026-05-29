@@ -1,124 +1,13 @@
 # app.py
-import os, json, re
-from typing import Dict
-import faiss
-import numpy as np
-import time
-import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from pymongo import MongoClient
-from google import genai
-from sentence_transformers import SentenceTransformer
-from sentence_transformers.util import cos_sim
-from memory import MemoryManager
-from utils import translate_query, process_medical_image, retrieve_diagnosis_from_symptoms
-from search import search_web
-from models import process_search_query
-
-# ✅ Enable Logging for Debugging
+# Motivation vs Logic: this legacy MongoDB-backed RAG service duplicated the active API path,
+# so it is reduced to a compatibility stub to prevent a second MongoDB RAG service from living in the repo.
 import logging
-# —————— Silence Noisy Loggers ——————
-for name in [
-    "uvicorn.error", "uvicorn.access",
-    "fastapi", "starlette",
-    "pymongo", "gridfs",
-    "sentence_transformers", "faiss",
-    "google", "google.auth",
-]:
-    logging.getLogger(name).setLevel(logging.WARNING)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(name)s — %(levelname)s — %(message)s", force=True) # Change INFO to DEBUG for full-ctx JSON loader
+
 logger = logging.getLogger("medical-chatbot")
-logger.setLevel(logging.DEBUG)
+logger.warning("Legacy MongoDB RAG service disabled; use backend.api.app instead.")
 
-# Debug Start
-logger.info("🚀 Starting Medical Chatbot API...")
-
-# ✅ Environment Variables
-mongo_uri = os.getenv("MONGO_URI")
-index_uri = os.getenv("INDEX_URI")
-gemini_flash_api_key = os.getenv("FlashAPI")
-# Validate environment endpoint
-if not all([gemini_flash_api_key, mongo_uri, index_uri]):
-    raise ValueError("❌ Missing API keys! Set them in Hugging Face Secrets.")
-# logger.info(f"🔎 MongoDB URI: {mongo_uri}")
-# logger.info(f"🔎 FAISS Index URI: {index_uri}")
-
-# ✅ Monitor Resources Before Startup
-import psutil
-def check_system_resources():
-    memory = psutil.virtual_memory()
-    cpu = psutil.cpu_percent(interval=1)
-    disk = psutil.disk_usage("/")
-    # Defines log info messages
-    logger.info(f"[System] 🔍 System Resources - RAM: {memory.percent}%, CPU: {cpu}%, Disk: {disk.percent}%")
-    if memory.percent > 85:
-        logger.warning("⚠️ High RAM usage detected!")
-    if cpu > 90:
-        logger.warning("⚠️ High CPU usage detected!")
-    if disk.percent > 90:
-        logger.warning("⚠️ High Disk usage detected!")
-check_system_resources()
-
-# ✅ Reduce Memory usage with optimizers
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-# ✅ Initialize FastAPI app
-app = FastAPI(title="Medical Chatbot API")
-memory = MemoryManager()
-
-from fastapi.middleware.cors import CORSMiddleware # Bypassing CORS origin
-# Define the origins
-origins = [
-    "http://localhost:5173",                    # Vite dev server
-    "http://localhost:3000",                    # Another vercel local dev
-    "https://medical-chatbot-henna.vercel.app", # ✅ Vercel frontend production URL
-    
-]
-# Add the CORS middleware:
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,   # or ["*"] to allow all
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ✅ Use Lazy Loading for FAISS Index
-index = None  # Delay FAISS Index loading until first query
-
-# ✅ Load SentenceTransformer Model (Quantized/Halved)
-logger.info("[Embedder] 📥 Loading SentenceTransformer Model...")
-MODEL_CACHE_DIR = "/app/model_cache"
-try:
-    embedding_model = SentenceTransformer(MODEL_CACHE_DIR, device="cpu")
-    embedding_model = embedding_model.half()  # Reduce memory
-    logger.info("✅ Model Loaded Successfully.")
-except Exception as e:
-    logger.error(f"❌ Model Loading Failed: {e}")
-    exit(1)
-
-# Cache in-memory vectors (optional — useful for <10k rows)
-SYMPTOM_VECTORS = None
-SYMPTOM_DOCS = None
-
-# ✅ Setup MongoDB Connection
-# QA data
-client = MongoClient(mongo_uri)
-db = client["MedicalChatbotDB"]
-qa_collection = db["qa_data"]
-# FAISS Index data
-iclient = MongoClient(index_uri)
-idb = iclient["MedicalChatbotDB"]
-index_collection = idb["faiss_index_files"]
-# Symptom Diagnosis data
-symptom_client = MongoClient(mongo_uri) 
-symptom_col = symptom_client["MedicalChatbotDB"]["symptom_diagnosis"]
-
-# ✅ Load FAISS Index (Lazy Load)
-import gridfs
-fs = gridfs.GridFS(idb, collection="faiss_index_files")
+def __getattr__(name):
+    raise AttributeError(f"legacy module disabled: {name}")
 
 def load_faiss_index():
     global index

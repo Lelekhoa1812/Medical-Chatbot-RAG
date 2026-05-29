@@ -9,6 +9,8 @@ import logging
 
 logger = logging.getLogger("database-bot")
 
+# Motivation vs Logic: MongoDB access is retained only as a storage/index transport layer
+# for retrieval artifacts; the chatbot runtime should not expose a separate MongoDB RAG service.
 class DatabaseManager:
     def __init__(self):
         self.embedding_model = None

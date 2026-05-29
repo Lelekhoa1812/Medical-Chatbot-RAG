@@ -1,0 +1,21 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.1, pytest-8.3.4, pluggy-1.6.0
+rootdir: /Users/liamle/Downloads/diagram/.cache/github-repos/medbot/backend
+plugins: asyncio-0.24.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT, default_loop_scope=None
+collected 1 item
+
+test_docker_csv.py .                                                     [100%]
+
+=============================== warnings summary ===============================
+test_docker_csv.py::test_csv_in_docker
+  /Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/_pytest/python.py:163: PytestReturnNotNoneWarning: Expected None, but test_docker_csv.py::test_csv_in_docker returned False, which will be an error in a future version of pytest.  Did you mean to use `assert` instead of `return`?
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 1 passed, 1 warning in 0.39s =========================
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

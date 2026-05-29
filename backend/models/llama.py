@@ -101,13 +101,9 @@ class AzureLLMClient:
     def generate_keywords(self, user_query: str) -> List[str]:
         """Use Azure AI LLM to generate search keywords from user query"""
         try:
-            prompt = f"""Given this medical question: \"{user_query}\"
-
-Generate 3-5 specific search keywords that would help find relevant medical information online.
+            prompt = f"""Given this medical question: \"{user_query}\"\n\nGenerate 3-5 specific search keywords that would help find relevant medical information online.
 Focus on medical terms, symptoms, conditions, treatments, or procedures mentioned.
-Return only the keywords separated by commas, no explanations.
-
-Keywords:"""
+Return only the keywords separated by commas, no explanations.\n\nKeywords:"""
 
             response = self._call_llm(prompt)
             keywords = [kw.strip() for kw in response.split(',') if kw.strip()]
