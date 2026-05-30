@@ -1,22 +1,48 @@
 # Medical Chatbot Platform
 
-A production-oriented medical chatbot platform built around Retrieval-Augmented Generation (RAG), Azure AI Foundry-hosted models, FastAPI, FAISS-backed retrieval, medical-image support, multilingual UX, and source-aware answer rendering.
+> Enterprise-grade, multilingual medical assistant infrastructure for retrieval-grounded answers, source transparency, search augmentation, image-enabled workflows, and resilient browser-to-backend operations.
 
-This repository delivers a browser-based medical assistant that combines:
-- a curated medical QA knowledge base,
-- diagnosis-oriented symptom retrieval,
-- optional query-focused web search,
-- vision-assisted image workflows,
-- safety/validation layers, and
-- persistent client-side session UX.
+[![Frontend](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge)](https://medical-chatbot-henna.vercel.app/)
+[![Backend](https://img.shields.io/badge/Backend-Hugging%20Face%20Space-blue?style=for-the-badge)](https://khoaliamle-Medical-Chatbot.hf.space)
+[![API](https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge)](#api-platform)
+[![Search](https://img.shields.io/badge/Search-Multisource%20Medical-6A5ACD?style=for-the-badge)](#capability-highlights)
 
-> **Important**
-> This software is an informational medical assistant, not a substitute for licensed clinical judgment, diagnosis, or emergency care.
+A production-oriented medical chatbot platform built around Retrieval-Augmented Generation (RAG), Azure AI Foundry-backed model flows, FastAPI services, FAISS retrieval, MongoDB/GridFS artifact storage, medical image handling, multilingual UX, and source-aware answer rendering.
+
+> **Medical safety notice**  
+> This software is an informational medical assistant, not a substitute for licensed clinical judgment, diagnosis, treatment, or emergency care.
+
+## Executive Snapshot
+
+| Area | What this platform delivers |
+|---|---|
+| Experience | Browser-based medical assistant with multilingual UX, persistent sessions, markdown answers, citations, and multiple interaction modes |
+| Intelligence | Retrieval-grounded medical answering, query-focused web search, symptom-oriented lookup, and provider-backed guard workflows |
+| Runtime | Static frontend + FastAPI backend + FAISS + MongoDB/GridFS + Azure AI model endpoints |
+| Resilience | Pending-request persistence, completed-response restoration, browser history recovery, and session-scoped conversation handling |
+| Trust model | Safety classification, source-linked rendering, and explicit informational-use boundaries |
 
 ## Access
-- **Frontend (Vercel)**: https://medical-chatbot-henna.vercel.app/
-- **Backend (Hugging Face Space endpoint used by frontend in production)**: https://khoaliamle-Medical-Chatbot.hf.space
-- **Hugging Face Space page**: https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot
+
+| Surface | URL |
+|---|---|
+| Frontend production | https://medical-chatbot-henna.vercel.app/ |
+| Backend production endpoint | https://khoaliamle-Medical-Chatbot.hf.space |
+| Hugging Face Space page | https://huggingface.co/spaces/BinKhoaLe1812/Medical-Chatbot |
+
+## Why This Project Stands Out
+
+This repository packages several capabilities that are commonly fragmented across separate systems:
+- retrieval-grounded medical Q&A,
+- multilingual browser experience,
+- query-focused web search and synthesis,
+- image-assisted workflows,
+- source-aware rendering,
+- persistent client sessions,
+- backend request lifecycle recovery,
+- safety validation around both input and output.
+
+The result is a fuller application platform rather than a narrow demo chatbot.
 
 ---
 

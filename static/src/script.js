@@ -1043,7 +1043,9 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
     
     const user_id = getUserId();
     const input = document.getElementById('user-input');
-    const message = customQuery || input.value.trim();
+    
+    // CHANGED: Use 'let' instead of 'const' so the variable can be reassigned below
+    let message = customQuery || input.value.trim();
     
     // Handle empty message properly
     if (!message) {
@@ -1119,7 +1121,6 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         if (previewEl) previewEl.remove();
         
         // Configure Marked.js to handle nested formatting properly
-        // Using standard Marked.js parsing with enhanced CSS for styling
         marked.setOptions({
             breaks: true,
             gfm: true,
@@ -1129,14 +1130,11 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         
         // Preprocess source objects BEFORE markdown parsing so they aren't stripped
         const preProcessed = preProcessSourceObjects(data.response || "");
-        // Parse markdown and let CSS handle the styling
-        // This approach avoids conflicts with Marked.js internals
         let htmlResponse = marked.parse(preProcessed);
         
         // Process citation tags and replace with magnifier icons
         htmlResponse = processCitations(htmlResponse);
         
-        // Debug: Log the parsed HTML to see what's generated
         console.log('🔍 Parsed HTML:', htmlResponse);
         console.log('🔍 Original response:', data.response);
         
@@ -1146,15 +1144,14 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         addCitationListeners();
         
         // Handle video data if present
-    if (data.videos && data.videos.length > 0) {
-        displayVideos(data.videos);
-    } else {
-        // If backend didn't return videos, try to render any that were previously stored
-        const stored = getStoredVideos();
-        if (stored.length > 0) {
-            displayVideos(stored);
+        if (data.videos && data.videos.length > 0) {
+            displayVideos(data.videos);
+        } else {
+            const stored = getStoredVideos();
+            if (stored.length > 0) {
+                displayVideos(stored);
+            }
         }
-    }
         
         // Remove from pending requests since we got the response
         if (data.request_id) {
@@ -1165,12 +1162,10 @@ async function sendMessage(customQuery = null, imageBase64 = null) {
         appendMessage('bot', "❌ Failed to get a response. Please try again.", false);
         console.error(err);
     } finally {
-        // Attempt to render any stored videos after error as well
         const stored = getStoredVideos();
         if (stored.length > 0) {
             displayVideos(stored);
         }
-        // Always reset submission state and re-enable send button
         isSubmitting = false;
         const sendBtn = document.getElementById('send-btn');
         if (sendBtn) {
